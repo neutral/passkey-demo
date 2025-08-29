@@ -1,0 +1,14 @@
+# node
+web/node_modules
+web/dist
+
+# go
+server/bin
+server/*.exe
+
+# sqlite
+server/*.db
+
+# env
+.env
+web/.env*
