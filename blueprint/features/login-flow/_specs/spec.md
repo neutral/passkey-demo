@@ -1,0 +1,35 @@
+# R-FLOW-LOGIN — Login Spec
+
+## Metadata
+- Status: Draft
+- Date: 2025-08-30
+- Owners: passkey-demo maintainers
+
+## Overview
+- Server-supplied assertion options; client performs WebAuthn get; server verifies UV, rpIdHash, origin, and `signCount` strictly increases.
+
+## Interfaces
+- POST /authn/passkey/login/options
+- POST /authn/passkey/login/finish
+
+## Data / Models
+- credentials (`credential_id`, `acct_cbor_fk`, `sign_count`), accounts.
+
+## Algorithms
+- Challenge issuance and session binding; `allowCredentials` may be empty for discoverable credentials.
+- Verify assertion over `authenticatorData || SHA-256(clientDataJSON)` with account key; enforce low‑S; update `sign_count`.
+- Accept optional `userHandle` in finish request; ignore for identity (Model 2).
+
+## Security / Privacy
+- UV required; origin allowlist; rpIdHash check; secure session cookie.
+
+## Errors / Observability
+- 400/401 on verification failures; 409 on session/nonce conflicts (if any); log thumbprint + credential id length.
+
+## Testing Strategy
+- E2E login with platform authenticator; simulate sign_count progression.
+
+## Open Questions
+- None for demo scope.
+
+Refs: decision webauthn-corrections-and-standardizations; spec spec-a; spec spec-b; requirement R-FLOW-LOGIN
