@@ -5,7 +5,7 @@
 ## Phase A — Repository & Tooling
 
 
-3. **Add deps**
+### Step 3 — Add deps (Done: 2025-08-31)
 
    - Context
      - Add core dependencies for canonical CBOR encoding/decoding and SQLite persistence to support later server features.
@@ -36,6 +36,24 @@
    - Notes
      - `github.com/mattn/go-sqlite3` requires CGO; macOS/Linux dev environments satisfy this by default. For CI or cross‑compile, consider build tags or `modernc.org/sqlite` in future ADRs (out of scope for demo).
      - Canonical CBOR usage will be implemented in Step 10; no code changes in this step beyond dependency resolution.
+
+   - User verification commands (copy/paste)
+
+     ```bash
+     # Ensure server module exists
+     test -f server/go.mod && echo OK:server go.mod
+
+     # Add dependencies (idempotent if already present)
+     cd server
+     go get github.com/fxamacker/cbor/v2@v2.9.0
+     go get github.com/mattn/go-sqlite3@v1.14.32
+     go mod tidy
+
+     # Verify versions and build
+     go list -m -json github.com/fxamacker/cbor/v2 github.com/mattn/go-sqlite3 | sed -n '1,80p'
+     go build ./...
+     cd -
+     ```
 
 4. **Web app scaffold**
 
