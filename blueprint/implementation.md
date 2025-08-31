@@ -30,6 +30,26 @@
      - Run dev: `cd server && go run ./cmd/api` (in a separate terminal).
      - Health: `curl -i http://localhost:8080/health` → `HTTP/1.1 200 OK` and body `ok`.
 
+   - User verification commands (copy/paste)
+
+     ```bash
+     # Build all server packages
+     cd server && go build ./... && cd -
+
+     # Run the API server in the background
+     cd server
+     go run ./cmd/api > /tmp/step2_api.log 2>&1 & echo $! > /tmp/step2_api.pid
+     sleep 1
+
+     # Verify health endpoint
+     curl -i http://localhost:8080/health
+
+     # Stop the server
+     kill $(cat /tmp/step2_api.pid) && rm -f /tmp/step2_api.pid
+     tail -n +1 /tmp/step2_api.log | sed -n '1,50p'
+     cd -
+     ```
+
    - Notes
      - No CORS, cookies, DB, or config yet; these land in later steps (26, 24, 6, 5).
      - Keep the stub minimal to ensure fast builds and clear verification.

@@ -185,6 +185,7 @@ git checkout -b step-<n>-<kebab-name>
 ### Verification
 - Execute every command in the step’s “Verification” section.
 - Add/execute unit tests where specified; capture outputs (status codes, fields) and confirm success criteria.
+- Provide a "User verification commands" fenced code block with copy/paste shell commands that validate the step end‑to‑end (build, run, curl/tests, cleanup). Keep it minimal and idempotent.
 ```bash
 go build ./... || npm run build
 curl :8080/health -i
