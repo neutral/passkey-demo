@@ -19,6 +19,13 @@
   - Decode tolerantly: accept inputs with or without padding when reading.
 - Internally, the server decodes base64url strings back to bytes for verification and storage.
 
+## Where To Put Encoded Data (Body vs URL)
+- Default: send binary data (now strings) in the JSON request body. Bodies avoid URL length limits and reduce exposure in logs/history.
+- IDs in URLs: only use for small, non‑sensitive identifiers (e.g., transaction IDs) where shareability, caching, or bookmarking helps (`/tx?id=<id>`).
+- Redirects and handoffs: URL‑safe encodings prevent breakage in Location headers or federated flows that pass values via URLs.
+- Headers/cookies: base64url is safe here too; prefer bodies for large content, headers for compact tokens, and cookies for sessions.
+- Never put secrets or large payloads in URLs (end up in logs, referrers, browser history).
+
 ## Examples (Conceptual)
 - A credential ID (binary) → `A1bC...` base64url string in JSON; server decodes it before lookup.
 - A signed bundle (CBOR bytes) → base64url string in the request; server decodes it before hashing/verification.
@@ -42,6 +49,7 @@
 
 ## Errors & Observability
 - Malformed inputs produce “bad request” style errors (invalid alphabet/length); logs include a concise cause but not the data itself.
+ - Avoid logging full encoded values; prefer short IDs or thumbprints.
 
 ## Glossary
 - base64: textual representation of binary data using `A–Z a–z 0–9 + /` plus `=` for padding.
