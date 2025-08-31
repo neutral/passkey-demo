@@ -153,6 +153,12 @@ When analyzing and expanding any implementation step, maintain this level of con
 
 Keep expansions concise but actionable (2–8 bullets per subsection). Prefer commands and acceptance checks over prose when it improves clarity and repeatability.
 
+### Plan Maintenance
+
+- When a step is completed and verified, move the entire expanded step content verbatim into the `## Done` section in `blueprint/implementation.md` (preserve all headings, sub-bullets, verification criteria, and Refs). Do not summarize.
+- Remove the completed step from the active list so it exists only under `## Done` (no duplication).
+- Keep “Refs:” lines accurate when moving; add the completion date and any verification notes at the top of the moved step.
+
 ## Markdown Conventions
 
 - Title: every `.md` file starts with a single H1 (`# Title`) that clearly names the document.
