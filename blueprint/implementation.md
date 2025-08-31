@@ -2,12 +2,7 @@
 
 > The steps assume a mono‑repo with `server/` (Go) and `web/` (React + Vite) directories. Each step yields a compilable state and a simple verification method.
 
-## Phase A — Repository & Tooling
-
-
  
- 
-
 ## Phase B — Server: Config, DB, Models
 
 5. **Server config struct**
@@ -311,6 +306,8 @@
  - R-SEC-UV: Steps 14–15, 17–19, 21–22. Refs: requirement R-SEC-UV; decision webauthn-corrections-and-standardizations.
 
 ## Done
+
+### Phase A — Repository & Tooling
 
 ### Step 1 — Initialize repo (Done: 2025-08-31)
 
