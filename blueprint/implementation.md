@@ -351,5 +351,7 @@
 
 ## Done
 
-- None yet. When a step is completed and verified, move it here as:
-  - Step N: <title> — Date, brief notes, Refs.
+- Step 1: Initialize repo — 2025-08-31
+  - Added root `.editorconfig`; added `server/server.desc.md` and `web/web.desc.md` per Description Strategy.
+  - Verification: files present; `ls server server/internal web/src` ok; editor picks up `.editorconfig`.
+  - Refs: goal simple-ui-and-storage; requirement R-PLAT-1; requirement R-PLAT-2; requirement R-OPS-DEV
