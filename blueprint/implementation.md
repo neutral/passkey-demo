@@ -2,55 +2,7 @@
 
 > The steps assume a mono‑repo with `server/` (Go) and `web/` (React + Vite) directories. Each step yields a compilable state and a simple verification method.
 
- 
 ## Phase B — Server: Config, DB, Models
-
- 
-
- 
-
-7. **Types: COSE, WebAuthn, Bundle**
-
-   - Context
-     - Define core data shapes used across registration/login/signing: COSE EC2 public key, the signing `Bundle` (per CDDL), and minimal WebAuthn request/response payload shapes. Centralizing these types reduces duplication and mismatches across handlers.
-
-   - Structure
-     - Add `server/internal/types/types.go` with plain structs and doc comments; no logic beyond JSON/CBOR tags where needed.
-     - Keep enums/consts simple (e.g., ceremony types `"webauthn.create"|"webauthn.get"`).
-
-   - Source to add (instructions only)
-     - `server/internal/types/types.go`:
-       - `type CoseEC2 struct { Kty int 	Alg int 	Crv int 	X []byte 	Y []byte }` — holds COSE EC2 public key fields parsed from attestation.
-       - `type Bundle struct { SenderKey CoseEC2; Nonce uint64; Message string; ValidUntil *uint64 }` — mirrors the CDDL; used in signing.
-       - Minimal WebAuthn payload shapes (JSON):
-         - `type RegOptions struct { RP_ID string; Origin string; UVRequired bool; Attestation string }`
-         - `type RegFinish struct { ID string; RawID string; Response struct{ AttestationObject string; ClientDataJSON string } }`
-         - `type LoginOptions struct { RP_ID string; Origin string; UVRequired bool }`
-         - `type LoginFinish struct { ID string; RawID string; Response struct{ AuthenticatorData string; ClientDataJSON string; Signature string; UserHandle string } }`
-       - Note: Binary fields are base64url strings at the API surface; server decodes to bytes before verification.
-
-   - Description files to add (instructions only)
-     - `server/internal/types/types.go.desc.md`: Purpose (shared models), Key Types (CoseEC2, Bundle, WebAuthn payloads), Interactions (used by handlers and helpers), Refs.
-       - Refs: requirement R-ID-KEY; requirement R-SCHEMA-LITE; requirement R-PLAT-2.
-
-   - Blueprint updates
-     - Refs to include upon implementation: goal key-first-identity-cose; goal minimal-cbor-bundle; requirement R-ID-KEY; requirement R-SCHEMA-LITE; requirement R-PLAT-2.
-
-   - Verification (to run after implementation)
-     - Lint/build: `cd server && go vet ./... && go build ./...` (expect exit 0).
-     - Import sanity: run `rg -n "package types" server` to confirm package compiles and is discoverable.
-
-   - User verification commands (copy/paste)
-
-     ```bash
-     cd server
-     go vet ./... && go build ./...
-     rg -n "package types|type CoseEC2|type Bundle" internal/types/types.go
-     cd -
-     ```
-
-   - Notes
-     - Keep types minimal and transport‑oriented; parsing/validation logic belongs in subsequent steps (e.g., WebAuthn parsers, CBOR codec, crypto helpers).
 
 8. **COSE → ECDSA helper**
 
@@ -313,7 +265,7 @@
 - **Replay/Nonce**: Re-submit nonce 2 → **409** conflict.
 - **UV check**: If browser returns an assertion without UV (simulate by forcing options incorrectly) → **403** forbidden.
 - **Origin/RP guard**: Change `origin` in request body → **403**.
- - **Low‑S enforced**: Hand-craft a signature with high‑S (unit test) → **400**.
+- **Low‑S enforced**: Hand-craft a signature with high‑S (unit test) → **400**.
 
 ## Coverage & Refs (Traceability)
 
@@ -330,7 +282,7 @@
 - R-ERR: Steps 25, 34, 38, 40. Refs: requirement R-ERR; decision encoding-and-ceremony-guardrails.
 - R-NO-BROKER: Entire plan avoids brokers; synchronous calls. Refs: requirement R-NO-BROKER.
 - R-PORTABLE: Steps 26, 27–34, 37. Refs: requirement R-PORTABLE.
- - R-SEC-UV: Steps 14–15, 17–19, 21–22. Refs: requirement R-SEC-UV; decision webauthn-corrections-and-standardizations.
+- R-SEC-UV: Steps 14–15, 17–19, 21–22. Refs: requirement R-SEC-UV; decision webauthn-corrections-and-standardizations.
 
 ## Done
 
@@ -338,297 +290,381 @@
 
 ### Step 1 — Initialize repo (Done: 2025-08-31)
 
-   - Structure
-     - Ensure `server/`, `web/`, `blueprint/` exist (present in this repo) and root `.gitignore` exists (present).
-     - Commands: `ls -la`, `git status` (confirm clean state before adding files).
+- Structure
 
-   - Source to add
-     - Root `.editorconfig` with: UTF‑8; LF; trim trailing whitespace; insert final newline; 2 spaces for TS/TSX/JS/JSON/MD/YAML; tabs for Go.
-       - Example sections: `[*.{ts,tsx,js,json,md,yml,yaml}] indent_size = 2`, `[*.go] indent_style = tab`.
+  - Ensure `server/`, `web/`, `blueprint/` exist (present in this repo) and root `.gitignore` exists (present).
+  - Commands: `ls -la`, `git status` (confirm clean state before adding files).
 
-   - Description files to add
-     - `server/server.desc.md`: backend overview (WebAuthn endpoints, SQLite persistence), relations to frontend and DB; key invariants (UV required, canonical CBOR, low‑S, signCount monotonic).
-       - Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails.
-     - `web/web.desc.md`: SPA overview (Register/Login/Dashboard; WebAuthn invocations; CBOR bundle build), relations to backend.
-       - Refs: goal ui-simplicity-two-buttons; requirement R-PLAT-1; requirement R-UI-2BTN; flows registration/login/transaction-signing.
+- Source to add
 
-   - Blueprint updates
-     - Add a short note under this step with “Refs: goal simple-ui-and-storage; requirement R-PLAT-1; requirement R-PLAT-2; requirement R-OPS-DEV”.
-     - Do not mark subsequent steps In‑Progress until their artifacts are Approved.
+  - Root `.editorconfig` with: UTF‑8; LF; trim trailing whitespace; insert final newline; 2 spaces for TS/TSX/JS/JSON/MD/YAML; tabs for Go.
+    - Example sections: `[*.{ts,tsx,js,json,md,yml,yaml}] indent_size = 2`, `[*.go] indent_style = tab`.
 
-   - Verify
-     - `git status` shows only: `.editorconfig`, `server/server.desc.md`, `web/web.desc.md` as changes.
-     - `test -f .editorconfig && echo ok` returns `ok`.
-     - `ls server server/internal web/src >/dev/null` exits 0.
-     - Editor/formatter recognizes `.editorconfig` (spot‑check by saving a TS file and a Go file).
+- Description files to add
+
+  - `server/server.desc.md`: backend overview (WebAuthn endpoints, SQLite persistence), relations to frontend and DB; key invariants (UV required, canonical CBOR, low‑S, signCount monotonic).
+    - Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails.
+  - `web/web.desc.md`: SPA overview (Register/Login/Dashboard; WebAuthn invocations; CBOR bundle build), relations to backend.
+    - Refs: goal ui-simplicity-two-buttons; requirement R-PLAT-1; requirement R-UI-2BTN; flows registration/login/transaction-signing.
+
+- Blueprint updates
+
+  - Add a short note under this step with “Refs: goal simple-ui-and-storage; requirement R-PLAT-1; requirement R-PLAT-2; requirement R-OPS-DEV”.
+  - Do not mark subsequent steps In‑Progress until their artifacts are Approved.
+
+- Verify
+  - `git status` shows only: `.editorconfig`, `server/server.desc.md`, `web/web.desc.md` as changes.
+  - `test -f .editorconfig && echo ok` returns `ok`.
+  - `ls server server/internal web/src >/dev/null` exits 0.
+  - Editor/formatter recognizes `.editorconfig` (spot‑check by saving a TS file and a Go file).
 
 ### Step 2 — Server Go module (Done: 2025-08-31)
 
-   - Context
-     - Initialize a minimal Go HTTP server with a health endpoint to unblock future backend steps.
+- Context
 
-   - Structure
-     - Ensure `server/` exists and contains a Go module.
-       - If `server/go.mod` is missing, run: `cd server && go mod init txkit-demo && go mod tidy`.
+  - Initialize a minimal Go HTTP server with a health endpoint to unblock future backend steps.
 
-   - Source to add (instructions only)
-     - `server/cmd/api/main.go`: package `main`; start `net/http` server on `:8080`; define `/health` handler returning `200 OK` with body `ok` (text/plain).
-       - Use `http.NewServeMux()` and `http.ListenAndServe(":8080", mux)`; log a startup line `listening :8080`.
-       - Keep constants in-file for now; Step 5 will introduce `config.go` and refactor port/origin.
+- Structure
 
-   - Description files to add (instructions only)
-     - `server/cmd/api/main.go.desc.md`: Purpose (entrypoint; health), Key Logic (mux, handlers), Interactions (no DB yet), Refs.
-       - Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV.
+  - Ensure `server/` exists and contains a Go module.
+    - If `server/go.mod` is missing, run: `cd server && go mod init txkit-demo && go mod tidy`.
 
-   - Blueprint updates
-     - Add “Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV” under this step after implementation.
+- Source to add (instructions only)
 
-   - Verification (to run after implementation)
-     - Build: `cd server && go build ./...` (expect exit 0).
-     - Run dev: `cd server && go run ./cmd/api` (in a separate terminal).
-     - Health: `curl -i http://localhost:8080/health` → `HTTP/1.1 200 OK` and body `ok`.
+  - `server/cmd/api/main.go`: package `main`; start `net/http` server on `:8080`; define `/health` handler returning `200 OK` with body `ok` (text/plain).
+    - Use `http.NewServeMux()` and `http.ListenAndServe(":8080", mux)`; log a startup line `listening :8080`.
+    - Keep constants in-file for now; Step 5 will introduce `config.go` and refactor port/origin.
 
-   - User verification commands (copy/paste)
+- Description files to add (instructions only)
 
-     ```bash
-     # Build all server packages
-     cd server && go build ./... && cd -
+  - `server/cmd/api/main.go.desc.md`: Purpose (entrypoint; health), Key Logic (mux, handlers), Interactions (no DB yet), Refs.
+    - Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV.
 
-     # Run the API server in the background
-     cd server
-     go run ./cmd/api > /tmp/step2_api.log 2>&1 & echo $! > /tmp/step2_api.pid
-     sleep 1
+- Blueprint updates
 
-     # Verify health endpoint
-     curl -i http://localhost:8080/health
+  - Add “Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV” under this step after implementation.
 
-     # Stop the server
-     kill $(cat /tmp/step2_api.pid) && rm -f /tmp/step2_api.pid
-     tail -n +1 /tmp/step2_api.log | sed -n '1,50p'
-     cd -
-     ```
+- Verification (to run after implementation)
 
-   - Notes
-     - No CORS, cookies, DB, or config yet; these land in later steps (26, 24, 6, 5).
-     - Keep the stub minimal to ensure fast builds and clear verification.
+  - Build: `cd server && go build ./...` (expect exit 0).
+  - Run dev: `cd server && go run ./cmd/api` (in a separate terminal).
+  - Health: `curl -i http://localhost:8080/health` → `HTTP/1.1 200 OK` and body `ok`.
+
+- User verification commands (copy/paste)
+
+  ```bash
+  # Build all server packages
+  cd server && go build ./... && cd -
+
+  # Run the API server in the background
+  cd server
+  go run ./cmd/api > /tmp/step2_api.log 2>&1 & echo $! > /tmp/step2_api.pid
+  sleep 1
+
+  # Verify health endpoint
+  curl -i http://localhost:8080/health
+
+  # Stop the server
+  kill $(cat /tmp/step2_api.pid) && rm -f /tmp/step2_api.pid
+  tail -n +1 /tmp/step2_api.log | sed -n '1,50p'
+  cd -
+  ```
+
+- Notes
+  - No CORS, cookies, DB, or config yet; these land in later steps (26, 24, 6, 5).
+  - Keep the stub minimal to ensure fast builds and clear verification.
 
 ### Step 3 — Add deps (Done: 2025-08-31)
 
-   - Context
-     - Add core dependencies for canonical CBOR encoding/decoding and SQLite persistence to support later server features.
+- Context
 
-   - Structure
-     - Work within `server/` Go module; ensure `server/go.mod` exists.
-       - If missing, complete Step 2 prerequisites for module init.
+  - Add core dependencies for canonical CBOR encoding/decoding and SQLite persistence to support later server features.
 
-   - Source to add (instructions only)
-     - Add CBOR library: `github.com/fxamacker/cbor/v2@v2.9.0` (canonical options support).
-     - Add SQLite driver: `github.com/mattn/go-sqlite3@v1.14.32` (CGO‑based; acceptable for local dev).
-     - Command sequence:
-       - `cd server && go get github.com/fxamacker/cbor/v2@v2.9.0`
-       - `cd server && go get github.com/mattn/go-sqlite3@v1.14.32`
-       - `cd server && go mod tidy`
+- Structure
 
-   - Description files to add (instructions only)
-     - None for this step; description files will accompany code that uses these deps (Steps 6–10 and DB/CBOR helpers).
+  - Work within `server/` Go module; ensure `server/go.mod` exists.
+    - If missing, complete Step 2 prerequisites for module init.
 
-   - Blueprint updates
-     - Refs to include upon implementation: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SCHEMA-LITE.
+- Source to add (instructions only)
 
-   - Verification (to run after implementation)
-     - Inspect module files changed: `git diff -- server/go.mod server/go.sum` (shows added deps and checksums).
-     - Build all packages: `cd server && go build ./...` (expect exit 0).
-     - Optional: print versions resolved: `cd server && go list -m -json github.com/fxamacker/cbor/v2 github.com/mattn/go-sqlite3`.
+  - Add CBOR library: `github.com/fxamacker/cbor/v2@v2.9.0` (canonical options support).
+  - Add SQLite driver: `github.com/mattn/go-sqlite3@v1.14.32` (CGO‑based; acceptable for local dev).
+  - Command sequence:
+    - `cd server && go get github.com/fxamacker/cbor/v2@v2.9.0`
+    - `cd server && go get github.com/mattn/go-sqlite3@v1.14.32`
+    - `cd server && go mod tidy`
 
-   - Notes
-     - `github.com/mattn/go-sqlite3` requires CGO; macOS/Linux dev environments satisfy this by default. For CI or cross‑compile, consider build tags or `modernc.org/sqlite` in future ADRs (out of scope for demo).
-     - Canonical CBOR usage will be implemented in Step 10; no code changes in this step beyond dependency resolution.
+- Description files to add (instructions only)
 
-   - User verification commands (copy/paste)
+  - None for this step; description files will accompany code that uses these deps (Steps 6–10 and DB/CBOR helpers).
 
-     ```bash
-     # Ensure server module exists
-     test -f server/go.mod && echo OK:server go.mod
+- Blueprint updates
 
-     # Add dependencies (idempotent if already present)
-     cd server
-     go get github.com/fxamacker/cbor/v2@v2.9.0
-     go get github.com/mattn/go-sqlite3@v1.14.32
-     go mod tidy
+  - Refs to include upon implementation: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SCHEMA-LITE.
 
-     # Verify versions and build
-     go list -m -json github.com/fxamacker/cbor/v2 github.com/mattn/go-sqlite3 | sed -n '1,80p'
-     go build ./...
-     cd -
-     ```
+- Verification (to run after implementation)
+
+  - Inspect module files changed: `git diff -- server/go.mod server/go.sum` (shows added deps and checksums).
+  - Build all packages: `cd server && go build ./...` (expect exit 0).
+  - Optional: print versions resolved: `cd server && go list -m -json github.com/fxamacker/cbor/v2 github.com/mattn/go-sqlite3`.
+
+- Notes
+
+  - `github.com/mattn/go-sqlite3` requires CGO; macOS/Linux dev environments satisfy this by default. For CI or cross‑compile, consider build tags or `modernc.org/sqlite` in future ADRs (out of scope for demo).
+  - Canonical CBOR usage will be implemented in Step 10; no code changes in this step beyond dependency resolution.
+
+- User verification commands (copy/paste)
+
+  ```bash
+  # Ensure server module exists
+  test -f server/go.mod && echo OK:server go.mod
+
+  # Add dependencies (idempotent if already present)
+  cd server
+  go get github.com/fxamacker/cbor/v2@v2.9.0
+  go get github.com/mattn/go-sqlite3@v1.14.32
+  go mod tidy
+
+  # Verify versions and build
+  go list -m -json github.com/fxamacker/cbor/v2 github.com/mattn/go-sqlite3 | sed -n '1,80p'
+  go build ./...
+  cd -
+  ```
 
 ### Phase B — Server: Config, DB, Models
 
+### Step 4 — Web app scaffold (Done: 2025-08-31)
+
+- Context
+
+  - Initialize a minimal React + Vite SPA to support Register/Login/Dashboard in later steps.
+
+- Structure
+
+  - Ensure `web/` exists. If not present, scaffold from repo root.
+    - New project: `npm create vite@latest web -- --template react`.
+    - Existing folder: `cd web && npm create vite@latest . -- --template react`.
+
+- Source to add (instructions only)
+
+  - Ensure `package.json` contains scripts: `dev`, `build`, `preview` (Vite defaults).
+  - Confirm `vite.config.ts` exists; keep defaults (proxy optional; CORS handled in Step 26).
+  - Keep `src/App.tsx` as minimal root component; no additional pages yet (arrive in Step 27+).
+  - Optional: add `.env.development` with `VITE_API_BASE=http://localhost:8080` for later use (not required yet).
+
+- Description files to add (instructions only)
+
+  - None; high-level `web/web.desc.md` already exists from Step 1. Add per-file descriptions when pages/components are implemented (Step 27+).
+
+- Blueprint updates
+
+  - Refs to include upon implementation: goal simple-ui-and-storage; requirement R-PLAT-1; requirement R-UI-2BTN; requirement R-OPS-DEV.
+
+- Verification (to run after implementation)
+
+  - Install deps: `cd web && npm ci`.
+  - Dev server: `cd web && npm run dev` (expect server on http://localhost:5173).
+  - Build: `cd web && npm run build` (expect dist/ output with no errors).
+  - Optional: `curl -I http://localhost:5173` after dev server starts (expect 200 OK).
+
+- User verification commands (copy/paste)
+
+  ```bash
+  # Install deps (if node_modules absent)
+  test -d web/node_modules || (cd web && npm ci)
+
+  # Start dev server in background and verify
+  cd web
+  npm run dev > /tmp/vite.log 2>&1 & echo $! > /tmp/vite.pid
+  sleep 1
+  curl -I http://localhost:5173
+  kill $(cat /tmp/vite.pid) && rm -f /tmp/vite.pid
+
+  # Production build
+  npm run build
+  cd -
+  ```
+
+- Notes
+  - Do not wire API calls or pages yet; keep the scaffold minimal and compilable.
+  - CORS is configured in Step 26. A Vite proxy is optional for local convenience and can be added later.
+
 ### Step 5 — Server config struct (Done: 2025-08-31)
 
-   - Context
-     - Centralize runtime configuration (RP ID, origin, port, DB path, allowlists) to support secure WebAuthn checks and local dev.
+- Context
 
-   - Structure
-     - Add a `server/internal/config` package with a single `config.go` file, or a top-level `server/config.go` if keeping it flat (choose one; prefer `internal/config`).
-     - Expose `type Config struct { RP_ID string; Origin string; Port string; DBPath string; RPAllowlist []string; OriginAllowlist []string }` and `func Load() (*Config, error)`.
+  - Centralize runtime configuration (RP ID, origin, port, DB path, allowlists) to support secure WebAuthn checks and local dev.
 
-   - Source to add (instructions only)
-     - `server/internal/config/config.go`:
-       - Read env vars: `RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`, `RP_ID_ALLOWLIST` (comma-separated), `ORIGIN_ALLOWLIST` (comma-separated).
-       - Defaults: `RP_ID=localhost`, `ORIGIN=http://localhost:5173`, `PORT=8080`, `DB_PATH=server/demo.db`.
-       - Normalize: trim spaces; lowercase `RP_ID`; ensure `Origin` has scheme and no trailing slash.
-       - Derive `RPAllowlist` (include `RP_ID` if not present) and `OriginAllowlist` (include `Origin` if not present).
-       - Validate: `RP_ID` non-empty; `Origin` parses as URL; `PORT` numeric; deny wildcard origins; allowlist entries must be exact matches (no globs).
-       - Log (on startup) a concise summary (rp_id, origin, port, db_path) without secrets.
-     - Integration note: refactor `cmd/api/main.go` later to call `config.Load()` and bind to `cfg.Port` (tracked in a later step to avoid scope creep here).
+- Structure
 
-   - Description files to add (instructions only)
-     - `server/internal/config/config.go.desc.md`: Purpose (central config), Key Logic (env parsing, defaults, validation), Interactions (used by main and handlers), Refs.
-       - Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV; requirement R-PORTABLE.
+  - Add a `server/internal/config` package with a single `config.go` file, or a top-level `server/config.go` if keeping it flat (choose one; prefer `internal/config`).
+  - Expose `type Config struct { RP_ID string; Origin string; Port string; DBPath string; RPAllowlist []string; OriginAllowlist []string }` and `func Load() (*Config, error)`.
 
-   - Blueprint updates
-     - Refs to include upon implementation: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV; requirement R-PORTABLE; requirement R-SEC-UV (policy alignment).
+- Source to add (instructions only)
 
-   - Verification (to run after implementation)
-     - Build: `cd server && go build ./...` (expect exit 0).
-     - Run with defaults: `cd server && RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 go run ./cmd/api` and observe startup log contains rp_id/origin/port.
-     - Invalid config: `cd server && ORIGIN=bad go run ./cmd/api` should log/return a clear error from `config.Load()`.
+  - `server/internal/config/config.go`:
+    - Read env vars: `RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`, `RP_ID_ALLOWLIST` (comma-separated), `ORIGIN_ALLOWLIST` (comma-separated).
+    - Defaults: `RP_ID=localhost`, `ORIGIN=http://localhost:5173`, `PORT=8080`, `DB_PATH=server/demo.db`.
+    - Normalize: trim spaces; lowercase `RP_ID`; ensure `Origin` has scheme and no trailing slash.
+    - Derive `RPAllowlist` (include `RP_ID` if not present) and `OriginAllowlist` (include `Origin` if not present).
+    - Validate: `RP_ID` non-empty; `Origin` parses as URL; `PORT` numeric; deny wildcard origins; allowlist entries must be exact matches (no globs).
+    - Log (on startup) a concise summary (rp_id, origin, port, db_path) without secrets.
+  - Integration note: refactor `cmd/api/main.go` later to call `config.Load()` and bind to `cfg.Port` (tracked in a later step to avoid scope creep here).
 
-   - User verification commands (copy/paste)
+- Description files to add (instructions only)
 
-     ```bash
-     # Build with config package present
-     cd server && go build ./... && cd -
+  - `server/internal/config/config.go.desc.md`: Purpose (central config), Key Logic (env parsing, defaults, validation), Interactions (used by main and handlers), Refs.
+    - Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV; requirement R-PORTABLE.
 
-     # Run with explicit envs and observe log (Ctrl+C to stop)
-     cd server
-     RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo.db \
-       go run ./cmd/api > /tmp/step5_server.log 2>&1 & echo $! > /tmp/step5_api.pid
-     sleep 1
-     grep -E "rp_id|origin|listening" -i /tmp/step5_server.log | sed -n '1,5p'
-     kill $(cat /tmp/step5_api.pid) && rm -f /tmp/step5_api.pid
-     cd -
+- Blueprint updates
 
-     # Invalid origin should fail fast
-     cd server && ORIGIN=bad go run ./cmd/api || echo "expected failure" && cd -
-     ```
+  - Refs to include upon implementation: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV; requirement R-PORTABLE; requirement R-SEC-UV (policy alignment).
 
-   - Notes
-     - Keep config minimal and focused; secrets are out of scope for the demo.
-     - RP/Origin allowlists backstop later security checks in Step 14 and across ceremonies.
+- Verification (to run after implementation)
+
+  - Build: `cd server && go build ./...` (expect exit 0).
+  - Run with defaults: `cd server && RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 go run ./cmd/api` and observe startup log contains rp_id/origin/port.
+  - Invalid config: `cd server && ORIGIN=bad go run ./cmd/api` should log/return a clear error from `config.Load()`.
+
+- User verification commands (copy/paste)
+
+  ```bash
+  # Build with config package present
+  cd server && go build ./... && cd -
+
+  # Run with explicit envs and observe log (Ctrl+C to stop)
+  cd server
+  RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo.db \
+    go run ./cmd/api > /tmp/step5_server.log 2>&1 & echo $! > /tmp/step5_api.pid
+  sleep 1
+  grep -E "rp_id|origin|listening" -i /tmp/step5_server.log | sed -n '1,5p'
+  kill $(cat /tmp/step5_api.pid) && rm -f /tmp/step5_api.pid
+  cd -
+
+  # Invalid origin should fail fast
+  cd server && ORIGIN=bad go run ./cmd/api || echo "expected failure" && cd -
+  ```
+
+- Notes
+  - Keep config minimal and focused; secrets are out of scope for the demo.
+  - RP/Origin allowlists backstop later security checks in Step 14 and across ceremonies.
 
 ### Step 6 — DB init & migrations (Done: 2025-08-31)
 
-   - Context
-     - Initialize SQLite persistence to support account, credential, session, and transaction storage per R-PLAT-3. Apply schema at startup with safe `CREATE TABLE IF NOT EXISTS` statements.
+- Context
 
-   - Structure
-     - Add `server/internal/storage` package (or `server/internal/db`): `storage.go` with `Open(cfg *config.Config) (*sql.DB, error)` and `Migrate(db *sql.DB) error`.
-     - PRAGMAs on open: `foreign_keys=ON`, journal_mode=WAL, synchronous=NORMAL (demo-grade), busy_timeout=5000.
+  - Initialize SQLite persistence to support account, credential, session, and transaction storage per R-PLAT-3. Apply schema at startup with safe `CREATE TABLE IF NOT EXISTS` statements.
 
-   - Source to add (instructions only)
-     - `server/internal/storage/storage.go`:
-       - Open database at `cfg.DBPath` using `github.com/mattn/go-sqlite3` via `database/sql`.
-       - Set connection pool (e.g., `SetMaxOpenConns(1)` for SQLite; `SetConnMaxIdleTime` reasonable).
-       - Execute PRAGMAs and call `Migrate` with the schema:
-         - Tables from R-PLAT-3 (accounts, credentials, sessions, transactions) with `IF NOT EXISTS` and `FOREIGN KEY` constraints.
-       - Provide `Close()` responsibility to caller (main) later; for now, return `db`.
-     - Integration note: wire into `cmd/api/main.go` later (when handlers need DB), keeping this step focused on package creation and migrations.
+- Structure
 
-   - Description files to add (instructions only)
-     - `server/internal/storage/storage.go.desc.md`: Purpose (SQLite open + migrate), Key Logic (PRAGMAs, schema), Interactions (used by main/handlers), Refs.
-       - Refs: goal simple-ui-and-storage; requirement R-PLAT-3; requirement R-PLAT-2; requirement R-ERR.
+  - Add `server/internal/storage` package (or `server/internal/db`): `storage.go` with `Open(cfg *config.Config) (*sql.DB, error)` and `Migrate(db *sql.DB) error`.
+  - PRAGMAs on open: `foreign_keys=ON`, journal_mode=WAL, synchronous=NORMAL (demo-grade), busy_timeout=5000.
 
-   - Blueprint updates
-     - Refs to include upon implementation: requirement R-PLAT-3; goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-NO-BROKER.
+- Source to add (instructions only)
 
-   - Verification (to run after implementation)
-     - Build: `cd server && go build ./...` (expect exit 0).
-     - Run a tiny snippet (temporary or via main if already integrated) to call `storage.Open(cfg)` then `storage.Migrate(db)`.
-     - Confirm DB file exists: `test -f server/demo.db`.
-     - Optional (if `sqlite3` CLI available): `sqlite3 server/demo.db '.schema'` shows the four tables with expected columns.
+  - `server/internal/storage/storage.go`:
+    - Open database at `cfg.DBPath` using `github.com/mattn/go-sqlite3` via `database/sql`.
+    - Set connection pool (e.g., `SetMaxOpenConns(1)` for SQLite; `SetConnMaxIdleTime` reasonable).
+    - Execute PRAGMAs and call `Migrate` with the schema:
+      - Tables from R-PLAT-3 (accounts, credentials, sessions, transactions) with `IF NOT EXISTS` and `FOREIGN KEY` constraints.
+    - Provide `Close()` responsibility to caller (main) later; for now, return `db`.
+  - Integration note: wire into `cmd/api/main.go` later (when handlers need DB), keeping this step focused on package creation and migrations.
 
-   - User verification commands (copy/paste)
+- Description files to add (instructions only)
 
-     ```bash
-     # Build server with storage package present
-     cd server && go build ./... && cd -
+  - `server/internal/storage/storage.go.desc.md`: Purpose (SQLite open + migrate), Key Logic (PRAGMAs, schema), Interactions (used by main/handlers), Refs.
+    - Refs: goal simple-ui-and-storage; requirement R-PLAT-3; requirement R-PLAT-2; requirement R-ERR.
 
-     # Quick migration runner (inline Go) — does not modify app code
-     cd server
-     cat > /tmp/migrate.go <<'EOF'
-     package main
-     import (
-       "log"
-       cfgpkg "github.com/neutral/passkey-demo/internal/config"
-       store "github.com/neutral/passkey-demo/internal/storage"
-     )
-     func main(){
-       cfg, err := cfgpkg.Load(); if err!=nil{ log.Fatal(err) }
-       db, err := store.Open(cfg); if err!=nil{ log.Fatal(err) }
-       defer db.Close()
-       if err := store.Migrate(db); err!=nil { log.Fatal(err) }
-       log.Println("migrated ok")
-     }
-     EOF
-     PORT=0 go run /tmp/migrate.go
-     test -f server/demo.db && echo OK:db-exists
-     # Optional schema view
-     command -v sqlite3 >/dev/null && sqlite3 server/demo.db '.schema' | sed -n '1,60p'
-     cd -
-     ```
+- Blueprint updates
 
-   - Notes
-     - Keep PRAGMAs demo-grade; for production, review durability/performance trade-offs.
-     - Foreign keys must be enabled for relational integrity; use `ON DELETE CASCADE` as specified.
+  - Refs to include upon implementation: requirement R-PLAT-3; goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-NO-BROKER.
 
-### Step 4 — Web app scaffold (Done: 2025-08-31)
+- Verification (to run after implementation)
 
-   - Context
-     - Initialize a minimal React + Vite SPA to support Register/Login/Dashboard in later steps.
+  - Build: `cd server && go build ./...` (expect exit 0).
+  - Run a tiny snippet (temporary or via main if already integrated) to call `storage.Open(cfg)` then `storage.Migrate(db)`.
+  - Confirm DB file exists: `test -f server/demo.db`.
+  - Optional (if `sqlite3` CLI available): `sqlite3 server/demo.db '.schema'` shows the four tables with expected columns.
 
-   - Structure
-     - Ensure `web/` exists. If not present, scaffold from repo root.
-       - New project: `npm create vite@latest web -- --template react`.
-       - Existing folder: `cd web && npm create vite@latest . -- --template react`.
+- User verification commands (copy/paste)
 
-   - Source to add (instructions only)
-     - Ensure `package.json` contains scripts: `dev`, `build`, `preview` (Vite defaults).
-     - Confirm `vite.config.ts` exists; keep defaults (proxy optional; CORS handled in Step 26).
-     - Keep `src/App.tsx` as minimal root component; no additional pages yet (arrive in Step 27+).
-     - Optional: add `.env.development` with `VITE_API_BASE=http://localhost:8080` for later use (not required yet).
+  ```bash
+  # Build server with storage package present
+  cd server && go build ./... && cd -
 
-   - Description files to add (instructions only)
-     - None; high-level `web/web.desc.md` already exists from Step 1. Add per-file descriptions when pages/components are implemented (Step 27+).
+  # Quick migration runner (inline Go) — does not modify app code
+  cd server
+  cat > /tmp/migrate.go <<'EOF'
+  package main
+  import (
+    "log"
+    cfgpkg "github.com/neutral/passkey-demo/internal/config"
+    store "github.com/neutral/passkey-demo/internal/storage"
+  )
+  func main(){
+    cfg, err := cfgpkg.Load(); if err!=nil{ log.Fatal(err) }
+    db, err := store.Open(cfg); if err!=nil{ log.Fatal(err) }
+    defer db.Close()
+    if err := store.Migrate(db); err!=nil { log.Fatal(err) }
+    log.Println("migrated ok")
+  }
+  EOF
+  PORT=0 go run /tmp/migrate.go
+  test -f server/demo.db && echo OK:db-exists
+  # Optional schema view
+  command -v sqlite3 >/dev/null && sqlite3 server/demo.db '.schema' | sed -n '1,60p'
+  cd -
+  ```
 
-   - Blueprint updates
-     - Refs to include upon implementation: goal simple-ui-and-storage; requirement R-PLAT-1; requirement R-UI-2BTN; requirement R-OPS-DEV.
+- Notes
+  - Keep PRAGMAs demo-grade; for production, review durability/performance trade-offs.
+  - Foreign keys must be enabled for relational integrity; use `ON DELETE CASCADE` as specified.
 
-   - Verification (to run after implementation)
-     - Install deps: `cd web && npm ci`.
-     - Dev server: `cd web && npm run dev` (expect server on http://localhost:5173).
-     - Build: `cd web && npm run build` (expect dist/ output with no errors).
-     - Optional: `curl -I http://localhost:5173` after dev server starts (expect 200 OK).
+### Step 7 — Types: COSE, WebAuthn, Bundle (Done: 2025-08-31)
 
-   - User verification commands (copy/paste)
+- Context
 
-     ```bash
-     # Install deps (if node_modules absent)
-     test -d web/node_modules || (cd web && npm ci)
+  - Define core data shapes used across registration/login/signing: COSE EC2 public key, the signing `Bundle` (per CDDL), and minimal WebAuthn request/response payload shapes. Centralizing these types reduces duplication and mismatches across handlers.
 
-     # Start dev server in background and verify
-     cd web
-     npm run dev > /tmp/vite.log 2>&1 & echo $! > /tmp/vite.pid
-     sleep 1
-     curl -I http://localhost:5173
-     kill $(cat /tmp/vite.pid) && rm -f /tmp/vite.pid
+- Structure
 
-     # Production build
-     npm run build
-     cd -
-     ```
+  - Add `server/internal/types/types.go` with plain structs and doc comments; no logic beyond JSON/CBOR tags where needed.
+  - Keep enums/consts simple (e.g., ceremony types `"webauthn.create"|"webauthn.get"`).
 
-   - Notes
-     - Do not wire API calls or pages yet; keep the scaffold minimal and compilable.
-     - CORS is configured in Step 26. A Vite proxy is optional for local convenience and can be added later.
+- Source to add (instructions only)
+
+  - `server/internal/types/types.go`:
+    - `type CoseEC2 struct { Kty int \tAlg int \tCrv int \tX []byte \tY []byte }` — holds COSE EC2 public key fields parsed from attestation.
+    - `type Bundle struct { SenderKey CoseEC2; Nonce uint64; Message string; ValidUntil *uint64 }` — mirrors the CDDL; used in signing.
+    - Minimal WebAuthn payload shapes (JSON):
+      - `type RegOptions struct { RP_ID string; Origin string; UVRequired bool; Attestation string }`
+      - `type RegFinish struct { ID string; RawID string; Response struct{ AttestationObject string; ClientDataJSON string } }`
+      - `type LoginOptions struct { RP_ID string; Origin string; UVRequired bool }`
+      - `type LoginFinish struct { ID string; RawID string; Response struct{ AuthenticatorData string; ClientDataJSON string; Signature string; UserHandle string } }`
+    - Note: Binary fields are base64url strings at the API surface; server decodes to bytes before verification.
+
+- Description files to add (instructions only)
+
+  - `server/internal/types/types.go.desc.md`: Purpose (shared models), Key Types (CoseEC2, Bundle, WebAuthn payloads), Interactions (used by handlers and helpers), Refs.
+    - Refs: requirement R-ID-KEY; requirement R-SCHEMA-LITE; requirement R-PLAT-2.
+
+- Blueprint updates
+
+  - Refs to include upon implementation: goal key-first-identity-cose; goal minimal-cbor-bundle; requirement R-ID-KEY; requirement R-SCHEMA-LITE; requirement R-PLAT-2.
+
+- Verification (to run after implementation)
+
+  - Lint/build: `cd server && go vet ./... && go build ./...` (expect exit 0).
+  - Import sanity: run `rg -n "package types" server` to confirm package compiles and is discoverable.
+
+- User verification commands (copy/paste)
+
+  ```bash
+  cd server
+  go vet ./... && go build ./...
+  rg -n "package types|type CoseEC2|type Bundle" internal/types/types.go
+  cd -
+  ```
+
+- Notes
+  - Keep types minimal and transport‑oriented; parsing/validation logic belongs in subsequent steps (e.g., WebAuthn parsers, CBOR codec, crypto helpers).
