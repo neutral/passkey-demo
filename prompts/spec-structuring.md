@@ -1,3 +1,6 @@
+# Technical Spec Prompt
+
+## Purpose
 Use this template to extract the Technical Specification for a single requirement from a larger body of text and produce a standards‑compliant `_specs/spec.md`.
 
 ## Technical Spec Prompt Template

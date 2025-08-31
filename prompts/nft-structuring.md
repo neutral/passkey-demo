@@ -1,3 +1,6 @@
+# NFR Requirement Prompt
+
+## Purpose
 Use this template to extract a single Non‑Functional Requirement (NFR) from a larger body of source text and produce a standards‑compliant requirement.md for the blueprint.
 
 ## NFR Requirement Prompt Template

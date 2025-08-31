@@ -1,3 +1,6 @@
+# User Flow Prompt
+
+## Purpose
 Use this template to generate clear, consistent user flow documents in any project. Paste it into your tool to produce Markdown flows that follow the structure and tone below.
 
 ## User Flow Prompt Template

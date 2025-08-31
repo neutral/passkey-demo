@@ -1,3 +1,6 @@
+# FR Requirement Prompt
+
+## Purpose
 Use this template to extract a single Functional Requirement (FR) from a larger body of source text and produce a standards‑compliant requirement.md for the blueprint.
 
 ## FR Requirement Prompt Template

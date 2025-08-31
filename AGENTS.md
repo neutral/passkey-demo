@@ -1,4 +1,6 @@
-# Blueprint Strategy
+# Agents Guide
+
+## Blueprint Strategy
 
 ## Purpose
 
@@ -60,7 +62,7 @@
 
 - When present, `blueprint/_draft/` contains raw notes/specs. Migrate its content into the structured folders (`global/`, `features/`, `_user-flows/`, `_decisions/`, `implementation.md`).
 
-# Description Strategy
+## Description Strategy
 
 ## Purpose
 
@@ -127,7 +129,7 @@ Source file (`<filename>.<ext>.desc.md`):
 Refs: goal <name>; requirement <name>; spec <name>; decision <name>
 ```
 
-# Agent Workflow
+## Agent Workflow
 
 - Orient: read `blueprint/goals.md` and relevant `*.desc.md` to anchor priorities and current design intent.
 - Plan: pull tasks from `blueprint/implementation.md` with clear “Refs”; identify folders/files to touch and whether required `.desc.md` files exist.
@@ -137,3 +139,27 @@ Refs: goal <name>; requirement <name>; spec <name>; decision <name>
 - Trace: carry artifact names through branches, commits, and PRs; reference both blueprint artifacts and the description files updated/created.
 - Verify: execute testing strategy from specs; confirm acceptance criteria; mark tasks Verified; ensure description files and comments reflect final behavior.
 - Migrate: if `blueprint/_draft/` exists, migrate notes into structured folders and update related description files.
+
+## Step Expansion Guidelines
+
+When analyzing and expanding any implementation step, maintain this level of concrete detail:
+
+- Source changes: enumerate exact files to add/modify/delete; include paths and brief purpose. Provide example commands where helpful (e.g., `npm create vite@latest web -- --template react`).
+- Description files: list required `<folder>.desc.md` or `<file>.<ext>.desc.md` to create/update, with a one‑line summary and “Refs:” placeholders pointing to goals/requirements/specs/decisions.
+- Blueprint refs: include the relevant “Refs:” line for traceability back to goals/requirements/specs/ADRs; update `blueprint/implementation.md` task state only when linked to Approved artifacts.
+- Verification: specify concrete, quick checks and commands (e.g., `git status`, `go build ./...`, `curl :8080/health`, `npm run dev`), and success criteria (status codes, output fields, file presence).
+- Sequencing: call out any dependencies or temporary workarounds that let the step run before later middleware/hardening (e.g., do inline session lookup until auth middleware is added; use Vite proxy until CORS is configured).
+- Policies and limits: explicitly restate critical policy bits (e.g., UV/residentKey/attestation; TTLs; size limits) when a step is responsible for enforcing them, and include how they’re verified.
+
+Keep expansions concise but actionable (2–8 bullets per subsection). Prefer commands and acceptance checks over prose when it improves clarity and repeatability.
+
+## Markdown Conventions
+
+- Title: every `.md` file starts with a single H1 (`# Title`) that clearly names the document.
+- Purpose: include a short `## Purpose` section near the top stating why the doc exists.
+- Headings: use a consistent hierarchy (H1 once; H2 for main sections; H3 for subsections). Do not skip levels.
+- Code blocks: use fenced code blocks with language hints for clarity and syntax highlighting (e.g., ```bash, ```json, ```go, ```ts, ```sql, ```cddl). Prefer blocks over inline for multi-line commands or code.
+- Inline code: wrap commands, file paths, env vars, constants, and identifiers in backticks.
+- Lists: use bullets for concise, scannable items; keep each bullet verifiable and single-purpose.
+- Refs: include a final `Refs:` line in blueprint artifacts linking goals/requirements/specs/decisions where applicable.
+- Consistency: prefer present tense, active voice; avoid fluff; keep sections short and self-contained.

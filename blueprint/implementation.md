@@ -6,9 +6,29 @@
 
 1. **Initialize repo**
 
-   - Create directories: `server/`, `web/`.
-   - Add root `.editorconfig`, `.gitignore` (Go, Node, SQLite db file).
-   - _Verify_: `git status` shows clean structure.
+   - Structure
+     - Ensure `server/`, `web/`, `blueprint/` exist (present in this repo) and root `.gitignore` exists (present).
+     - Commands: `ls -la`, `git status` (confirm clean state before adding files).
+
+   - Source to add
+     - Root `.editorconfig` with: UTF‑8; LF; trim trailing whitespace; insert final newline; 2 spaces for TS/TSX/JS/JSON/MD/YAML; tabs for Go.
+       - Example sections: `[*.{ts,tsx,js,json,md,yml,yaml}] indent_size = 2`, `[*.go] indent_style = tab`.
+
+   - Description files to add
+     - `server/server.desc.md`: backend overview (WebAuthn endpoints, SQLite persistence), relations to frontend and DB; key invariants (UV required, canonical CBOR, low‑S, signCount monotonic).
+       - Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails.
+     - `web/web.desc.md`: SPA overview (Register/Login/Dashboard; WebAuthn invocations; CBOR bundle build), relations to backend.
+       - Refs: goal ui-simplicity-two-buttons; requirement R-PLAT-1; requirement R-UI-2BTN; flows registration/login/transaction-signing.
+
+   - Blueprint updates
+     - Add a short note under this step with “Refs: goal simple-ui-and-storage; requirement R-PLAT-1; requirement R-PLAT-2; requirement R-OPS-DEV”.
+     - Do not mark subsequent steps In‑Progress until their artifacts are Approved.
+
+   - Verify
+     - `git status` shows only: `.editorconfig`, `server/server.desc.md`, `web/web.desc.md` as changes.
+     - `test -f .editorconfig && echo ok` returns `ok`.
+     - `ls server server/internal web/src >/dev/null` exits 0.
+     - Editor/formatter recognizes `.editorconfig` (spot‑check by saving a TS file and a Go file).
 
 2. **Server Go module**
 
@@ -23,7 +43,7 @@
 
 4. **Web app scaffold**
 
-   - `cd ../web && npm create vite@latest web -- --template react`.
+   - From repo root: `npm create vite@latest web -- --template react` (or if `web/` already exists: `cd web && npm create vite@latest . -- --template react`).
    - Install deps: none needed beyond React for now.
    - _Verify_: `npm run dev` launches Vite dev server; open `http://localhost:5173`.
 
@@ -105,7 +125,7 @@
 
 17. **/authn/passkey/registration/finish handler**
 
-    - Load session; verify CDJ (`type=create`, challenge, origin).
+    - Load session; verify not expired; verify CDJ (`type=create`, challenge, origin).
     - Verify `rpIdHash` in AD; check UV flag; extract COSE key, credentialId, initial signCount, and optional AAGUID.
     - **Persist**: insert into `accounts` (acct_cbor = canonical CBOR of COSE key; acct_thumb = SHA256("ACCTK1"||acct_cbor)) and `credentials` (credential_id, acct_cbor_fk, sign_count, aaguid).
     - _Verify_: register via browser → handler returns 201 with `account_thumb_hex`.
@@ -121,7 +141,7 @@
 
 19. **/authn/passkey/login/finish handler**
 
-    - Load session; verify CDJ (`type=get`, challenge, origin).
+    - Load session; verify not expired; verify CDJ (`type=get`, challenge, origin).
     - Parse AD: verify rpIdHash, UV; read `signCount`.
     - **Identify account** by `credential_id` from request (look up in `credentials`).
     - Verify signature using **account’s COSE key** (ECDSA).
@@ -141,13 +161,14 @@
 21. **/tx/signing/options handler (auth required)**
 
     - Parse `bundle_cbor_b64`; call helper.
+    - Read cookie and resolve server session to an account (inline until middleware in step 24 is added).
     - Create `tx_session_id`, store `{B, challenge, acct_cbor, expected_cred_id, expiresAt}` with TTL = 5 minutes.
     - Respond with **assertion options** (challenge, rpId, `userVerification: required`, `allowCredentials` = logged-in user’s credentialId).
     - _Verify_: browser can call; returns options with `expires_at`.
 
 22. **/tx/signing/finish handler (auth required)**
 
-    - Load `tx_session_id`; verify CDJ (`type=get`, challenge, origin).
+    - Load `tx_session_id`; verify not expired; verify CDJ (`type=get`, challenge, origin).
     - Verify AD (rpIdHash, UV, signCount monotonic).
     - Verify signature using **account’s COSE key**.
     - Persist transaction (tx_id, bundle_cbor, AD, CDJ, signature, nonce, message).
@@ -172,20 +193,26 @@
     - Max body size middleware (e.g., 64 KB).
     - _Verify_: exceed limits → 429/413.
 
+26. **CORS & cookies**
+
+    - Allow `http://localhost:5173`; set `SameSite=Lax`; for dev over HTTP, skip `Secure`.
+    - _Verify_: cross-origin works from Vite.
+
 ## Phase H — Frontend (React) UI
 
-26. **Basic pages**
+27. **Basic pages**
 
     - `Register.tsx`, `Login.tsx`, `Dashboard.tsx`; a simple router (or conditional rendering).
     - Home screen presents only two primary actions: Register and Login (post-login shows Dashboard).
+    - CORS configured in step 26; alternatively, set a Vite dev proxy to backend (`/api` → `http://localhost:8080`) during development.
     - _Verify_: SPA renders pages; home shows exactly two buttons.
 
-27. **Base64url helpers (web)**
+28. **Base64url helpers (web)**
 
     - JS utils: ArrayBuffer ⇄ base64url; UTF‑8 encoder/decoder.
     - _Verify_: unit test in browser console.
 
-28. **WebAuthn create() flow (Register)**
+29. **WebAuthn create() flow (Register)**
 
     - `POST /authn/passkey/registration/options`; convert JSON fields to `PublicKeyCredentialCreationOptions` (transform b64url→ArrayBuffer).
     - Call `navigator.credentials.create(...)`.
@@ -193,19 +220,19 @@
     - On success: show account thumb, route to Login.
     - _Verify_: end-to-end registration completes.
 
-29. **WebAuthn get() flow (Login)**
+30. **WebAuthn get() flow (Login)**
 
     - `POST /authn/passkey/login/options`; convert to `PublicKeyCredentialRequestOptions`.
     - Call `navigator.credentials.get(...)`.
     - Send `login/finish`; on success: set “logged in” UI state (no global store, just local state) and route to Dashboard.
     - _Verify_: end-to-end login completes; cookie present.
 
-30. **Dashboard: fetch list**
+31. **Dashboard: fetch list**
 
     - Call `GET /tx/list`; render in table.
     - _Verify_: empty initially.
 
-31. **Dashboard: build bundle**
+32. **Dashboard: build bundle**
 
     - UI collects `message` (string) and computes a **nonce**:
 
@@ -213,10 +240,10 @@
       - Option B: call `GET /tx/next-nonce` (optional helper) to get `last_nonce+1`. (If not implemented, client tracks increment.)
 
     - Build `Bundle` object in JS compatible with the CDDL.
-    - Encode **canonical CBOR** in browser (use a small CBOR lib).
+    - Install a small CBOR lib (e.g., `cbor-x`) and encode **canonical CBOR** in browser.
     - _Verify_: preview CBOR (hex) in console.
 
-32. **Transaction signing options**
+33. **Transaction signing options**
 
     - `POST /tx/signing/options` with `bundle_cbor_b64`.
     - Receive `publicKey` options; call `navigator.credentials.get(...)`.
@@ -224,19 +251,19 @@
     - On success: refresh list.
     - _Verify_: message appears in table with nonce and timestamp.
 
-33. **Error toasts**
+34. **Error toasts**
 
     - Render server error messages (JSON `{ code, error }`) as inline alerts.
     - _Verify_: cause a failure (bad origin or nonce) and observe mapped error code per server envelope.
 
 ## Phase I — Testing & Fixtures
 
-34. **Unit tests (Go)**
+35. **Unit tests (Go)**
 
     - COSE→ECDSA, CDJ parse, AD parse, low‑S check, canonical encoding, hash anchors.
     - _Verify_: `go test ./...` passes.
 
-35. **Golden vectors**
+36. **Golden vectors**
 
     - Create a tiny CLI in `server/cmd/vectors` that:
 
@@ -244,17 +271,12 @@
 
     - _Verify_: consistent outputs between runs.
 
-36. **Manual E2E**
+37. **Manual E2E**
 
     - Run server + web; perform registration, login, and sign two messages with nonces 1, 2 in Safari and Chrome on macOS.
     - _Verify_: `/tx/list` shows two entries; DB reflects persisted rows; flows succeed in both browsers with platform authenticators.
 
 ## Phase J — Hardening (Demo-grade)
-
-37. **CORS & cookies**
-
-    - Allow `http://localhost:5173`; set `SameSite=Lax`; for dev over HTTP, skip `Secure`.
-    - _Verify_: cross-origin works from Vite.
 
 38. **Input validation & errors**
 
@@ -308,21 +330,26 @@
 - **Replay/Nonce**: Re-submit nonce 2 → **409** conflict.
 - **UV check**: If browser returns an assertion without UV (simulate by forcing options incorrectly) → **403** forbidden.
 - **Origin/RP guard**: Change `origin` in request body → **403**.
-- **Low‑S enforced**: Hand-craft a signature with high‑S (unit test) → **400**.
+ - **Low‑S enforced**: Hand-craft a signature with high‑S (unit test) → **400**.
 
 ## Coverage & Refs (Traceability)
 
-- R-FLOW-REG: Steps 11–17, 37–38. Refs: requirement R-FLOW-REG; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails.
-- R-FLOW-LOGIN: Steps 11–14, 18–19, 24, 37–39. Refs: requirement R-FLOW-LOGIN; decision webauthn-corrections-and-standardizations.
-- R-FLOW-SIGN: Steps 20–23, 31–32, 37–38. Refs: requirement R-FLOW-SIGN; decision encoding-and-ceremony-guardrails.
+- R-FLOW-REG: Steps 11–17, 26, 38. Refs: requirement R-FLOW-REG; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails.
+- R-FLOW-LOGIN: Steps 11–14, 18–19, 24, 26, 38–39. Refs: requirement R-FLOW-LOGIN; decision webauthn-corrections-and-standardizations.
+- R-FLOW-SIGN: Steps 20–23, 32–33, 26, 38. Refs: requirement R-FLOW-SIGN; decision encoding-and-ceremony-guardrails.
 - R-ID-KEY: Steps 7–8, 16–17, 19, 22–23. Refs: requirement R-ID-KEY; decision webauthn-corrections-and-standardizations.
-- R-SCHEMA-LITE: Steps 10, 20, 31. Refs: requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails.
-- R-UI-2BTN: Steps 26, 30–33. Refs: requirement R-UI-2BTN.
-- R-PLAT-1: Steps 4, 26–33. Refs: requirement R-PLAT-1.
-- R-PLAT-2: Steps 5, 11–25, 37–40. Refs: requirement R-PLAT-2.
+- R-SCHEMA-LITE: Steps 10, 20, 32. Refs: requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails.
+- R-UI-2BTN: Steps 27, 31–34. Refs: requirement R-UI-2BTN.
+- R-PLAT-1: Steps 4, 27–34. Refs: requirement R-PLAT-1.
+- R-PLAT-2: Steps 5, 11–26, 38–40. Refs: requirement R-PLAT-2.
 - R-PLAT-3: Steps 6, 17, 19, 22–23, 34–35. Refs: requirement R-PLAT-3.
-- R-OPS-DEV: Steps 5, 37, 41, 44–45. Refs: requirement R-OPS-DEV.
-- R-ERR: Steps 25, 33, 38, 40. Refs: requirement R-ERR; decision encoding-and-ceremony-guardrails.
+- R-OPS-DEV: Steps 5, 26, 41, 44–45. Refs: requirement R-OPS-DEV.
+- R-ERR: Steps 25, 34, 38, 40. Refs: requirement R-ERR; decision encoding-and-ceremony-guardrails.
 - R-NO-BROKER: Entire plan avoids brokers; synchronous calls. Refs: requirement R-NO-BROKER.
-- R-PORTABLE: Steps 26–33, 36–37. Refs: requirement R-PORTABLE.
-- R-SEC-UV: Steps 14–15, 17–19, 21–22. Refs: requirement R-SEC-UV; decision webauthn-corrections-and-standardizations.
+- R-PORTABLE: Steps 26, 27–34, 37. Refs: requirement R-PORTABLE.
+ - R-SEC-UV: Steps 14–15, 17–19, 21–22. Refs: requirement R-SEC-UV; decision webauthn-corrections-and-standardizations.
+
+## Done
+
+- None yet. When a step is completed and verified, move it here as:
+  - Step N: <title> — Date, brief notes, Refs.
