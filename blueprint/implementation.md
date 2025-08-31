@@ -4,9 +4,6 @@
 
 ## Phase A — Repository & Tooling
 
-2. **Server Go module**
-
-   - See Done section (Step 2) for full expanded details and verification commands.
 
 3. **Add deps**
 

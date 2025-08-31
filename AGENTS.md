@@ -156,7 +156,7 @@ Keep expansions concise but actionable (2–8 bullets per subsection). Prefer co
 ### Plan Maintenance
 
 - When a step is completed and verified, move the entire expanded step content verbatim into the `## Done` section in `blueprint/implementation.md` (preserve all headings, sub-bullets, verification criteria, and Refs). Do not summarize.
-- Remove the completed step from the active list so it exists only under `## Done` (no duplication).
+- Remove the completed step from the active list so it exists only under `## Done` (no duplication). Do not leave placeholders or pointers in the active list.
 - Keep “Refs:” lines accurate when moving; add the completion date and any verification notes at the top of the moved step.
 
 ## Step Implementation Guidelines
@@ -208,7 +208,7 @@ git push -u origin step-<n>-<kebab-name>
 - In the PR description, confirm acceptance criteria and verification outcomes.
 
 ### Move to Done
-- After merge/verification, move the entire expanded step content verbatim to `## Done` in `blueprint/implementation.md` (add date + notes) and remove it from the active list.
+- After merge/verification, move the entire expanded step content verbatim to `## Done` in `blueprint/implementation.md` (add date + notes) and remove it from the active list. Do not leave any pointers behind.
 
 ## Markdown Conventions
 
