@@ -4,9 +4,7 @@
 
 ## Phase B — Server: Config, DB, Models
 
-8. **COSE → ECDSA helper**
-
-   - See Done section (Step 8) for full details and verification commands.
+ 
 
 9. **Base64url utilities**
 

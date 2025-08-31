@@ -155,10 +155,11 @@ Keep expansions concise but actionable (2–8 bullets per subsection). Prefer co
 
 ### Plan Maintenance
 
-- When a step is completed and verified, move the entire expanded step content verbatim into the `## Done` section in `blueprint/implementation.md` (preserve all headings, sub-bullets, verification criteria, and Refs). Do not summarize.
-- Remove the completed step from the active list so it exists only under `## Done` (no duplication). Do not leave placeholders or pointers in the active list.
+- When a step is completed and verified, move the entire expanded step content verbatim into a new file under `blueprint/done/` (preserve all headings, sub-bullets, verification criteria, and Refs). Do not summarize.
+- File naming: prefix the filename with the phase to aid organization, then the step number and a short kebab name, e.g., `phase-a-step-1-initialize-repo.md`, `phase-b-step-6-db-init-and-migrations.md`.
+- Remove the completed step from the active list so it exists only under `blueprint/done/` (no duplication). Do not leave placeholders or pointers in the active list.
 - Keep “Refs:” lines accurate when moving; add the completion date and any verification notes at the top of the moved step.
-- Also copy the phase name: create or append under a phase header within `## Done` (e.g., `### Phase A — ...`) and place the moved step(s) beneath it. If the original phase is left empty in the active list, remove that empty phase header.
+- The `## Done` section in `blueprint/implementation.md` should remain minimal, pointing to the `blueprint/done/` folder for completed steps. If a phase in the active list becomes empty after moves, remove that empty phase header.
 
 ## Step Implementation Guidelines
 
