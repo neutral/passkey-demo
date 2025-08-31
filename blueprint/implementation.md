@@ -91,8 +91,9 @@
 15. **/authn/passkey/registration/options handler**
 
     - Generate `reg_session_id`, random 32B challenge, temp `user.id` (random 32B), build options JSON.
-    - Save `{reg_session_id, challenge, rpId, origin, expiresAt}` in memory map (and optional table if persisting).
-    - _Verify_: `curl` returns options; check challenge length & fields.
+    - Set policy: `userVerification: "required"`, `residentKey: "required"`, `attestation: "none"`.
+    - Save `{reg_session_id, challenge, rpId, origin, expiresAt}` with TTL = 5 minutes in memory map (and optional table if persisting).
+    - _Verify_: `curl` returns options; check challenge length & fields; policy flags present; `expires_at` ≈ now+5m.
 
 16. **Attestation parsing (minimal)**
 
@@ -105,8 +106,8 @@
 17. **/authn/passkey/registration/finish handler**
 
     - Load session; verify CDJ (`type=create`, challenge, origin).
-    - Verify `rpIdHash` in AD; check UV flag; extract COSE key, credentialId, initial signCount.
-    - **Persist**: insert into `accounts` (acct_cbor, acct_thumb) and `credentials` (1:1).
+    - Verify `rpIdHash` in AD; check UV flag; extract COSE key, credentialId, initial signCount, and optional AAGUID.
+    - **Persist**: insert into `accounts` (acct_cbor = canonical CBOR of COSE key; acct_thumb = SHA256("ACCTK1"||acct_cbor)) and `credentials` (credential_id, acct_cbor_fk, sign_count, aaguid).
     - _Verify_: register via browser → handler returns 201 with `account_thumb_hex`.
 
 ## Phase E — Login Endpoints
@@ -115,8 +116,8 @@
 
     - Generate `login_session_id`, random 32B challenge.
     - Return options (`rpId`, `challenge`, `userVerification: required`, `allowCredentials: []`).
-    - Store `{login_session_id, challenge, rpId, origin}` in memory.
-    - _Verify_: `curl` returns proper JSON.
+    - Store `{login_session_id, challenge, rpId, origin, expiresAt}` with TTL = 5 minutes in memory.
+    - _Verify_: `curl` returns proper JSON; includes `expires_at` ≈ now+5m.
 
 19. **/authn/passkey/login/finish handler**
 
@@ -140,9 +141,9 @@
 21. **/tx/signing/options handler (auth required)**
 
     - Parse `bundle_cbor_b64`; call helper.
-    - Create `tx_session_id`, store `{B, challenge, acct_cbor, expected_cred_id}`.
-    - Respond with **assertion options** (challenge, rpId, UV required, allowCredentials = logged-in user’s credentialId).
-    - _Verify_: browser can call; returns options.
+    - Create `tx_session_id`, store `{B, challenge, acct_cbor, expected_cred_id, expiresAt}` with TTL = 5 minutes.
+    - Respond with **assertion options** (challenge, rpId, `userVerification: required`, `allowCredentials` = logged-in user’s credentialId).
+    - _Verify_: browser can call; returns options with `expires_at`.
 
 22. **/tx/signing/finish handler (auth required)**
 
@@ -176,7 +177,8 @@
 26. **Basic pages**
 
     - `Register.tsx`, `Login.tsx`, `Dashboard.tsx`; a simple router (or conditional rendering).
-    - _Verify_: SPA renders pages.
+    - Home screen presents only two primary actions: Register and Login (post-login shows Dashboard).
+    - _Verify_: SPA renders pages; home shows exactly two buttons.
 
 27. **Base64url helpers (web)**
 
@@ -224,8 +226,8 @@
 
 33. **Error toasts**
 
-    - Render server error messages (JSON `error`, `code`) as inline alerts.
-    - _Verify_: cause a failure (bad origin or nonce) and observe message.
+    - Render server error messages (JSON `{ code, error }`) as inline alerts.
+    - _Verify_: cause a failure (bad origin or nonce) and observe mapped error code per server envelope.
 
 ## Phase I — Testing & Fixtures
 
@@ -244,8 +246,8 @@
 
 36. **Manual E2E**
 
-    - Run server + web; perform registration, login, and sign two messages with nonces 1, 2.
-    - _Verify_: `/tx/list` shows two entries; DB reflects persisted rows.
+    - Run server + web; perform registration, login, and sign two messages with nonces 1, 2 in Safari and Chrome on macOS.
+    - _Verify_: `/tx/list` shows two entries; DB reflects persisted rows; flows succeed in both browsers with platform authenticators.
 
 ## Phase J — Hardening (Demo-grade)
 
@@ -254,10 +256,11 @@
     - Allow `http://localhost:5173`; set `SameSite=Lax`; for dev over HTTP, skip `Secure`.
     - _Verify_: cross-origin works from Vite.
 
-38. **Input validation**
+38. **Input validation & errors**
 
-    - Enforce message length ≤ 1024; nonce ≤ `2^53 - 1`; origin/rpId in allowlist.
-    - _Verify_: oversize blocked with 400.
+    - Enforce message length ≤ 1024; nonce ≤ `2^53 - 1`; origin/rpId in allowlist; body size ≤ 64 KB.
+    - Implement standardized error envelope `{ code, error, correlation_id? }` and map to HTTP 400/401/403/409/413/429/5xx per R-ERR.
+    - _Verify_: oversize blocked with 400/413; invalid/replay/UV/origin issues map to correct codes; frontend displays `code`.
 
 39. **Session security**
 
@@ -301,8 +304,25 @@
 - **Build**: `go build ./server/...` and `npm run build` in `/web` both succeed.
 - **Register/Login**: Using macOS with Touch ID, both ceremonies prompt for fingerprint; login sets cookie.
 - **Sign**: Create 2 messages with nonces 1 and 2; both appear in `/tx/list` and DB.
+- **Ephemeral TTLs**: Registration/login/tx option sessions expire after 5 minutes; expired attempts return 409.
 - **Replay/Nonce**: Re-submit nonce 2 → **409** conflict.
 - **UV check**: If browser returns an assertion without UV (simulate by forcing options incorrectly) → **403** forbidden.
 - **Origin/RP guard**: Change `origin` in request body → **403**.
 - **Low‑S enforced**: Hand-craft a signature with high‑S (unit test) → **400**.
 
+## Coverage & Refs (Traceability)
+
+- R-FLOW-REG: Steps 11–17, 37–38. Refs: requirement R-FLOW-REG; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails.
+- R-FLOW-LOGIN: Steps 11–14, 18–19, 24, 37–39. Refs: requirement R-FLOW-LOGIN; decision webauthn-corrections-and-standardizations.
+- R-FLOW-SIGN: Steps 20–23, 31–32, 37–38. Refs: requirement R-FLOW-SIGN; decision encoding-and-ceremony-guardrails.
+- R-ID-KEY: Steps 7–8, 16–17, 19, 22–23. Refs: requirement R-ID-KEY; decision webauthn-corrections-and-standardizations.
+- R-SCHEMA-LITE: Steps 10, 20, 31. Refs: requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails.
+- R-UI-2BTN: Steps 26, 30–33. Refs: requirement R-UI-2BTN.
+- R-PLAT-1: Steps 4, 26–33. Refs: requirement R-PLAT-1.
+- R-PLAT-2: Steps 5, 11–25, 37–40. Refs: requirement R-PLAT-2.
+- R-PLAT-3: Steps 6, 17, 19, 22–23, 34–35. Refs: requirement R-PLAT-3.
+- R-OPS-DEV: Steps 5, 37, 41, 44–45. Refs: requirement R-OPS-DEV.
+- R-ERR: Steps 25, 33, 38, 40. Refs: requirement R-ERR; decision encoding-and-ceremony-guardrails.
+- R-NO-BROKER: Entire plan avoids brokers; synchronous calls. Refs: requirement R-NO-BROKER.
+- R-PORTABLE: Steps 26–33, 36–37. Refs: requirement R-PORTABLE.
+- R-SEC-UV: Steps 14–15, 17–19, 21–22. Refs: requirement R-SEC-UV; decision webauthn-corrections-and-standardizations.

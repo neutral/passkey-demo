@@ -56,14 +56,6 @@
 - ADRs: explicit consequences and trade‑offs; status maintained.
 - Tasks: only In‑Progress when linked to Approved artifacts; PRs reference artifact names and confirm criteria are met.
 
-## Agent Workflow
-
-- Orient: read `blueprint/goals.md` to anchor priorities and tenets.
-- Plan: pull tasks from `blueprint/implementation.md` with clear “Refs”.
-- Build: scaffold from spec‑defined interfaces and data models; consult `blueprint/_user-flows/` to drive UX and API contracts.
-- Trace: carry artifact names through branches, commits, PRs, and CI.
-- Verify: execute testing strategy from specs; mark tasks Verified after criteria pass.
-
 ## Migration Note
 
 - When present, `blueprint/_draft/` contains raw notes/specs. Migrate its content into the structured folders (`global/`, `features/`, `_user-flows/`, `_decisions/`, `implementation.md`).
@@ -134,3 +126,14 @@ Source file (`<filename>.<ext>.desc.md`):
 # Refs
 Refs: goal <name>; requirement <name>; spec <name>; decision <name>
 ```
+
+# Agent Workflow
+
+- Orient: read `blueprint/goals.md` and relevant `*.desc.md` to anchor priorities and current design intent.
+- Plan: pull tasks from `blueprint/implementation.md` with clear “Refs”; identify folders/files to touch and whether required `.desc.md` files exist.
+- Prepare: create or update description files (`<folder>.desc.md`, `<file>.<ext>.desc.md`) alongside planned code, including Refs to goals/requirements/specs/decisions.
+- Build: scaffold from spec-defined interfaces and data models; consult `blueprint/_user-flows/` to drive UX/API; implement with exhaustive inline code comments.
+- Document: keep description files high-level and accurate (logic, relations, invariants, interfaces, errors); co-locate with code and update as behavior evolves.
+- Trace: carry artifact names through branches, commits, and PRs; reference both blueprint artifacts and the description files updated/created.
+- Verify: execute testing strategy from specs; confirm acceptance criteria; mark tasks Verified; ensure description files and comments reflect final behavior.
+- Migrate: if `blueprint/_draft/` exists, migrate notes into structured folders and update related description files.
