@@ -158,6 +158,7 @@ Keep expansions concise but actionable (2–8 bullets per subsection). Prefer co
 - When a step is completed and verified, move the entire expanded step content verbatim into the `## Done` section in `blueprint/implementation.md` (preserve all headings, sub-bullets, verification criteria, and Refs). Do not summarize.
 - Remove the completed step from the active list so it exists only under `## Done` (no duplication). Do not leave placeholders or pointers in the active list.
 - Keep “Refs:” lines accurate when moving; add the completion date and any verification notes at the top of the moved step.
+- Also copy the phase name: create or append under a phase header within `## Done` (e.g., `### Phase A — ...`) and place the moved step(s) beneath it. If the original phase is left empty in the active list, remove that empty phase header.
 
 ## Step Implementation Guidelines
 
