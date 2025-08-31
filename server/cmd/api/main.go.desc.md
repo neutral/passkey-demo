@@ -7,7 +7,8 @@ Entrypoint for the Go HTTP server used in the demo. It starts an `http.Server` o
 - Logs a startup line and calls `http.ListenAndServe`.
 
 # Interactions
-- No DB, CORS, cookies, or middleware yet. Those are introduced in later steps (config, DB, sessions, CORS).
+- Loads configuration via `internal/config.Load()` and uses `cfg.Port` for the listen address; logs rp_id, origin, and db path at startup.
+- No DB, CORS, cookies, or middleware yet. Those are introduced in later steps (DB, sessions, CORS).
 - Called directly by `go run ./cmd/api` during development; will be the main binary for the server.
 
 # Refs

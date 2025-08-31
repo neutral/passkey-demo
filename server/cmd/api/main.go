@@ -1,21 +1,18 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"os"
+    "log"
+    "net/http"
+
+    cfgpkg "github.com/neutral/passkey-demo/internal/config"
 )
 
-func getenv(k, d string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return d
-}
-
 func main() {
-	port := getenv("PORT", "8080")
-	mux := http.NewServeMux()
+    cfg, err := cfgpkg.Load()
+    if err != nil {
+        log.Fatalf("config error: %v", err)
+    }
+    mux := http.NewServeMux()
 
 	// Health
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -25,6 +22,7 @@ func main() {
 
 	// TODO: mount /authn/passkey/*, /tx/*, /transaction/list
 
-	log.Printf("server listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+    log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
+    log.Printf("server listening on :%s", cfg.Port)
+    log.Fatal(http.ListenAndServe(":"+cfg.Port, mux))
 }
