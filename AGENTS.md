@@ -159,6 +159,56 @@ Keep expansions concise but actionable (2–8 bullets per subsection). Prefer co
 - Remove the completed step from the active list so it exists only under `## Done` (no duplication).
 - Keep “Refs:” lines accurate when moving; add the completion date and any verification notes at the top of the moved step.
 
+## Step Implementation Guidelines
+
+This process applies after a step has been expanded in `blueprint/implementation.md`. Follow it to implement the step end‑to‑end while preserving traceability and quality.
+
+### Prerequisites
+- Read the expanded step and related artifacts (requirements/specs/ADRs, goals, user flows).
+- Confirm dependencies are in place (prior steps complete; required tools installed).
+
+### Branching
+- Create a feature branch named after the step: `step-<n>-<short-name>`.
+```bash
+git checkout -b step-<n>-<kebab-name>
+```
+
+### Implement (scope exactly as planned)
+- Create/modify only the files listed in the step’s “Source to add” and follow the stated policies (e.g., UV/residentKey/attestation, TTLs, limits).
+- Keep changes minimal; avoid unrelated refactors.
+- Maintain exhaustive inline code comments; align with repo style.
+
+### Description Files
+- Create/update all `<folder>.desc.md` and `<file>.<ext>.desc.md` listed in the step.
+- Include accurate overviews, relations, invariants, interfaces, notable errors; keep “Refs:” lines up‑to‑date.
+
+### Verification
+- Execute every command in the step’s “Verification” section.
+- Add/execute unit tests where specified; capture outputs (status codes, fields) and confirm success criteria.
+```bash
+go build ./... || npm run build
+curl :8080/health -i
+```
+
+### Documentation & Blueprint Updates
+- If the step mentions docs (API examples, env sample), add/update them accordingly.
+- Update `blueprint/implementation.md` with any verification notes explicitly called for by the step.
+
+### Commit & Push
+- Stage only the files relevant to this step.
+```bash
+git add <files>
+git commit -m "step-<n>: <concise summary>" -m "Refs: goal ..., requirement ..., decision ..."
+git push -u origin step-<n>-<kebab-name>
+```
+
+### Pull Request
+- Open a PR linking the step title and “Refs:” from the plan.
+- In the PR description, confirm acceptance criteria and verification outcomes.
+
+### Move to Done
+- After merge/verification, move the entire expanded step content verbatim to `## Done` in `blueprint/implementation.md` (add date + notes) and remove it from the active list.
+
 ## Markdown Conventions
 
 - Title: every `.md` file starts with a single H1 (`# Title`) that clearly names the document.
