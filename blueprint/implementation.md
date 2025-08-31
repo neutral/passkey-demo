@@ -6,10 +6,7 @@
 
  
 
-9. **Base64url utilities**
-
-   - `b64url.go`: encode/decode with/without padding (tolerant decode).
-   - _Verify_: tests roundtrip random bytes.
+ 
 
 10. **CBOR canonical codec**
 
