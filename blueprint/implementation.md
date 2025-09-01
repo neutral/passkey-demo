@@ -6,11 +6,6 @@
 
 ## Phase C — WebAuthn Core Verification
 
-11. **Parse authenticatorData**
-
-    - `webauthn_ad.go`: parse AD → `rpIdHash []byte`, `flags byte`, `signCount uint32`.
-    - _Verify_: test with known binary sample; ensure big‑endian parse.
-
 12. **ClientDataJSON validation**
 
     - `webauthn_cdj.go`: parse JSON; expose `Type`, `Challenge` (decoded), `Origin`.
