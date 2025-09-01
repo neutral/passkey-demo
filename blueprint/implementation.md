@@ -4,15 +4,6 @@
 
 ## Phase B — Server: Config, DB, Models
 
- 
-
- 
-
-10. **CBOR canonical codec**
-
-    - `cbor.go`: instantiate fxamacker encoder with canonical options; `EncodeCanonical(v any) ([]byte, error)` and `Decode()` helpers.
-    - _Verify_: test deterministic encoding order for a map (compare hex to expected).
-
 ## Phase C — WebAuthn Core Verification
 
 11. **Parse authenticatorData**
