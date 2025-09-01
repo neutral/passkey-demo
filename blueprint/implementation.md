@@ -6,13 +6,7 @@
 
 ## Phase D — Registration Endpoints
 
-16. **Attestation parsing (minimal)**
-
-    - `webauthn_att.go`: decode `attestationObject` CBOR; extract:
-
-      - `authData` → parse AAGUID, credentialId, **COSE key**.
-
-    - _Verify_: with a real registration, ensure you can parse returned attestation.
+16. **Attestation parsing (minimal)** — Moved to Done
 
 17. **/authn/passkey/registration/finish handler**
 
