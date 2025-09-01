@@ -71,3 +71,29 @@ func LogAssertion(l *slog.Logger, v VerifyLog) {
     )
 }
 
+// MapPolicyError maps RP ID / Origin policy sentinel errors to HTTP status and kind.
+//  - 400: invalid inputs or schemes (ErrRpIdInvalid, ErrOriginMalformed, ErrOriginScheme)
+//  - 403: policy mismatches (ErrRpIdHashMismatch, ErrOriginHost, ErrOriginPort, ErrOriginNotAllowed)
+//  - 500: other
+func MapPolicyError(err error) (int, string) {
+    switch {
+    case err == nil:
+        return http.StatusOK, "none"
+    case errors.Is(err, ErrRpIdInvalid):
+        return http.StatusBadRequest, "ErrRpIdInvalid"
+    case errors.Is(err, ErrOriginMalformed):
+        return http.StatusBadRequest, "ErrOriginMalformed"
+    case errors.Is(err, ErrOriginScheme):
+        return http.StatusBadRequest, "ErrOriginScheme"
+    case errors.Is(err, ErrRpIdHashMismatch):
+        return http.StatusForbidden, "ErrRpIdHashMismatch"
+    case errors.Is(err, ErrOriginHost):
+        return http.StatusForbidden, "ErrOriginHost"
+    case errors.Is(err, ErrOriginPort):
+        return http.StatusForbidden, "ErrOriginPort"
+    case errors.Is(err, ErrOriginNotAllowed):
+        return http.StatusForbidden, "ErrOriginNotAllowed"
+    default:
+        return http.StatusInternalServerError, "ErrInternal"
+    }
+}
