@@ -6,14 +6,55 @@
 
 ## Phase D — Registration Endpoints
 
-16. **Attestation parsing (minimal)** — Moved to Done
-
 17. **/authn/passkey/registration/finish handler**
 
-    - Load session; verify not expired; verify CDJ (`type=create`, challenge, origin).
-    - Verify `rpIdHash` in AD; check UV flag; extract COSE key, credentialId, initial signCount, and optional AAGUID.
-    - **Persist**: insert into `accounts` (acct_cbor = canonical CBOR of COSE key; acct_thumb = SHA256("ACCTK1"||acct_cbor)) and `credentials` (credential_id, acct_cbor_fk, sign_count, aaguid).
-    - _Verify_: register via browser → handler returns 201 with `account_thumb_hex`.
+    - Context
+      - Complete registration by validating the browser’s attestation response against the stored session and persisting the new account and credential.
+      - Policy: `fmt: none`, `userVerification: required`, strict RP/Origin checks, and minimal, auditable persistence.
+
+    - Structure
+      - Route: `POST /authn/passkey/registration/finish`
+      - Request (JSON):
+        - `reg_session_id` (string): returned from options step.
+        - WebAuthn payload (from browser): matches `types.RegFinish` (`id`, `rawId`, `type`, `response.attestationObject`, `response.clientDataJSON`).
+      - Response (201 JSON): `{ account_thumb_hex, credential_id_b64 }` (and optional diagnostic fields in dev).
+
+    - Steps
+      1) Look up session by `reg_session_id`; reject if not found or expired; delete on success or terminal failure (single-use).
+      2) Decode `clientDataJSON` via `ParseClientDataJSON`; require `IsCreate`.
+      3) Challenge match: compare decoded challenge bytes to session `challenge`.
+      4) Origin check: `CheckOrigin(cdj.Origin, cfg.Origin, cfg.OriginAllowlist, devLocalhostOK)`.
+      5) Decode attestationObject and extract data: `ExtractRegistrationData(attObjB)` → `ad`, `aaguid`, `credID`, `cose`.
+      6) RP ID hash: `CheckRpIdHashAllowed(ad.RpIDHash, cfg.RP_ID, cfg.RPAllowlist)`.
+      7) UV/UP policy: require `HasUV(ad.Flags)`; optionally log `HasUP`.
+      8) COSE key validation: `crypto.ToECDSA(&cose)`; must be ES256/P-256; derive Go pub key for future verification.
+      9) Persist:
+         - `acct_cbor = encoding.EncodeCanonical(cose)` and `acct_thumb = SHA256("ACCTK1" || acct_cbor)`.
+         - Insert into `accounts` if not present; OK if exists with identical `acct_cbor`.
+         - Insert into `credentials` with `credential_id`, `acct_cbor_fk`, `sign_count = ad.SignCount`, `aaguid`.
+         - On unique violation (`credential_id` already exists): return 409 Conflict.
+     10) Return 201 with `account_thumb_hex` and `credential_id_b64`.
+
+    - Error handling & mapping
+      - 400: malformed inputs (bad base64, malformed CBOR, invalid JSON), `ErrRpIdInvalid`, unsupported attestation fmt.
+      - 401: expired or missing session; challenge mismatch.
+      - 403: origin/RP policy failures (use `MapPolicyError`).
+      - 409: duplicate credential id.
+      - 500: storage/internal errors.
+
+    - Tests
+      - Unit: synthetic end-to-end builder that creates a valid attestationObject with fmt none, matching challenge, valid COSE EC2; handler returns 201 and DB rows appear.
+      - Negative cases: expired/missing session (401); wrong challenge (401); wrong origin (403); rpIdHash mismatch (403); no UV flag (403); unsupported fmt (400); bad CBOR (400); duplicate credential (409).
+      - Ensure `reg_session_id` is single-use (second call fails with 401/409 depending on flow).
+
+    - Acceptance criteria
+      - Successful finish produces idempotent account row (no dupes) and a new credential row with correct fields; returns `account_thumb_hex` and the credential id.
+      - All policy and parsing failures map to the expected HTTP status using sentinel-based mapping.
+      - Session is consumed (deleted) after a terminal outcome.
+
+    - Notes
+      - Keep response minimal; do not return raw keys or binary blobs; use base64url/hex for identifiers.
+      - Log structured event `reg_finish` (Future logging item) with hashed identifiers.
 
 ## Phase E — Login Endpoints
 

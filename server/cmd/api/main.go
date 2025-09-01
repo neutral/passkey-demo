@@ -5,6 +5,7 @@ import (
     "net/http"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
+    storepkg "github.com/neutral/passkey-demo/internal/storage"
     webauthn "github.com/neutral/passkey-demo/internal/webauthn"
 )
 
@@ -14,6 +15,10 @@ func main() {
         log.Fatalf("config error: %v", err)
     }
     mux := http.NewServeMux()
+    // DB
+    db, err := storepkg.Open(cfg)
+    if err != nil { log.Fatalf("db open: %v", err) }
+    if err := storepkg.Migrate(db); err != nil { log.Fatalf("db migrate: %v", err) }
     // In-memory stores
     regStore := webauthn.NewRegSessionStore(10000)
 
@@ -25,6 +30,8 @@ func main() {
 
     // Registration options
     mux.Handle("/authn/passkey/registration/options", webauthn.RegistrationOptionsHandler(cfg, regStore))
+    // Registration finish
+    mux.Handle("/authn/passkey/registration/finish", webauthn.RegistrationFinishHandler(cfg, regStore, db))
 
     log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
     log.Printf("server listening on :%s", cfg.Port)
