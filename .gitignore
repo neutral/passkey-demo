@@ -5,9 +5,11 @@ web/dist
 # go
 server/bin
 server/*.exe
+server/api
 
 # sqlite
 server/*.db
+server/**/*.db
 
 # env
 .env
