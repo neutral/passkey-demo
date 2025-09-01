@@ -26,9 +26,10 @@
 - Source changes: enumerate exact files to add/modify/delete with paths and short purposes. Include example commands when helpful.
 - Description files: list the `<folder>.desc.md` or `<file>.<ext>.desc.md` that must be created/updated; add one‑line purpose and the Refs you’ll include.
 - Blueprint refs: include a “Refs:” line mapping to related goals/requirements/specs/decisions. Only mark a task In‑Progress when linked to Approved artifacts.
-- Verification: specify concrete checks and commands (builds, curls, tests) with success criteria (status codes, output fields, file presence).
+- Verification: specify concrete checks and commands (builds, curls, tests) with success criteria (status codes, output fields, file presence). Include a fix‑forward loop: run the tests, address any failures in implementation, and re‑run until all tests pass.
 - Sequencing: call out dependencies or temporary workarounds (e.g., inline session lookup before middleware, Vite proxy before CORS).
 - Policies & limits: restate critical policy bits enforced by this step (e.g., UV/residentKey/attestation; TTLs; size limits) and how to verify them.
+- Unit tests: define the testing strategy for this step and list the test files to add (paths, names). Cover the full surface area: happy‑path, edge/boundary cases, invalid inputs, and error paths. Call out invariants to assert (e.g., monotonic counters, canonical encodings, curve membership) and any golden vectors/fixtures. Include the command to run tests (e.g., `go test ./...`) and expected outcomes.
 
 3) Update the Plan Only (no code changes)
 - Edit only `blueprint/implementation.md`, expanding the current step with clear subsections:
@@ -39,6 +40,8 @@
 4) Validate (as a plan)
 - Ensure verification commands and success criteria are present and specific, but do not execute them.
 - Confirm the expansion is self‑contained so an implementer can perform it later without ambiguity.
+- Ensure the unit test plan is complete and runnable (commands included) and asserts key invariants.
+ - Confirm the Verification section explicitly includes re‑running tests after fixes and an “all tests pass” exit criterion.
 
 5) Trace & Close
 - Do not mark the step Done or change states based on analysis alone.
@@ -48,6 +51,9 @@
 - Submit a patch that ONLY edits `blueprint/implementation.md` by expanding the selected step in place.
 - Do not modify any other files; do not create or delete files.
 - Use concise bullets; prefer commands and acceptance checks over prose where it improves clarity.
+
+## Step expansion must include
+- Structure, Source to add, Description files to add, Blueprint updates, Verification, Unit tests (files, cases, invariants, commands), Notes.
 
 ## Example
 Step: 1 — Initialize repo

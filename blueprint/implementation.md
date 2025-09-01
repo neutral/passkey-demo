@@ -2,48 +2,7 @@
 
 > The steps assume a mono‑repo with `server/` (Go) and `web/` (React + Vite) directories. Each step yields a compilable state and a simple verification method.
 
-## Phase B — Server: Config, DB, Models
-
 ## Phase C — WebAuthn Core Verification
-
-12. **ClientDataJSON validation**
-
-    - Context
-      - Parse WebAuthn ClientDataJSON (CDJ) from browser assertions/attestations to extract `type` ("webauthn.get"/"webauthn.create"), `challenge` (base64url string), and `origin` (string). Decode the base64url `challenge` with tolerant rules and expose helpers used by later verification.
-
-    - Structure
-      - Add `server/internal/webauthn/cdj.go` with:
-        - Type: `ClientData { Type string; Challenge string; Origin string }` (raw fields) and `ClientDataParsed { Type string; Challenge []byte; Origin string }`.
-        - `func ParseClientDataJSON(b []byte) (ClientDataParsed, error)` — parses JSON, validates required fields, decodes challenge via `internal/encoding` base64url.
-        - Optional helper: `func IsGet(c ClientDataParsed) bool` and `func IsCreate(c ClientDataParsed) bool`.
-
-    - Source to add (instructions only)
-      - `server/internal/webauthn/cdj.go`:
-        - Unmarshal JSON into a temporary struct; ensure `type` and `origin` are non‑empty; keep `challenge` as string and decode to bytes using `encoding.Decode` (tolerant); return `ClientDataParsed`.
-        - Do not perform origin/RP checks here (reserved for Step 14); this step ensures correct parsing and decoding only.
-        - Accept only documented `type` values ("webauthn.get", "webauthn.create"); return clear error otherwise.
-
-    - Description files to add (instructions only)
-      - `server/internal/webauthn/cdj.go.desc.md`: Purpose (parse CDJ), Key Logic (JSON parse + base64url decode), Interactions (used by assertion/attestation verification), Refs.
-        - Refs: requirement R-PLAT-2; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails.
-
-    - Unit tests (files, cases, invariants, commands)
-      - Add `server/internal/webauthn/cdj_test.go`:
-        - Happy path (get): valid JSON with unpadded base64url challenge and origin; decode matches expected bytes.
-        - Happy path (create): valid JSON with padded base64url challenge; tolerant decode succeeds.
-        - Invalid: missing fields (type/origin/challenge) → error; unknown type → error; malformed base64 → error; malformed JSON → error.
-      - Command: `cd server && go test ./...` (fix‑forward loop: run, address failures, re‑run until green).
-
-    - Verification (to run after implementation)
-      - Build/tests: `cd server && go test ./...` (expect all tests pass for CDJ parser and existing suites).
-
-    - Notes
-      - Keep parsing concerns separate from policy checks (origin/RP validation in Step 14). Use `internal/encoding` for base64url to stay consistent with ADR guardrails.
-
-13. **Signature verify utility**
-
-    - `webauthn_sig.go`: `VerifyAssertion(pub *ecdsa.PublicKey, ad, cdj, sigDER []byte) error` building `SHA256(ad || SHA256(cdj))` and verifying low‑S.
-    - _Verify_: test with synthetic keypair & generated signature.
 
 14. **RP ID & Origin checks**
 
@@ -242,6 +201,13 @@
 
     - Root Makefile: `make server`, `make web`, `make run`, `make clean`.
     - _Verify_: one command runs both.
+
+## Future
+
+- Handler-level logging and error mapping integration
+  - What: Wire a minimal JSON logger using Go `log/slog` in `server/cmd/api` and apply the `MapVerifyError` and `LogAssertion` utilities from `server/internal/webauthn` in the assertion-finish handler. Keep client responses generic while emitting structured, privacy-preserving logs with stable `error_kind` values from sentinel errors.
+  - Why: Improves observability, incident triage, and auditability without leaking sensitive data. Cleanly separates transport concerns (HTTP codes) from cryptographic failure semantics via sentinel errors, enabling accurate metrics and alerts (e.g., spikes in `ErrMalformedDER`).
+  - How: Initialize `slog` with a JSON handler for dev; in the handler, call `VerifyAssertion(...)`, map the error with `MapVerifyError`, log once via `LogAssertion` using hashed identifiers (`HashID`), and return an appropriate status code with a standard error envelope. This remains compatible with the existing plan’s later steps for endpoints and error envelopes.
 
 ## Phase K — Developer Experience
 
