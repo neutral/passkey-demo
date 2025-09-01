@@ -6,13 +6,6 @@
 
 ## Phase D — Registration Endpoints
 
-15. **/authn/passkey/registration/options handler**
-
-    - Generate `reg_session_id`, random 32B challenge, temp `user.id` (random 32B), build options JSON.
-    - Set policy: `userVerification: "required"`, `residentKey: "required"`, `attestation: "none"`.
-    - Save `{reg_session_id, challenge, rpId, origin, expiresAt}` with TTL = 5 minutes in memory map (and optional table if persisting).
-    - _Verify_: `curl` returns options; check challenge length & fields; policy flags present; `expires_at` ≈ now+5m.
-
 16. **Attestation parsing (minimal)**
 
     - `webauthn_att.go`: decode `attestationObject` CBOR; extract:
