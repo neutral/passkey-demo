@@ -6,6 +6,26 @@
 
 Completed steps are stored as individual files under `blueprint/done/`, with phase information prefixed in each filename (e.g., `phase-a-step-1-...md`). Simply add a single line summary here for all done steps with their number and link to the done file.
 
+- [Step 1 — Initialize repo](blueprint/done/phase-a-step-1-initialize-repo.md)
+- [Step 2 — Server Go module](blueprint/done/phase-a-step-2-server-go-module.md)
+- [Step 3 — Add deps](blueprint/done/phase-a-step-3-add-deps.md)
+- [Step 4 — Web app scaffold](blueprint/done/phase-a-step-4-web-app-scaffold.md)
+- [Step 5 — Server config struct](blueprint/done/phase-b-step-5-server-config-struct.md)
+- [Step 6 — DB init & migrations](blueprint/done/phase-b-step-6-db-init-and-migrations.md)
+- [Step 7 — Types: COSE, WebAuthn, Bundle](blueprint/done/phase-b-step-7-types-cose-webauthn-bundle.md)
+- [Step 8 — COSE → ECDSA helper](blueprint/done/phase-b-step-8-cose-to-ecdsa-helper.md)
+- [Step 9 — Base64url utilities](blueprint/done/phase-b-step-9-base64url-utilities.md)
+- [Step 10 — CBOR canonical codec](blueprint/done/phase-b-step-10-cbor-canonical-codec.md)
+- [Step 11 — Parse authenticatorData](blueprint/done/phase-c-step-11-parse-authenticatordata.md)
+- [Step 12 — ClientDataJSON validation](blueprint/done/phase-c-step-12-clientdatajson-validation.md)
+- [Step 13 — Signature verify utility](blueprint/done/phase-c-step-13-signature-verify-utility.md)
+- [Step 14 — RP ID & Origin checks](blueprint/done/phase-c-step-14-rp-origin-checks.md)
+- [Step 15 — /authn/passkey/registration/options handler](blueprint/done/phase-d-step-15-registration-options-handler.md)
+- [Step 16 — Attestation parsing (minimal)](blueprint/done/phase-d-step-16-attestation-parsing.md)
+- [Step 17 — /authn/passkey/registration/finish handler](blueprint/done/phase-d-step-17-registration-finish-handler.md)
+- [Step 18 — /authn/passkey/login/options handler](blueprint/done/phase-e-step-18-login-options-handler.md)
+- [Step 19 — /authn/passkey/login/finish handler](blueprint/done/phase-e-step-19-login-finish-handler.md)
+
 ## Next
 
 ### Phase F — Transaction Signing (Server-supplied options)
