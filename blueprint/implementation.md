@@ -25,17 +25,11 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 17 — /authn/passkey/registration/finish handler](blueprint/done/phase-d-step-17-registration-finish-handler.md)
 - [Step 18 — /authn/passkey/login/options handler](blueprint/done/phase-e-step-18-login-options-handler.md)
 - [Step 19 — /authn/passkey/login/finish handler](blueprint/done/phase-e-step-19-login-finish-handler.md)
+- [Step 20 — Bundle validation helper](blueprint/done/phase-f-step-20-bundle-validation-helper.md)
 
 ## Next
 
 ### Phase F — Transaction Signing (Server-supplied options)
-
-20. **Bundle validation helper**
-
-    - `bundle.go`: decode base64 → CBOR → `Bundle`; re-encode canonical CBOR; rebuild `B`; compute `tx_id`, `challenge = SHA256("CHALv1"||B)`.
-    - Check `SenderKey` matches logged-in account’s key.
-    - Check nonce monotonic (query last known or max nonce in `transactions` for account).
-    - _Verify_: tests for encoding roundtrip and hashing stable.
 
 21. **/tx/signing/options handler (auth required)**
 

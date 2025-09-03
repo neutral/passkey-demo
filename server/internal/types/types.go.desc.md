@@ -10,6 +10,7 @@ Shared data models used across registration, login, and transaction signing. Kee
 # Interactions
 - Used by handlers to marshal/unmarshal JSON and by helpers to encode/decode canonical CBOR (with Step 10 codec).
 - `CoseEC2` feeds the crypto conversion helper (Step 8) to obtain an `ecdsa.PublicKey` for verification.
+- `Bundle` is consumed by `internal/tx` (Step 20) to recompute canonical `B` and derive anchors (`challenge`, `tx_id`) for transaction signing.
 
 # Refs
 Refs: requirement R-ID-KEY; requirement R-SCHEMA-LITE; requirement R-PLAT-2; requirement R-FLOW-LOGIN; goal key-first-identity-cose; goal minimal-cbor-bundle
