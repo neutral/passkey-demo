@@ -179,10 +179,12 @@ git checkout -b step-<n>-<kebab-name>
 - Create/modify only the files listed in the step’s “Source to add” and follow the stated policies (e.g., UV/residentKey/attestation, TTLs, limits).
 - Keep changes minimal; avoid unrelated refactors.
 - Maintain exhaustive inline code comments; align with repo style.
+ - Ensure all generated code is well commented within the source files, explaining core logic, invariants, assumptions, and error handling.
 
 ### Description Files
 - Create/update all `<folder>.desc.md` and `<file>.<ext>.desc.md` listed in the step.
 - Include accurate overviews, relations, invariants, interfaces, notable errors; keep “Refs:” lines up‑to‑date.
+ - When modifying existing source files, update their corresponding `<filename>.<ext>.desc.md` in the same commit to reflect the changes (routes added, logic shifts, new invariants, errors).
 
 ### Verification
 - Execute every command in the step’s “Verification” section.

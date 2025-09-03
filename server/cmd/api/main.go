@@ -35,6 +35,8 @@ func main() {
     mux.Handle("/authn/passkey/registration/finish", webauthn.RegistrationFinishHandler(cfg, regStore, db))
     // Login options
     mux.Handle("/authn/passkey/login/options", webauthn.LoginOptionsHandler(cfg, loginStore))
+    // Login finish
+    mux.Handle("/authn/passkey/login/finish", webauthn.LoginFinishHandler(cfg, loginStore, db))
 
     log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
     log.Printf("server listening on :%s", cfg.Port)

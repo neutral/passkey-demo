@@ -1,8 +1,9 @@
 # Analyze & Expand Current Step
 
 ## Purpose
-- Drive implementation forward by expanding one concrete step at a time with actionable, verifiable checklists.
-- Maintain traceability to blueprint artifacts and keep description files in sync with code.
+- Expand one concrete step at a time with actionable, verifiable checklists that an implementer can follow verbatim.
+- Maintain traceability to blueprint artifacts; require description files to be updated for any modified sources.
+- Require a complete unit-test plan that includes a happy path and negative cases.
 - Important: Only expand the step in `blueprint/implementation.md`. Do not implement code or create files.
 
 ## Inputs
@@ -15,7 +16,20 @@
 
 ## Output
 - A patch that ONLY edits `blueprint/implementation.md`, expanding the selected step in place so an implementer can execute it later without ambiguity.
-- The expansion includes clear subsections (Structure, Source to add, Description files to add, Blueprint updates, Verification, Notes) and explicit “Refs: …”.
+- The expansion includes clear subsections:
+  - Scope
+  - Source to add/modify (files + short purpose)
+  - Description files (to create and to update for modified sources)
+  - Request/response shape (if applicable)
+  - Algorithm (validation and processing logic)
+  - Database interactions (queries/updates, if applicable)
+  - Policies & limits (and how to verify them)
+  - Sequencing (dependencies/workarounds)
+  - Tests (happy path required, negative cases, invariants, mapping checks, commands)
+  - Verification (unit + manual) and a "User verification commands" block
+  - Acceptance criteria
+  - Notes
+  - Refs (explicit lines to related artifacts)
 
 ## Steps
 1) Orient
@@ -23,25 +37,27 @@
 - Skim `blueprint/goals.md`, relevant requirements/specs/ADRs, and any existing `*.desc.md` for context.
 
 2) Expand the Step (plan only)
-- Source changes: enumerate exact files to add/modify/delete with paths and short purposes. Include example commands when helpful.
-- Description files: list the `<folder>.desc.md` or `<file>.<ext>.desc.md` that must be created/updated; add one‑line purpose and the Refs you’ll include.
+- Source to add/modify: enumerate exact files to add/modify/delete with paths and short purposes. Include example commands when helpful.
+- Description files: list the `<folder>.desc.md` or `<file>.<ext>.desc.md` to create AND explicitly note updates for any modified sources (e.g., `server/cmd/api/main.go.desc.md` when adding routes). Include one‑line purposes and the Refs you’ll include.
 - Blueprint refs: include a “Refs:” line mapping to related goals/requirements/specs/decisions. Only mark a task In‑Progress when linked to Approved artifacts.
-- Verification: specify concrete checks and commands (builds, curls, tests) with success criteria (status codes, output fields, file presence). Include a fix‑forward loop: run the tests, address any failures in implementation, and re‑run until all tests pass.
-- Sequencing: call out dependencies or temporary workarounds (e.g., inline session lookup before middleware, Vite proxy before CORS).
-- Policies & limits: restate critical policy bits enforced by this step (e.g., UV/residentKey/attestation; TTLs; size limits) and how to verify them.
-- Unit tests: define the testing strategy for this step and list the test files to add (paths, names). Cover the full surface area: happy‑path, edge/boundary cases, invalid inputs, and error paths. Call out invariants to assert (e.g., monotonic counters, canonical encodings, curve membership) and any golden vectors/fixtures. Include the command to run tests (e.g., `go test ./...`) and expected outcomes.
+- Request/response shape: specify minimal JSON fields (names, types) and binary encodings (e.g., base64url) when relevant.
+- Algorithm: lay out validation, policy checks, and processing steps in order, including cryptographic digests, comparisons, and invariants.
+- Database interactions: list exact queries/updates (tables/columns) with conditions and side effects.
+- Policies & limits: restate critical policy bits (e.g., UV/residentKey/attestation; TTLs; size limits; allowlists) and how they will be verified.
+- Sequencing: call out dependencies or temporary workarounds (e.g., inline session lookup before middleware; dev localhost exceptions for origin/secure cookies).
+- Unit tests: define the testing strategy and list the test files to add (paths). Happy path is REQUIRED. Also cover edge/boundary cases, invalid inputs, policy failures, invariants (e.g., monotonic counters, canonical encodings, curve membership), and mapping to HTTP statuses. Include commands to run tests and expected outcomes.
+- Verification: include concrete checks and commands (builds, curls), success criteria, and a "User verification commands" fenced block with copy/paste steps. Include a fix‑forward loop in the plan to re‑run tests until green during implementation.
 
 3) Update the Plan Only (no code changes)
-- Edit only `blueprint/implementation.md`, expanding the current step with clear subsections:
-  - Structure, Source to add, Description files to add, Blueprint updates, Verification, Notes.
+- Edit only `blueprint/implementation.md`, expanding the current step with clear subsections listed in Output.
 - Do not add/modify any source files, test files, or description files outside of the plan.
 - Include exact commands and file paths as instructions, but do not run them or create the files now.
 
 4) Validate (as a plan)
 - Ensure verification commands and success criteria are present and specific, but do not execute them.
 - Confirm the expansion is self‑contained so an implementer can perform it later without ambiguity.
-- Ensure the unit test plan is complete and runnable (commands included) and asserts key invariants.
- - Confirm the Verification section explicitly includes re‑running tests after fixes and an “all tests pass” exit criterion.
+- Ensure the unit test plan is complete and runnable (commands included), includes a REQUIRED happy path, and asserts key invariants.
+- Confirm the Verification section explicitly includes re‑running tests after fixes and an “all tests pass” exit criterion.
 
 5) Trace & Close
 - Do not mark the step Done or change states based on analysis alone.
@@ -53,7 +69,19 @@
 - Use concise bullets; prefer commands and acceptance checks over prose where it improves clarity.
 
 ## Step expansion must include
-- Structure, Source to add, Description files to add, Blueprint updates, Verification, Unit tests (files, cases, invariants, commands), Notes.
+- Scope
+- Source to add/modify
+- Description files (to create AND updates for modified sources)
+- Request/response shape (if applicable)
+- Algorithm
+- Database interactions (if applicable)
+- Policies & limits
+- Sequencing
+- Tests (happy path required, negative cases, invariants, mapping checks, commands)
+- Verification (unit + manual) and "User verification commands" block
+- Acceptance criteria
+- Notes
+- Refs
 
 ## Example
 Step: 1 — Initialize repo
