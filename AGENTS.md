@@ -142,22 +142,13 @@ Refs: goal <name>; requirement <name>; spec <name>; decision <name>
 
 ## Step Expansion Guidelines
 
-When analyzing and expanding any implementation step, maintain this level of concrete detail:
-
-- Source changes: enumerate exact files to add/modify/delete; include paths and brief purpose. Provide example commands where helpful (e.g., `npm create vite@latest web -- --template react`).
-- Description files: list required `<folder>.desc.md` or `<file>.<ext>.desc.md` to create/update, with a one‑line summary and “Refs:” placeholders pointing to goals/requirements/specs/decisions.
-- Blueprint refs: include the relevant “Refs:” line for traceability back to goals/requirements/specs/ADRs; update `blueprint/implementation.md` task state only when linked to Approved artifacts.
-- Verification: specify concrete, quick checks and commands (e.g., `git status`, `go build ./...`, `curl :8080/health`, `npm run dev`), and success criteria (status codes, output fields, file presence).
-- Sequencing: call out any dependencies or temporary workarounds that let the step run before later middleware/hardening (e.g., do inline session lookup until auth middleware is added; use Vite proxy until CORS is configured).
-- Policies and limits: explicitly restate critical policy bits (e.g., UV/residentKey/attestation; TTLs; size limits) when a step is responsible for enforcing them, and include how they’re verified.
-
-Keep expansions concise but actionable (2–8 bullets per subsection). Prefer commands and acceptance checks over prose when it improves clarity and repeatability.
+Use the analyze and expand current step prompt from `prompts/analyze-expand-current-step.md` to review guidelines for analysis and expansion. Always wait for user to review the expanded analysis and plan before proceeding to implementation.
 
 ### Plan Maintenance
 
 - When a step is completed and verified, move the entire expanded step content verbatim into a new file under `blueprint/done/` (preserve all headings, sub-bullets, verification criteria, and Refs). Do not summarize.
 - File naming: prefix the filename with the phase to aid organization, then the step number and a short kebab name, e.g., `phase-a-step-1-initialize-repo.md`, `phase-b-step-6-db-init-and-migrations.md`.
-- Remove the completed step from the active list so it exists only under `blueprint/done/` (no duplication). Do not leave placeholders or pointers in the active list.
+- Remove the completed step from the active list so it exists only under `blueprint/done/` (no duplication). Add a single line description of the step to the Done section with the step number.
 - Keep “Refs:” lines accurate when moving; add the completion date and any verification notes at the top of the moved step.
 - The `## Done` section in `blueprint/implementation.md` should remain minimal, pointing to the `blueprint/done/` folder for completed steps. If a phase in the active list becomes empty after moves, remove that empty phase header.
 
@@ -166,41 +157,51 @@ Keep expansions concise but actionable (2–8 bullets per subsection). Prefer co
 This process applies after a step has been expanded in `blueprint/implementation.md`. Follow it to implement the step end‑to‑end while preserving traceability and quality.
 
 ### Prerequisites
+
 - Read the expanded step and related artifacts (requirements/specs/ADRs, goals, user flows).
 - Confirm dependencies are in place (prior steps complete; required tools installed).
 
 ### Branching
+
 - Create a feature branch named after the step: `step-<n>-<short-name>`.
+
 ```bash
 git checkout -b step-<n>-<kebab-name>
 ```
 
 ### Implement (scope exactly as planned)
+
 - Create/modify only the files listed in the step’s “Source to add” and follow the stated policies (e.g., UV/residentKey/attestation, TTLs, limits).
 - Keep changes minimal; avoid unrelated refactors.
 - Maintain exhaustive inline code comments; align with repo style.
- - Ensure all generated code is well commented within the source files, explaining core logic, invariants, assumptions, and error handling.
+- Ensure all generated code is well commented within the source files, explaining core logic, invariants, assumptions, and error handling.
 
 ### Description Files
+
 - Create/update all `<folder>.desc.md` and `<file>.<ext>.desc.md` listed in the step.
 - Include accurate overviews, relations, invariants, interfaces, notable errors; keep “Refs:” lines up‑to‑date.
- - When modifying existing source files, update their corresponding `<filename>.<ext>.desc.md` in the same commit to reflect the changes (routes added, logic shifts, new invariants, errors).
+- When modifying existing source files, update their corresponding `<filename>.<ext>.desc.md` in the same commit to reflect the changes (routes added, logic shifts, new invariants, errors).
 
 ### Verification
+
 - Execute every command in the step’s “Verification” section.
 - Add/execute unit tests where specified; capture outputs (status codes, fields) and confirm success criteria.
 - Provide a "User verification commands" fenced code block with copy/paste shell commands that validate the step end‑to‑end (build, run, curl/tests, cleanup). Keep it minimal and idempotent.
+
 ```bash
 go build ./... || npm run build
 curl :8080/health -i
 ```
 
 ### Documentation & Blueprint Updates
+
 - If the step mentions docs (API examples, env sample), add/update them accordingly.
 - Update `blueprint/implementation.md` with any verification notes explicitly called for by the step.
 
 ### Commit & Push
+
 - Stage only the files relevant to this step.
+
 ```bash
 git add <files>
 git commit -m "step-<n>: <concise summary>" -m "Refs: goal ..., requirement ..., decision ..."
@@ -208,10 +209,12 @@ git push -u origin step-<n>-<kebab-name>
 ```
 
 ### Pull Request
+
 - Open a PR linking the step title and “Refs:” from the plan.
 - In the PR description, confirm acceptance criteria and verification outcomes.
 
 ### Move to Done
+
 - After merge/verification, move the entire expanded step content verbatim to `## Done` in `blueprint/implementation.md` (add date + notes) and remove it from the active list. Do not leave any pointers behind.
 
 ## Markdown Conventions
@@ -219,7 +222,7 @@ git push -u origin step-<n>-<kebab-name>
 - Title: every `.md` file starts with a single H1 (`# Title`) that clearly names the document.
 - Purpose: include a short `## Purpose` section near the top stating why the doc exists.
 - Headings: use a consistent hierarchy (H1 once; H2 for main sections; H3 for subsections). Do not skip levels.
-- Code blocks: use fenced code blocks with language hints for clarity and syntax highlighting (e.g., ```bash, ```json, ```go, ```ts, ```sql, ```cddl). Prefer blocks over inline for multi-line commands or code.
+- Code blocks: use fenced code blocks with language hints for clarity and syntax highlighting (e.g., `bash, `json, `go, `ts, `sql, `cddl). Prefer blocks over inline for multi-line commands or code.
 - Inline code: wrap commands, file paths, env vars, constants, and identifiers in backticks.
 - Lists: use bullets for concise, scannable items; keep each bullet verifiable and single-purpose.
 - Refs: include a final `Refs:` line in blueprint artifacts linking goals/requirements/specs/decisions where applicable.
