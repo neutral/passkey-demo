@@ -21,6 +21,7 @@ func main() {
     if err := storepkg.Migrate(db); err != nil { log.Fatalf("db migrate: %v", err) }
     // In-memory stores
     regStore := webauthn.NewRegSessionStore(10000)
+    loginStore := webauthn.NewLoginSessionStore(10000)
 
 	// Health
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +33,8 @@ func main() {
     mux.Handle("/authn/passkey/registration/options", webauthn.RegistrationOptionsHandler(cfg, regStore))
     // Registration finish
     mux.Handle("/authn/passkey/registration/finish", webauthn.RegistrationFinishHandler(cfg, regStore, db))
+    // Login options
+    mux.Handle("/authn/passkey/login/options", webauthn.LoginOptionsHandler(cfg, loginStore))
 
     log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
     log.Printf("server listening on :%s", cfg.Port)

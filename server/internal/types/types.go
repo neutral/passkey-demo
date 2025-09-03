@@ -51,6 +51,10 @@ type LoginOptions struct {
     RP_ID      string `json:"rp_id"`
     Origin     string `json:"origin"`
     UVRequired bool   `json:"uv_required"`
+    // AllowCredentials is an optional list of base64url-encoded credential IDs
+    // that the client should use to filter authenticators. For discoverable
+    // credentials, this may be empty.
+    AllowCredentials []string `json:"allow_credentials"`
 }
 
 // LoginFinish is a minimal shape for the login/assertion completion payload
@@ -66,4 +70,3 @@ type LoginFinish struct {
         UserHandle        string `json:"userHandle"`
     } `json:"response"`
 }
-

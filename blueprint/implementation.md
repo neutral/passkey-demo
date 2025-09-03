@@ -2,20 +2,7 @@
 
 > The steps assume a mono‑repo with `server/` (Go) and `web/` (React + Vite) directories. Each step yields a compilable state and a simple verification method.
 
-## Phase C — WebAuthn Core Verification
-
-## Phase D — Registration Endpoints
-
-17. **/authn/passkey/registration/finish handler** — Moved to Done
-
 ## Phase E — Login Endpoints
-
-18. **/authn/passkey/login/options handler**
-
-    - Generate `login_session_id`, random 32B challenge.
-    - Return options (`rpId`, `challenge`, `userVerification: required`, `allowCredentials: []`).
-    - Store `{login_session_id, challenge, rpId, origin, expiresAt}` with TTL = 5 minutes in memory.
-    - _Verify_: `curl` returns proper JSON; includes `expires_at` ≈ now+5m.
 
 19. **/authn/passkey/login/finish handler**
 

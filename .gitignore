@@ -6,6 +6,7 @@ web/dist
 server/bin
 server/*.exe
 server/api
+*/.gocache
 
 # sqlite
 server/*.db
@@ -14,3 +15,4 @@ server/**/*.db
 # env
 .env
 web/.env*
+
