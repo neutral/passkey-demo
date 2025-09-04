@@ -8,6 +8,7 @@ import (
     "errors"
     "net/http"
     "time"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
 )
 
 // TxListItem is a single transaction list entry in the response.
@@ -35,6 +36,10 @@ func BuildTxList(ctx context.Context, db *sql.DB, sid string) (TxListResponse, e
         return TxListResponse{}, ErrAuthSession
     }
     // Query transactions for this account (newest first)
+    return buildTxListByAcct(ctx, db, acctCBOR)
+}
+
+func buildTxListByAcct(ctx context.Context, db *sql.DB, acctCBOR []byte) (TxListResponse, error) {
     rows, err := db.QueryContext(ctx, `SELECT tx_id, nonce, message, created_at FROM transactions WHERE acct_cbor = ? ORDER BY created_at DESC`, acctCBOR)
     if err != nil {
         return TxListResponse{}, err
@@ -69,6 +74,17 @@ func TxListHandler(db *sql.DB) http.HandlerFunc {
             http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
             return
         }
+        // Prefer session from middleware; otherwise fallback to cookie lookup.
+        if s, ok := httpctx.FromSession(r.Context()); ok {
+            resp, err := buildTxListByAcct(r.Context(), db, s.AcctCBOR)
+            if err != nil {
+                http.Error(w, "internal error", http.StatusInternalServerError)
+                return
+            }
+            w.Header().Set("Content-Type", "application/json")
+            _ = json.NewEncoder(w).Encode(resp)
+            return
+        }
         c, err := r.Cookie("sid")
         if err != nil || c.Value == "" {
             http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -87,4 +103,3 @@ func TxListHandler(db *sql.DB) http.HandlerFunc {
         _ = json.NewEncoder(w).Encode(resp)
     }
 }
-

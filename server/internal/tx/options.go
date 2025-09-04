@@ -12,6 +12,7 @@ import (
     "time"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
     b64 "github.com/neutral/passkey-demo/internal/encoding"
     types "github.com/neutral/passkey-demo/internal/types"
 )
@@ -160,23 +161,26 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) h
             http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
             return
         }
-        // Resolve session from cookie
-        c, err := r.Cookie("sid")
-        if err != nil || c.Value == "" {
-            http.Error(w, "unauthorized", http.StatusUnauthorized)
-            return
-        }
-        // Lookup session in DB
+        // Resolve session from middleware context (preferred), else fallback to cookie lookup.
         var acctCBOR []byte
-        var expSec int64
-        row := db.QueryRow(`SELECT acct_cbor, expires_at FROM sessions WHERE session_id = ?`, c.Value)
-        if err := row.Scan(&acctCBOR, &expSec); err != nil {
-            http.Error(w, "unauthorized", http.StatusUnauthorized)
-            return
-        }
-        if time.Now().Unix() >= expSec {
-            http.Error(w, "session expired", http.StatusUnauthorized)
-            return
+        if s, ok := httpctx.FromSession(r.Context()); ok {
+            acctCBOR = s.AcctCBOR
+        } else {
+            c, err := r.Cookie("sid")
+            if err != nil || c.Value == "" {
+                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                return
+            }
+            var expSec int64
+            row := db.QueryRow(`SELECT acct_cbor, expires_at FROM sessions WHERE session_id = ?`, c.Value)
+            if err := row.Scan(&acctCBOR, &expSec); err != nil {
+                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                return
+            }
+            if time.Now().Unix() >= expSec {
+                http.Error(w, "session expired", http.StatusUnauthorized)
+                return
+            }
         }
         // Parse inbound JSON
         var in TxOptionsInbound
@@ -207,4 +211,3 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) h
         _ = json.NewEncoder(w).Encode(resp)
     }
 }
-
