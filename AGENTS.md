@@ -150,7 +150,6 @@ Use the analyze and expand current step prompt from `prompts/analyze-expand-curr
 - File naming: prefix the filename with the phase to aid organization, then the step number and a short kebab name, e.g., `phase-a-step-1-initialize-repo.md`, `phase-b-step-6-db-init-and-migrations.md`.
 - Remove the completed step from the active list so it exists only under `blueprint/done/` (no duplication). Add a single line description of the step to the Done section with the step number.
 - Keep “Refs:” lines accurate when moving; add the completion date and any verification notes at the top of the moved step.
-- The `## Done` section in `blueprint/implementation.md` should remain minimal, pointing to the `blueprint/done/` folder for completed steps. If a phase in the active list becomes empty after moves, remove that empty phase header.
 
 ## Step Implementation Guidelines
 
@@ -172,7 +171,7 @@ git checkout -b step-<n>-<kebab-name>
 ### Implement (scope exactly as planned)
 
 - Create/modify only the files listed in the step’s “Source to add” and follow the stated policies (e.g., UV/residentKey/attestation, TTLs, limits).
-- Keep changes minimal; avoid unrelated refactors.
+- Keep changes minimal; avoid unrelated refactors. Generate a Refactor file with details and add it to `blueprint/_refactor` folder for future consideration.
 - Maintain exhaustive inline code comments; align with repo style.
 - Ensure all generated code is well commented within the source files, explaining core logic, invariants, assumptions, and error handling.
 
@@ -227,3 +226,7 @@ git push -u origin step-<n>-<kebab-name>
 - Lists: use bullets for concise, scannable items; keep each bullet verifiable and single-purpose.
 - Refs: include a final `Refs:` line in blueprint artifacts linking goals/requirements/specs/decisions where applicable.
 - Consistency: prefer present tense, active voice; avoid fluff; keep sections short and self-contained.
+
+## Refactoring Strategy
+
+- Refer to `prompts/refactoring-strategy.md` for the reusable prompt and checklist on identifying, documenting, and prioritizing refactoring opportunities. Capture ideas under `blueprint/_refactor/` and do not implement them unless explicitly prioritized.
