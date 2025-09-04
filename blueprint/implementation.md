@@ -27,18 +27,11 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 19 — /authn/passkey/login/finish handler](blueprint/done/phase-e-step-19-login-finish-handler.md)
 - [Step 20 — Bundle validation helper](blueprint/done/phase-f-step-20-bundle-validation-helper.md)
 - [Step 21 — /tx/signing/options handler](blueprint/done/phase-f-step-21-signing-options-handler.md)
+- [Step 22 — /tx/signing/finish handler](blueprint/done/phase-f-step-22-signing-finish-handler.md)
 
 ## Next
 
 ### Phase F — Transaction Signing (Server-supplied options)
-
-22. **/tx/signing/finish handler (auth required)**
-
-    - Load `tx_session_id`; verify not expired; verify CDJ (`type=get`, challenge, origin).
-    - Verify AD (rpIdHash, UV, signCount monotonic).
-    - Verify signature using **account’s COSE key**.
-    - Persist transaction (tx_id, bundle_cbor, AD, CDJ, signature, nonce, message).
-    - _Verify_: returns 200 with `tx_id_hex`.
 
 23. **/tx/list handler (auth required)**
 
