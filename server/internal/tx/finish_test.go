@@ -1,6 +1,8 @@
 package tx
 
 import (
+    "encoding/asn1"
+    "math/big"
     "context"
     "bytes"
     "crypto/ecdsa"
@@ -88,6 +90,7 @@ func TestTxFinish_Happy(t *testing.T) {
     hcdj := sha256.Sum256(cdjBytes)
     d := sha256.Sum256(append(ad, hcdj[:]...))
     sig, _ := ecdsa.SignASN1(rand.Reader, priv, d[:])
+    sig = lowSifyDER(t, elliptic.P256(), sig)
 
     // Build finish body
     body := TxFinishInbound{TxSessionID: opts.TxSessionID, ID: b64.Encode(credID), RawID: b64.Encode(credID), Type: "public-key"}
@@ -103,4 +106,18 @@ func TestTxFinish_Happy(t *testing.T) {
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
     h.ServeHTTP(rr, req)
     if rr.Code != 200 { t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String()) }
+}
+
+// lowSifyDER ensures the DER signature has a low-S component.
+func lowSifyDER(t *testing.T, curve elliptic.Curve, sigDER []byte) []byte {
+    t.Helper()
+    var s struct{ R, S *big.Int }
+    if _, err := asn1.Unmarshal(sigDER, &s); err != nil { t.Fatalf("asn1: %v", err) }
+    halfN := new(big.Int).Rsh(curve.Params().N, 1)
+    if s.S.Cmp(halfN) == 1 { // if S > N/2
+        s.S.Sub(curve.Params().N, s.S)
+    }
+    out, err := asn1.Marshal(s)
+    if err != nil { t.Fatalf("asn1 marshal: %v", err) }
+    return out
 }

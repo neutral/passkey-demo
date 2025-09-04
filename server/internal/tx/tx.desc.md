@@ -10,6 +10,7 @@ Helpers for transaction signing workflows. Validates client‑provided Bundle CB
 - `ValidateAndAnchorBundle(ctx, db, acctCBOR, bundleCBORBase64)` → `AnchoredBundle` (parsed bundle, canonical CBOR `B`, challenge `[32]byte`, tx_id `[32]byte`).
 - `TxOptionsHandler(cfg, txStore, db)` → HTTP handler for POST `/tx/signing/options`; `BuildTxOptions(...)` generates response and stores session.
 - `TxFinishHandler(cfg, txStore, db)` → HTTP handler for POST `/tx/signing/finish`; `BuildTxFinish(...)` verifies assertion and persists transaction.
+- `TxListHandler(db)` → HTTP handler for GET `/tx/list`; `BuildTxList(...)` returns transactions for the authenticated account.
 - Sentinel errors: `ErrBundleBase64`, `ErrBundleCBOR`, `ErrSenderKeyMismatch`, `ErrNonceNotMonotonic`.
 
 # Refs
