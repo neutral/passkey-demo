@@ -29,22 +29,11 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 21 — /tx/signing/options handler](blueprint/done/phase-f-step-21-signing-options-handler.md)
 - [Step 22 — /tx/signing/finish handler](blueprint/done/phase-f-step-22-signing-finish-handler.md)
 - [Step 23 — /tx/list handler](blueprint/done/phase-f-step-23-tx-list-handler.md)
+- [Step 24 — Session middleware](blueprint/done/phase-g-step-24-session-middleware.md)
 
 ## Next
-
-### Phase F — Transaction Signing (Server-supplied options)
-
-## Next
-
-### Phase F — Transaction Signing (Server-supplied options)
 
 ### Phase G — Sessions & Middleware
-
-24. **Session middleware**
-
-    - Read cookie; look up session; attach `acct_cbor` and `credential_id` to request context.
-    - Enforce expiry; refresh if desired.
-    - _Verify_: protected routes return 401 without cookie; 200 with cookie.
 
 25. **Rate limiting & limits**
 
