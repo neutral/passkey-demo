@@ -1,5 +1,5 @@
 # Overview
-Helpers for transaction signing workflows. Validates client‑provided Bundle CBOR, enforces account/key binding and nonce monotonicity, and derives canonical anchors used by signing: challenge and tx_id. Also issues signing options and maintains a short‑lived in‑memory tx session.
+Helpers for transaction signing workflows. Validates client‑provided Bundle CBOR, enforces account/key binding and nonce monotonicity, and derives canonical anchors used by signing: challenge and tx_id. Also issues signing options, maintains a short‑lived in‑memory tx session, and completes the signing flow by verifying assertions and persisting transactions.
 
 # Relations
 - Consumed by `/tx/signing/options` (Step 21) to validate input and create a tx session; session is later used by finish handler (Step 22).
@@ -9,6 +9,7 @@ Helpers for transaction signing workflows. Validates client‑provided Bundle CB
 # Interfaces & Models
 - `ValidateAndAnchorBundle(ctx, db, acctCBOR, bundleCBORBase64)` → `AnchoredBundle` (parsed bundle, canonical CBOR `B`, challenge `[32]byte`, tx_id `[32]byte`).
 - `TxOptionsHandler(cfg, txStore, db)` → HTTP handler for POST `/tx/signing/options`; `BuildTxOptions(...)` generates response and stores session.
+- `TxFinishHandler(cfg, txStore, db)` → HTTP handler for POST `/tx/signing/finish`; `BuildTxFinish(...)` verifies assertion and persists transaction.
 - Sentinel errors: `ErrBundleBase64`, `ErrBundleCBOR`, `ErrSenderKeyMismatch`, `ErrNonceNotMonotonic`.
 
 # Refs
