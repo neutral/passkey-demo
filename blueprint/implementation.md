@@ -35,11 +35,15 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ### Phase G — Sessions & Middleware
 
+---
+
 25. **Rate limiting & limits**
 
     - Simple token bucket per-IP in memory for `/authn/*` and `/tx/*`.
     - Max body size middleware (e.g., 64 KB).
     - _Verify_: exceed limits → 429/413.
+
+---
 
 26. **CORS & cookies**
 
@@ -48,6 +52,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ### Phase H — Frontend (React) UI
 
+---
+
 27. **Basic pages**
 
     - `Register.tsx`, `Login.tsx`, `Dashboard.tsx`; a simple router (or conditional rendering).
@@ -55,10 +61,14 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
     - CORS configured in step 26; alternatively, set a Vite dev proxy to backend (`/api` → `http://localhost:8080`) during development.
     - _Verify_: SPA renders pages; home shows exactly two buttons.
 
+---
+
 28. **Base64url helpers (web)**
 
     - JS utils: ArrayBuffer ⇄ base64url; UTF‑8 encoder/decoder.
     - _Verify_: unit test in browser console.
+
+---
 
 29. **WebAuthn create() flow (Register)**
 
@@ -68,6 +78,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
     - On success: show account thumb, route to Login.
     - _Verify_: end-to-end registration completes.
 
+---
+
 30. **WebAuthn get() flow (Login)**
 
     - `POST /authn/passkey/login/options`; convert to `PublicKeyCredentialRequestOptions`.
@@ -75,10 +87,14 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
     - Send `login/finish`; on success: set “logged in” UI state (no global store, just local state) and route to Dashboard.
     - _Verify_: end-to-end login completes; cookie present.
 
+---
+
 31. **Dashboard: fetch list**
 
     - Call `GET /tx/list`; render in table.
     - _Verify_: empty initially.
+
+---
 
 32. **Dashboard: build bundle**
 
@@ -91,6 +107,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
     - Install a small CBOR lib (e.g., `cbor-x`) and encode **canonical CBOR** in browser.
     - _Verify_: preview CBOR (hex) in console.
 
+---
+
 33. **Transaction signing options**
 
     - `POST /tx/signing/options` with `bundle_cbor_b64`.
@@ -99,6 +117,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
     - On success: refresh list.
     - _Verify_: message appears in table with nonce and timestamp.
 
+---
+
 34. **Error toasts**
 
     - Render server error messages (JSON `{ code, error }`) as inline alerts.
@@ -106,10 +126,14 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ### Phase I — Testing & Fixtures
 
+---
+
 35. **Unit tests (Go)**
 
     - COSE→ECDSA, CDJ parse, AD parse, low‑S check, canonical encoding, hash anchors.
     - _Verify_: `go test ./...` passes.
+
+---
 
 36. **Golden vectors**
 
@@ -119,6 +143,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
     - _Verify_: consistent outputs between runs.
 
+---
+
 37. **Manual E2E**
 
     - Run server + web; perform registration, login, and sign two messages with nonces 1, 2 in Safari and Chrome on macOS.
@@ -126,21 +152,29 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ### Phase J — Hardening (Demo-grade)
 
+---
+
 38. **Input validation & errors**
 
     - Enforce message length ≤ 1024; nonce ≤ `2^53 - 1`; origin/rpId in allowlist; body size ≤ 64 KB.
     - Implement standardized error envelope `{ code, error, correlation_id? }` and map to HTTP 400/401/403/409/413/429/5xx per R-ERR.
     - _Verify_: oversize blocked with 400/413; invalid/replay/UV/origin issues map to correct codes; frontend displays `code`.
 
+---
+
 39. **Session security**
 
     - Random session IDs (≥128 bits), expiry 1h, renewal on activity.
     - _Verify_: expired session returns 401; re-login works.
 
+---
+
 40. **Logging**
 
     - Structured logs with event names: `reg_options`, `reg_finish`, `login_options`, `login_finish`, `tx_options`, `tx_finish`.
     - _Verify_: logs show account thumb and tx_id (hex).
+
+---
 
 41. **Build scripts**
 
@@ -149,25 +183,35 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ### Phase K — Developer Experience
 
+---
+
 42. **API examples**
 
     - Add `docs/` with curl examples for each endpoint (sans WebAuthn ceremony).
     - _Verify_: docs render in repo.
+
+---
 
 43. **Postman / REST Client file**
 
     - Provide a collection with placeholders; helpful for observing JSON shapes.
     - _Verify_: collection can be imported.
 
+---
+
 44. **Env sample**
 
     - `.env.example` with `RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`.
     - _Verify_: loads correctly.
 
+---
+
 45. **README**
 
     - Quickstart, limitations (no attestation trust), and demo notes (Touch ID prompts).
     - _Verify_: teammate can bootstrap in <10 minutes.
+
+---
 
 ## Future
 

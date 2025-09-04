@@ -227,6 +227,20 @@ git push -u origin step-<n>-<kebab-name>
 - Refs: include a final `Refs:` line in blueprint artifacts linking goals/requirements/specs/decisions where applicable.
 - Consistency: prefer present tense, active voice; avoid fluff; keep sections short and self-contained.
 
+## Tools
+
+- move-expanded-step-to-done:
+  - Path: `tools/move-expanded-step-to-done.sh`
+  - Purpose: Moves a fully expanded step from the Next section in `blueprint/implementation.md` to the `blueprint/done/` folder and adds a one‑liner link in the Done list.
+  - Delimiters: Each step block in Next must be preceded by a single line of dashes `-----`. The following line must be the step header like `25. **Rate limiting & limits**`. The block ends at the next `-----` or EOF.
+  - Done file path: `blueprint/done/<phase>-step-<n>-<kebab>.md`. Phase is detected from the nearest `### Phase X` header above the step. Kebab is derived from the step title (lowercase, non‑alphanumerics → `-`).
+  - Usage:
+    - `bash tools/move-expanded-step-to-done.sh <step-number>`
+  - Behavior:
+    - Extracts the delimited block, writes it verbatim into the Done file with a date header, removes the block from `implementation.md`, and inserts a one‑liner link under the Done section.
+  - Notes:
+    - Keep the simple `-----` delimiter line immediately before every step header in Next so the tool can identify block boundaries.
+
 ## Refactoring Strategy
 
 - Refer to `prompts/refactoring-strategy.md` for the reusable prompt and checklist on identifying, documenting, and prioritizing refactoring opportunities. Capture ideas under `blueprint/_refactor/` and do not implement them unless explicitly prioritized.
