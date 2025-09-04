@@ -28,15 +28,15 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 20 — Bundle validation helper](blueprint/done/phase-f-step-20-bundle-validation-helper.md)
 - [Step 21 — /tx/signing/options handler](blueprint/done/phase-f-step-21-signing-options-handler.md)
 - [Step 22 — /tx/signing/finish handler](blueprint/done/phase-f-step-22-signing-finish-handler.md)
+- [Step 23 — /tx/list handler](blueprint/done/phase-f-step-23-tx-list-handler.md)
 
 ## Next
 
 ### Phase F — Transaction Signing (Server-supplied options)
 
-23. **/tx/list handler (auth required)**
+## Next
 
-    - Query `transactions` by `acct_cbor`; return `tx_id_hex`, `nonce`, `message`, `created_at`.
-    - _Verify_: shows inserted records.
+### Phase F — Transaction Signing (Server-supplied options)
 
 ### Phase G — Sessions & Middleware
 
