@@ -32,15 +32,16 @@ die() { echo "Error: $*" >&2; exit 1; }
 STEP="$1"
 [[ "$STEP" =~ ^[0-9]+$ ]] || die "Step must be a number"
 
-tmpplan=$(mktemp)
-cp "$PLAN" "$tmpplan"
+# Use a repo-local temp file instead of mktemp (sandbox safe)
+tmpplan="tools/.move-step-tmp.$$"
+cp "$PLAN" "$tmpplan" || die "cannot copy plan"
 
 # Work only in the Next section
 next_start=$(awk '/^## Next/{print NR; exit}' "$tmpplan") || true
 [ -n "$next_start" ] || die "Could not find '## Next' section"
 
-# Find all delimiter lines in Next
-delims=$(awk -v S="$next_start" 'NR>=S && $0 ~ /^-----\s*$/{print NR}' "$tmpplan")
+# Find all delimiter lines (three or more dashes) in Next
+delims=$(awk -v S="$next_start" 'NR>=S && $0 ~ /^-+\s*$/{print NR}' "$tmpplan")
 [ -n "$delims" ] || die "No delimiters found in Next. Add '-----' before the step."
 
 start_line=""
@@ -61,12 +62,13 @@ done <<< "$delims"
 
 [ -n "$start_line" ] || die "Could not find step $STEP after a delimiter in Next."
 
-# Determine end line = next delimiter after start, or end of file
-end_line=$(awk -v S="$start_line" 'NR>S && $0 ~ /^-----\s*$/{print NR-1; exit} END{ if (NR>0 && !found) print NR }' found=1 "$tmpplan")
+# Determine end line = last line before next delimiter after header, or EOF
+hdr_line=${title_line%%:*}
+end_line=$(awk -v S="$hdr_line" 'NR>S && $0 ~ /^-+\s*$/{print NR-1; exit} END{print NR}' "$tmpplan")
 [ -n "$end_line" ] || die "Could not determine end of step block"
 
-# Extract block
-block=$(awk -v A="$start_line" -v B="$end_line" 'NR>=A && NR<=B{print}' "$tmpplan")
+# Extract block (exclude the delimiter, start from header line)
+block=$(awk -v A="$hdr_line" -v B="$end_line" 'NR>=A && NR<=B{print}' "$tmpplan")
 
 # Parse title and kebab
 raw_title=${title_line#*:}              # e.g., "25. **Rate limiting & limits**"
@@ -89,8 +91,8 @@ date_str=$(date +%F)
   echo "$block"
 } > "$donefile"
 
-# Remove block from implementation.md
-awk -v A="$start_line" -v B="$end_line" 'NR<A || NR>B{print}' "$tmpplan" > "$PLAN"
+# Remove the original block including its leading delimiter
+awk -v A="$start_line" -v B="$end_line" 'NR<A || NR>B{print}' "$tmpplan" > "$PLAN" || die "failed to update plan"
 
 # Insert one-liner link under Done section if missing
 link_line="- [Step ${STEP} — ${title}](${donefile})"
@@ -107,7 +109,7 @@ if ! grep -Fq "$link_line" "$PLAN"; then
     }
   ' "$PLAN" > "$PLAN.tmp"
   # Insert after last existing bullet; if none, place after the Done section header
-  last_bullet=$(awk '/^## Done/{d=1} d && $0 ~ /^- \[Step /{lb=NR} END{print lb+0}' "$PLAN")
+last_bullet=$(awk '/^## Done/{d=1} d && $0 ~ /^- \[Step /{lb=NR} END{print lb+0}' "$PLAN")
   if [ "$last_bullet" -gt 0 ]; then
     awk -v L="$last_bullet" -v LL="$link_line" 'NR==L{print; print LL; next} {print}' "$PLAN" > "$PLAN.tmp2"
     mv "$PLAN.tmp2" "$PLAN"
@@ -122,4 +124,3 @@ if ! grep -Fq "$link_line" "$PLAN"; then
 fi
 
 echo "Moved step ${STEP} to ${donefile} and updated ${PLAN}."
-
