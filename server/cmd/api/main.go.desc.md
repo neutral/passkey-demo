@@ -8,6 +8,9 @@ Entrypoint for the Go HTTP server used in the demo. It starts an `http.Server` o
   - `POST /authn/passkey/registration/finish`
   - `POST /authn/passkey/login/options`
   - `POST /authn/passkey/login/finish`
+- Wraps the mux with a CORS middleware (`internal/http.CORSMiddleware(cfg)`) as the outermost layer:
+  - Answers preflight (`OPTIONS`) with `204` for allowed origins.
+  - Adds `Access-Control-Allow-Origin: <origin>`, `Access-Control-Allow-Credentials: true`, and `Vary: Origin` on allowed responses.
 - Logs a startup line and calls `http.ListenAndServe`.
 
 # Interactions
@@ -17,4 +20,4 @@ Entrypoint for the Go HTTP server used in the demo. It starts an `http.Server` o
 - Called directly by `go run ./cmd/api` during development; will be the main binary for the server.
 
 # Refs
-Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV; requirement R-FLOW-LOGIN
+Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-OPS-DEV; requirement R-FLOW-LOGIN; spec cors-usage-explainer

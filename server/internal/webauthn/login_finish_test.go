@@ -93,9 +93,13 @@ func TestLoginFinish_Happy(t *testing.T) {
     req := httptest.NewRequest("POST", "/authn/passkey/login/finish", bytes.NewReader(bodyBytes))
     h.ServeHTTP(rr, req)
     if rr.Code != 200 { t.Fatalf("status: %d, body=%s", rr.Code, rr.Body.String()) }
-    // Cookie present
+    // Cookie present with expected attributes for http origin (no Secure)
     if set := rr.Header().Get("Set-Cookie"); !strings.Contains(set, "sid=") {
         t.Fatalf("expected Set-Cookie with sid, got: %q", set)
+    } else {
+        if !strings.Contains(set, "HttpOnly") { t.Fatalf("cookie missing HttpOnly: %q", set) }
+        if !strings.Contains(set, "SameSite=Lax") { t.Fatalf("cookie SameSite not Lax: %q", set) }
+        if strings.Contains(set, "Secure") { t.Fatalf("cookie should not be Secure for http origin: %q", set) }
     }
     // sign_count updated
     var sc int64
@@ -104,6 +108,35 @@ func TestLoginFinish_Happy(t *testing.T) {
     }
     // session consumed
     if _, ok := store.Get(opts.LoginSessionID); ok { t.Fatalf("login session should be deleted") }
+}
+
+func TestSetSessionCookie_SecureToggle(t *testing.T) {
+    // http origin → no Secure
+    {
+        cfg := &cfgpkg.Config{Origin: "http://localhost:5173"}
+        rr := httptest.NewRecorder()
+        setSessionCookie(rr, cfg, "abc")
+        set := rr.Header().Get("Set-Cookie")
+        if strings.Contains(set, "Secure") {
+            t.Fatalf("unexpected Secure for http origin: %q", set)
+        }
+        if !strings.Contains(set, "SameSite=Lax") || !strings.Contains(set, "HttpOnly") {
+            t.Fatalf("missing attributes: %q", set)
+        }
+    }
+    // https origin → Secure present
+    {
+        cfg := &cfgpkg.Config{Origin: "https://example.com"}
+        rr := httptest.NewRecorder()
+        setSessionCookie(rr, cfg, "abc")
+        set := rr.Header().Get("Set-Cookie")
+        if !strings.Contains(set, "Secure") {
+            t.Fatalf("expected Secure for https origin: %q", set)
+        }
+        if !strings.Contains(set, "SameSite=Lax") || !strings.Contains(set, "HttpOnly") {
+            t.Fatalf("missing attributes: %q", set)
+        }
+    }
 }
 
 func TestLoginFinish_Negatives(t *testing.T) {

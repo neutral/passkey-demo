@@ -5,6 +5,7 @@ import (
     "net/http"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
+    httpx "github.com/neutral/passkey-demo/internal/http"
     storepkg "github.com/neutral/passkey-demo/internal/storage"
     webauthn "github.com/neutral/passkey-demo/internal/webauthn"
 )
@@ -38,7 +39,10 @@ func main() {
     // Login finish
     mux.Handle("/authn/passkey/login/finish", webauthn.LoginFinishHandler(cfg, loginStore, db))
 
+    // Wrap with outermost CORS middleware
+    handler := httpx.CORSMiddleware(cfg)(mux)
+
     log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
     log.Printf("server listening on :%s", cfg.Port)
-    log.Fatal(http.ListenAndServe(":"+cfg.Port, mux))
+    log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
 }

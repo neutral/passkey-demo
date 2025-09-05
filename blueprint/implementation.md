@@ -31,15 +31,9 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 23 — /tx/list handler](blueprint/done/phase-f-step-23-tx-list-handler.md)
 - [Step 24 — Session middleware](blueprint/done/phase-g-step-24-session-middleware.md)
 - [Step 25 — Rate limiting & limits](blueprint/done/phase-g-step-25-rate-limiting-limits.md)
+- [Step 26 — CORS & cookies](blueprint/done/phase-g-step-26-cors-and-cookies.md)
 
 ## Next
-
-### Phase G — Sessions & Middleware
-
-26. **CORS & cookies**
-
-    - Allow `http://localhost:5173`; set `SameSite=Lax`; for dev over HTTP, skip `Secure`.
-    - _Verify_: cross-origin works from Vite.
 
 ### Phase H — Frontend (React) UI
 
@@ -49,7 +43,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
     - `Register.tsx`, `Login.tsx`, `Dashboard.tsx`; a simple router (or conditional rendering).
     - Home screen presents only two primary actions: Register and Login (post-login shows Dashboard).
-    - CORS configured in step 26; alternatively, set a Vite dev proxy to backend (`/api` → `http://localhost:8080`) during development.
+    - Use CORS from step 26; call backend via absolute URLs (e.g., `http://localhost:8080/...`). Do NOT use a Vite dev proxy.
     - _Verify_: SPA renders pages; home shows exactly two buttons.
 
 ---
@@ -65,8 +59,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
     - `POST /authn/passkey/registration/options`; convert JSON fields to `PublicKeyCredentialCreationOptions` (transform b64url→ArrayBuffer).
     - Call `navigator.credentials.create(...)`.
-    - Send `registration/finish` payload (b64url encode ArrayBuffers).
-    - On success: show account thumb, route to Login.
+    - Send `registration/finish` payload (b64url encode ArrayBuffers) using absolute API URL under CORS.
+    - On success: display `account_thumb_hex` from server response (note key casing differs from login’s `AccountThumbHex`); route to Login.
     - _Verify_: end-to-end registration completes.
 
 ---
@@ -75,34 +69,30 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
     - `POST /authn/passkey/login/options`; convert to `PublicKeyCredentialRequestOptions`.
     - Call `navigator.credentials.get(...)`.
-    - Send `login/finish`; on success: set “logged in” UI state (no global store, just local state) and route to Dashboard.
+    - Send `login/finish` (use absolute API URL and `credentials: 'include'` on fetch to accept `Set-Cookie` under CORS); on success: set “logged in” UI state (no global store, just local state) and route to Dashboard.
     - _Verify_: end-to-end login completes; cookie present.
 
 ---
 
 31. **Dashboard: fetch list**
 
-    - Call `GET /tx/list`; render in table.
-    - _Verify_: empty initially.
+    - Call `GET /tx/list` with `credentials: 'include'` and absolute API URL; render in table; handle empty state gracefully.
+    - _Verify_: list renders (empty or with prior entries) and updates on refresh.
 
 ---
 
 32. **Dashboard: build bundle**
 
-    - UI collects `message` (string) and computes a **nonce**:
-
-      - Option A (simpler): user enters nonce manually for demo.
-      - Option B: call `GET /tx/next-nonce` (optional helper) to get `last_nonce+1`. (If not implemented, client tracks increment.)
-
+    - UI collects `message` (string) and a user-entered `nonce` (demo-only; no helper endpoint).
     - Build `Bundle` object in JS compatible with the CDDL.
-    - Install a small CBOR lib (e.g., `cbor-x`) and encode **canonical CBOR** in browser.
-    - _Verify_: preview CBOR (hex) in console.
+    - Install a small CBOR lib (e.g., `cbor-x`) and encode canonical CBOR in the browser; ensure deterministic/canonical mode is enabled to match server hashing.
+    - _Verify_: preview CBOR (hex) in console; repeated encodes of the same input produce the same bytes.
 
 ---
 
 33. **Transaction signing options**
 
-    - `POST /tx/signing/options` with `bundle_cbor_b64`.
+    - `POST /tx/signing/options` with `bundle_cbor_b64` using absolute API URL and `credentials: 'include'`.
     - Receive `publicKey` options; call `navigator.credentials.get(...)`.
     - Send `/tx/signing/finish`.
     - On success: refresh list.
@@ -112,8 +102,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 34. **Error toasts**
 
-    - Render server error messages (JSON `{ code, error }`) as inline alerts.
-    - _Verify_: cause a failure (bad origin or nonce) and observe mapped error code per server envelope.
+    - Best-effort now: render HTTP status and any JSON `{ error, code? }` if present; fall back to status text. Upgrade to standardized envelopes after Step 38.
+    - _Verify_: cause a failure (e.g., bad nonce or origin) and see a visible inline alert with informative text.
 
 ### Phase I — Testing & Fixtures
 
