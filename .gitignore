@@ -16,3 +16,5 @@ server/**/*.db
 .env
 web/.env*
 
+# tests
+web/test-results

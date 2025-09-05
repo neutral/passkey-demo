@@ -229,17 +229,7 @@ git push -u origin step-<n>-<kebab-name>
 
 ## Tools
 
-- move-expanded-step-to-done:
-  - Path: `tools/move-expanded-step-to-done.sh`
-  - Purpose: Moves a fully expanded step from the Next section in `blueprint/implementation.md` to the `blueprint/done/` folder and adds a one‑liner link in the Done list.
-  - Delimiters: Each step block in Next must be preceded by a single line of dashes `-----`. The following line must be the step header like `25. **Rate limiting & limits**`. The block ends at the next `-----` or EOF.
-  - Done file path: `blueprint/done/<phase>-step-<n>-<kebab>.md`. Phase is detected from the nearest `### Phase X` header above the step. Kebab is derived from the step title (lowercase, non‑alphanumerics → `-`).
-  - Usage:
-    - `bash tools/move-expanded-step-to-done.sh <step-number>`
-  - Behavior:
-    - Extracts the delimited block, writes it verbatim into the Done file with a date header, removes the block from `implementation.md`, and inserts a one‑liner link under the Done section.
-  - Notes:
-    - Keep the simple `-----` delimiter line immediately before every step header in Next so the tool can identify block boundaries.
+Write scripts in the `tools/` folder to automate repetitive actions.
 
 ## Refactoring Strategy
 
