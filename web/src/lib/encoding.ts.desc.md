@@ -9,8 +9,7 @@ Provide base64url (URL-safe, no padding) and UTF‑8 conversion helpers for the 
 
 # Interactions
 - Consumed by registration/login/signing flows for WebAuthn binary fields and message/CBOR conversions in later steps.
-- Tested via Playwright by dynamically importing the module from the Vite dev server.
+- Tested via Playwright by dynamically importing the module from the Vite dev server. This uses the dev server only to serve frontend assets during tests; it does not use any proxy. All backend calls (in later steps) use absolute URLs via `web/src/config.ts` and rely on server CORS.
 
 # Refs
 Refs: requirement R-PLAT-1; requirement R-ERR; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations; spec spec-a; spec spec-b
-

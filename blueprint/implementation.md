@@ -33,6 +33,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 25 — Rate limiting & limits](blueprint/done/phase-g-step-25-rate-limiting-limits.md)
 - [Step 26 — CORS & cookies](blueprint/done/phase-g-step-26-cors-and-cookies.md)
 - [Step 27 — Basic pages](blueprint/done/phase-h-step-27-basic-pages.md)
+- [Step 28 — Base64url helpers (web)](blueprint/done/phase-h-step-28-base64url-helpers-web.md)
 
 ## Next
 
@@ -40,10 +41,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ---
 
-28. **Base64url helpers (web)**
-
-    - JS utils: ArrayBuffer ⇄ base64url; UTF‑8 encoder/decoder.
-    - _Verify_: unit test in browser console.
+28. **Base64url helpers (web)** — Moved to Done
 
 ---
 
