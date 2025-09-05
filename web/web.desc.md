@@ -9,6 +9,7 @@ Frontend single-page application (React + Vite) providing a minimal UI to Regist
 - Views: Register, Login, Dashboard (two primary actions on home; dashboard shows list and sign form).
 - API calls: `POST /authn/passkey/registration/options|finish`, `POST /authn/passkey/login/options|finish`, `POST /tx/signing/options|finish`, `GET /tx/list`.
 - Absolute URL policy: calls constructed via `apiUrl()` against `API_BASE`.
+- Encoding utilities: base64url and UTF‑8 helpers live in `web/src/lib/encoding.ts` and are used across flows.
 - WebAuthn: `navigator.credentials.create` and `navigator.credentials.get` with `userVerification: "required"`.
 
 # Refs
