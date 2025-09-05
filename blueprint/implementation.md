@@ -32,19 +32,11 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 24 — Session middleware](blueprint/done/phase-g-step-24-session-middleware.md)
 - [Step 25 — Rate limiting & limits](blueprint/done/phase-g-step-25-rate-limiting-limits.md)
 - [Step 26 — CORS & cookies](blueprint/done/phase-g-step-26-cors-and-cookies.md)
+- [Step 27 — Basic pages](blueprint/done/phase-h-step-27-basic-pages.md)
 
 ## Next
 
 ### Phase H — Frontend (React) UI
-
----
-
-27. **Basic pages**
-
-    - `Register.tsx`, `Login.tsx`, `Dashboard.tsx`; a simple router (or conditional rendering).
-    - Home screen presents only two primary actions: Register and Login (post-login shows Dashboard).
-    - Use CORS from step 26; call backend via absolute URLs (e.g., `http://localhost:8080/...`). Do NOT use a Vite dev proxy.
-    - _Verify_: SPA renders pages; home shows exactly two buttons.
 
 ---
 
