@@ -5,6 +5,7 @@ import (
     "database/sql"
     "encoding/hex"
     "encoding/json"
+    "log"
     "net/http"
     "strings"
     "time"
@@ -103,6 +104,8 @@ func RegistrationFinishHandler(cfg *cfgpkg.Config, store *RegSessionStore, db *s
         }
         // Validate COSE EC2 key to Go ecdsa.PublicKey
         if _, err := cryptoutil.ToECDSA(&cose); err != nil {
+            // Debug-only metadata to triage failures without printing raw key material
+            log.Printf("reg_finish: ToECDSA failed: %v; cose{kty=%d alg=%d crv=%d xlen=%d ylen=%d}", err, cose.Kty, cose.Alg, cose.Crv, len(cose.X), len(cose.Y))
             http.Error(w, "invalid public key", http.StatusBadRequest)
             return
         }
