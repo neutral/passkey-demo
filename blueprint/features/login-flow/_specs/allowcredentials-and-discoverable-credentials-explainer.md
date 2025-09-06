@@ -5,8 +5,9 @@
 
 ## What `allowCredentials` Is
 - A list of credential IDs the browser should allow during `navigator.credentials.get(...)`.
-- If the list is empty, browsers perform “account discovery” using client‑side discoverable credentials for the RP ID (no pre‑selected credential from the server).
+- Omit the property entirely to enable “account discovery” using client‑side discoverable credentials for the RP ID (no pre‑selected credential from the server).
 - If the list contains IDs, browsers filter authenticators to those specific credentials and typically skip the account chooser.
+- Important: Do not send an empty array to mean “no filter.” Some implementations interpret an empty list as “no credentials allowed,” leading to immediate failure or “No passkeys available.”
 
 ## Discoverable vs Non‑Discoverable Credentials
 - Discoverable (resident) credentials: Stored on the authenticator/OS; modern “passkeys”. The authenticator can find these by RP ID alone.
