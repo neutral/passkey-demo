@@ -34,6 +34,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 26 — CORS & cookies](blueprint/done/phase-g-step-26-cors-and-cookies.md)
 - [Step 27 — Basic pages](blueprint/done/phase-h-step-27-basic-pages.md)
 - [Step 28 — Base64url helpers (web)](blueprint/done/phase-h-step-28-base64url-helpers-web.md)
+- [Step 29 — WebAuthn create() flow (Register)](blueprint/done/phase-h-step-29-webauthn-register.md)
 
 ## Next
 
@@ -41,7 +42,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ---
 
-29. **WebAuthn create() flow (Register)**
+29. **WebAuthn create() flow (Register)** — Moved to Done
 
     - Scope:
 
