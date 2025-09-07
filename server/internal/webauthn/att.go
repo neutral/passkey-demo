@@ -4,6 +4,7 @@ import (
     "bytes"
     "encoding/binary"
     "errors"
+    "log"
 
     cbor "github.com/fxamacker/cbor/v2"
     enc "github.com/neutral/passkey-demo/internal/encoding"
@@ -77,10 +78,91 @@ func ParseAttestedCredentialData(b []byte) (aaguid [16]byte, credID []byte, cose
 // ParseCOSEKeyEC2 decodes a COSE EC2 key into our struct.
 func ParseCOSEKeyEC2(b []byte) (types.CoseEC2, error) {
     var k types.CoseEC2
-    if err := enc.DecodeCanonical(b, &k); err != nil {
-        return types.CoseEC2{}, ErrCOSEKeyDecode
+    // First try decoding as a COSE_Key map directly.
+    if err := enc.DecodeCanonical(b, &k); err == nil {
+        if k.Kty != 0 && len(k.X) > 0 && len(k.Y) > 0 {
+            return k, nil
+        }
     }
-    return k, nil
+    // Some authenticators wrap the COSE_Key inside a CBOR byte string (bstr) or tag 24 "encoded CBOR".
+    // Try to decode a nested byte string and then decode that as a COSE_Key.
+    var inner []byte
+    if err := enc.DecodeCanonical(b, &inner); err == nil && len(inner) > 0 {
+        var k2 types.CoseEC2
+        if err2 := enc.DecodeCanonical(inner, &k2); err2 == nil {
+            if k2.Kty != 0 && len(k2.X) > 0 && len(k2.Y) > 0 {
+                return k2, nil
+            }
+        }
+    }
+    // Try to decode as a CBOR tag (e.g., tag 24) that wraps a byte string with COSE_Key CBOR inside.
+    var tag cbor.Tag
+    if err := enc.DecodeCanonical(b, &tag); err == nil {
+        if tag.Number == 24 {
+            if payload, ok := tag.Content.([]byte); ok && len(payload) > 0 {
+                var k3 types.CoseEC2
+                if err3 := enc.DecodeCanonical(payload, &k3); err3 == nil {
+                    if k3.Kty != 0 && len(k3.X) > 0 && len(k3.Y) > 0 {
+                        return k3, nil
+                    }
+                }
+            }
+        }
+    }
+    // Last resort: decode into a generic map and extract fields 1,3,-1,-2,-3.
+    var generic map[any]any
+    if err := enc.DecodeCanonical(b, &generic); err == nil && len(generic) > 0 {
+        // Helper to pull an int or uint into Go int
+        getInt := func(key any) (int, bool) {
+            switch t := key.(type) {
+            case int:
+                return t, true
+            case int64:
+                return int(t), true
+            case uint64:
+                return int(t), true
+            default:
+                return 0, false
+            }
+        }
+        // Re-map by integer keys if possible
+        ints := make(map[int]any)
+        for k0, v := range generic {
+            if ik, ok := getInt(k0); ok {
+                ints[ik] = v
+            }
+        }
+        var out types.CoseEC2
+        if v, ok := ints[1]; ok {
+            if i, ok2 := getInt(v); ok2 {
+                out.Kty = i
+            }
+        }
+        if v, ok := ints[3]; ok {
+            if i, ok2 := getInt(v); ok2 {
+                out.Alg = i
+            }
+        }
+        if v, ok := ints[-1]; ok {
+            if i, ok2 := getInt(v); ok2 {
+                out.Crv = i
+            }
+        }
+        if v, ok := ints[-2]; ok {
+            if bs, ok2 := v.([]byte); ok2 {
+                out.X = bs
+            }
+        }
+        if v, ok := ints[-3]; ok {
+            if bs, ok2 := v.([]byte); ok2 {
+                out.Y = bs
+            }
+        }
+        if out.Kty != 0 && len(out.X) > 0 && len(out.Y) > 0 {
+            return out, nil
+        }
+    }
+    return types.CoseEC2{}, ErrCOSEKeyDecode
 }
 
 // ExtractRegistrationData parses the attestation object, validates fmt, and returns
@@ -88,29 +170,36 @@ func ParseCOSEKeyEC2(b []byte) (types.CoseEC2, error) {
 func ExtractRegistrationData(attObjB []byte) (ad AuthData, aaguid [16]byte, credID []byte, cose types.CoseEC2, err error) {
     ao, err := ParseAttestationObject(attObjB)
     if err != nil {
+        log.Printf("reg_finish: attestation CBOR decode failed: %v", err)
         return ad, aaguid, nil, cose, err
     }
-    if ao.Fmt != "none" {
+    // Demo-grade: accept attestation fmt "none" and "packed" without trust evaluation.
+    // We only rely on the attested credential data (AAGUID, credential ID, COSE key).
+    if ao.Fmt != "none" && ao.Fmt != "packed" {
+        log.Printf("reg_finish: unsupported attestation fmt=%s", ao.Fmt)
         return ad, aaguid, nil, cose, ErrAttestationFormat
     }
     // Parse AD header
     ad, remainder, err := ParseAuthData(ao.AuthData)
     if err != nil {
+        log.Printf("reg_finish: parse authData failed: %v (len=%d)", err, len(ao.AuthData))
         return ad, aaguid, nil, cose, err
     }
     if (ad.Flags & FlagAT) == 0 {
+        log.Printf("reg_finish: AT flag not set (flags=0x%02x)", ad.Flags)
         return ad, aaguid, nil, cose, ErrAttestedDataMissing
     }
     // Parse attested cred data
     aaguid, credID, coseRaw, _, err := ParseAttestedCredentialData(remainder)
     if err != nil {
+        log.Printf("reg_finish: parse attested credential data failed: %v (rem_len=%d)", err, len(remainder))
         return ad, aaguid, nil, cose, err
     }
     // Decode COSE EC2
     cose, err = ParseCOSEKeyEC2(coseRaw)
     if err != nil {
+        log.Printf("reg_finish: parse COSE key failed: %v (cose_len=%d)", err, len(coseRaw))
         return ad, aaguid, nil, cose, err
     }
     return ad, aaguid, credID, cose, nil
 }
-

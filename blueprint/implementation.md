@@ -35,6 +35,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 27 — Basic pages](blueprint/done/phase-h-step-27-basic-pages.md)
 - [Step 28 — Base64url helpers (web)](blueprint/done/phase-h-step-28-base64url-helpers-web.md)
 - [Step 29 — WebAuthn create() flow (Register)](blueprint/done/phase-h-step-29-webauthn-register.md)
+- [Step 30 — WebAuthn get() flow (Login)](blueprint/done/phase-h-step-30-webauthn-login.md)
 
 ## Next
 
@@ -42,128 +43,122 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ---
 
-29. **WebAuthn create() flow (Register)** — Moved to Done
+30. **WebAuthn get() flow (Login)** — Moved to Done
 
     - Scope:
 
-      - Implement the browser registration flow end-to-end on the Register page using absolute API URLs and CORS (no Vite proxy).
-      - Transform server options into `PublicKeyCredentialCreationOptions` (b64url → ArrayBuffer) and submit `navigator.credentials.create({ publicKey })`.
-      - Send `registration/finish` payload (ArrayBuffers → base64url) to the backend. On success, display the `account_thumb_hex` and route to Login.
+      - Implement the browser login (assertion) flow on the Login page using absolute API URLs and CORS.
+      - Transform server JSON into `PublicKeyCredentialRequestOptions` (b64url → ArrayBuffer; allowCredentials decoding) and submit `navigator.credentials.get({ publicKey })`.
+      - Send `login/finish` payload (ArrayBuffers → base64url) to the backend with `credentials: 'include'` so the browser accepts the `Set-Cookie` response header.
+      - On success: show `account_thumb_hex`, set a local “logged in” UI state, and route to Dashboard (no global store).
 
     - Source to add/modify:
 
-      - Add: `web/src/lib/webauthn.ts` — Helpers for registration flow:
-        - `toCreationOptions(resp: { reg_session_id: string; challenge: string; options: { rp_id: string; origin: string; uv_required: boolean; attestation: string } }): PublicKeyCredentialCreationOptions` — builds `publicKey` options; sets `rp.id`, `challenge`, `attestation`, `authenticatorSelection.residentKey='required'`, `authenticatorSelection.userVerification='required'`, `pubKeyCredParams=[{ type:'public-key', alg:-7 }]`, `rp.name='Passkey Demo'`, and ephemeral `user` (random 32-byte id, name/displayName 'demo').
-        - `buildRegFinish(cred: PublicKeyCredential, regSessionId: string)` — returns JSON matching server’s expected shape with base64url strings (id/rawId/attestationObject/clientDataJSON) and `reg_session_id`.
-        - Uses `bytesToBase64url`/`base64urlToBytes` from `web/src/lib/encoding.ts`.
-      - Modify: `web/src/pages/Register.tsx` — Wire the UI:
-        - “Start Registration” button triggers: fetch options → build options → `navigator.credentials.create` → POST finish → show `account_thumb_hex` and a button “Go to Login”.
-        - Use absolute URLs via `apiUrl('/authn/passkey/registration/options|finish')`. No proxy. Handle loading and basic error text inline.
-      - Add (tests): `web/tests/webauthn.spec.ts` — Pure tests for `toCreationOptions` and `buildRegFinish` (no real WebAuthn); run under Playwright.
-      - Add (chromium e2e): `web/tests/webauthn-e2e.chromium.spec.ts` — Automated E2E using a Virtual Authenticator via CDP; provisions a CTAP2 authenticator with resident keys and UV enabled, then performs Register flow end-to-end.
-      - Modify (tests config): `web/playwright.config.ts` — Add a second `webServer` entry to start the Go backend for E2E (`RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 go run ../server/cmd/api`), alongside the existing Vite dev server.
+      - Add: `web/src/lib/webauthn.ts` — Extend with assertion helpers:
+        - `toRequestOptions(resp: { login_session_id: string; challenge: string; options: { rp_id: string; origin: string; uv_required: boolean; allow_credentials: string[] } }): PublicKeyCredentialRequestOptions` — builds `publicKey` options with `challenge`, optional `allowCredentials` list of `{ type:'public-key', id: ArrayBuffer }`, and `userVerification: 'required'`. Optionally set `rpId = resp.options.rp_id`. If the decoded allow list is empty, omit the `allowCredentials` property entirely to allow discoverable credentials.
+        - `buildLoginFinish(cred: PublicKeyCredential, loginSessionId: string)` — returns JSON with base64url-encoded `rawId`, `response.authenticatorData`, `response.clientDataJSON`, `response.signature`, and optional `response.userHandle`, plus `login_session_id`.
+      - Modify: `web/src/pages/Login.tsx` — Wire fetch options → build request options → `navigator.credentials.get` → POST finish with `credentials: 'include'` → on success show `account_thumb_hex` and route to Dashboard (e.g., set `location.hash = '#/dashboard'`). Render inline error on failure.
+      - Add (tests): `web/tests/login-webauthn.spec.ts` — Pure builder tests for `toRequestOptions` and `buildLoginFinish` (no real WebAuthn); run under Playwright.
+      - Add (optional chromium e2e): `web/tests/login-e2e.chromium.spec.ts` — Uses Virtual Authenticator. Note: Without a pre‑registered credential in the DB, finish returns 401 (credential not recognized); treat that as acceptable for this environment unless the DB is seeded via a prior manual registration.
 
     - Description files (create/update alongside code changes):
 
-      - Create: `web/src/lib/webauthn.ts.desc.md` — Describe builders, invariants (UV/residentKey/attestation), and encoding rules. Refs included.
-      - Update: `web/src/pages/Register.tsx.desc.md` — Add flow details, network calls, transformations, and success UI. Refs included.
-      - Update: `web/web.desc.md` — Note WebAuthn helpers usage and absolute API under CORS.
+      - Update: `web/src/lib/webauthn.ts.desc.md` — Document `toRequestOptions` and `buildLoginFinish` semantics (UV required; allowCredentials handling; encoding rules). Refs included.
+      - Update: `web/src/pages/Login.tsx.desc.md` — Add flow details, network calls, transformations, cookie receipt via CORS, and success UI. Refs included.
+      - Update: `web/web.desc.md` — Mention login flow wiring and `credentials: 'include'` for cookies.
 
     - Request/response shape:
 
       - Request (options):
-        - `POST {API_BASE}/authn/passkey/registration/options`
+        - `POST {API_BASE}/authn/passkey/login/options`
         - Headers: `Content-Type: application/json` (no body)
       - Response (options):
         - JSON:
-          - `reg_session_id: string`
+          - `login_session_id: string`
           - `challenge: string` (base64url)
-          - `options: { rp_id: string; origin: string; uv_required: boolean; attestation: 'none' }`
+          - `options: { rp_id: string; origin: string; uv_required: boolean; allow_credentials: string[] }`
           - `expires_at: number` (unix seconds)
       - WebAuthn input (browser):
-        - `PublicKeyCredentialCreationOptions` with binary fields as `ArrayBuffer`/`BufferSource`.
+        - `PublicKeyCredentialRequestOptions` with `challenge: BufferSource`, optional `allowCredentials: { type:'public-key', id: BufferSource }[]`, and `userVerification: 'required'`. Optionally include `rpId`.
       - Request (finish):
-        - `POST {API_BASE}/authn/passkey/registration/finish`
+        - `POST {API_BASE}/authn/passkey/login/finish`
         - Body JSON:
-          - `reg_session_id: string`
-          - `id: string` (as received from `credential.id`)
+          - `login_session_id: string`
+          - `id: string` (from `credential.id`)
           - `rawId: string` (base64url)
           - `type: 'public-key'`
-          - `response: { attestationObject: string (base64url), clientDataJSON: string (base64url) }`
+          - `response: { authenticatorData: string (base64url), clientDataJSON: string (base64url), signature: string (base64url), userHandle?: string (base64url) }`
       - Response (finish):
-        - `201 Created` JSON `{ account_thumb_hex: string, credential_id_b64: string }`
+        - `200 OK` JSON `{ account_thumb_hex: string, credential_id_b64: string }`
+        - Plus `Set-Cookie: sid=...; HttpOnly; SameSite=Lax; Secure?` (Secure=false on `http://localhost`). Note: HttpOnly cookies are not readable via `document.cookie`; verify in DevTools Application → Cookies or via subsequent authenticated calls.
 
     - Algorithm:
 
       - Fetch options:
-        - `const r = await fetch(apiUrl('/authn/passkey/registration/options'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors' })`.
-        - Parse JSON; optionally validate `origin === location.origin` and `options.rp_id === 'localhost'` when in dev; warn if mismatch.
-      - Build `publicKey` options:
+        - `const r = await fetch(apiUrl('/authn/passkey/login/options'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors' })`.
+        - Parse JSON; optionally validate `origin === location.origin` and `options.rp_id` expected in dev.
+      - Build request options:
         - `challenge = base64urlToBytes(resp.challenge)`.
-        - `rp = { id: resp.options.rp_id, name: 'Passkey Demo' }`.
-        - `user = { id: crypto.getRandomValues(new Uint8Array(32)), name: 'demo', displayName: 'Demo' }` (demo-only; stable identity is server-side passkey key).
-        - `pubKeyCredParams = [{ type: 'public-key', alg: -7 }]` (ES256).
-        - `authenticatorSelection = { residentKey: 'required', userVerification: 'required' }`.
-        - `attestation = 'none'`.
-      - Call WebAuthn create:
-        - `const cred = await navigator.credentials.create({ publicKey }) as PublicKeyCredential`.
+        - If `allow_credentials` present: map each to `{ type:'public-key', id: base64urlToBytes(b64) }`.
+        - If the mapped list is empty, omit `allowCredentials` from the options object (do not send an empty array) to enable discoverable credentials.
+        - `userVerification = 'required'`; optionally set `rpId = resp.options.rp_id`.
+      - Call WebAuthn get:
+        - `const cred = await navigator.credentials.get({ publicKey }) as PublicKeyCredential`.
       - Build finish payload:
         - `rawId = bytesToBase64url(new Uint8Array(cred.rawId as ArrayBuffer))`.
-        - `attestationObject = bytesToBase64url(cred.response.attestationObject)`.
+        - `authenticatorData = bytesToBase64url(cred.response.authenticatorData)`.
         - `clientDataJSON = bytesToBase64url(cred.response.clientDataJSON)`.
-        - Include `id`, `type`, and `reg_session_id` from options.
-      - POST finish:
-        - `await fetch(apiUrl('/authn/passkey/registration/finish'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors', body: JSON.stringify(payload) })`.
+        - `signature = bytesToBase64url(cred.response.signature)`.
+        - `userHandle = cred.response.userHandle ? bytesToBase64url(cred.response.userHandle) : ''`.
+        - Include `id`, `type`, and `login_session_id` from options.
+      - POST finish (with cookie acceptance):
+        - `await fetch(apiUrl('/authn/passkey/login/finish'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, mode: 'cors', credentials: 'include', body: JSON.stringify(payload) })`.
       - Success/UI:
-        - Show `account_thumb_hex` with monospace styling; provide a “Go to Login” button that routes to Login.
+        - Show `account_thumb_hex` and route to Dashboard (`location.hash = '#/dashboard'`).
       - Errors:
-        - Show inline error text if HTTP not ok or JSON parse fails; if `navigator.credentials.create` rejects (AbortError, NotAllowedError), show the message. Full toasts come in Step 34.
+        - Inline error text on HTTP failure or thrown WebAuthn errors (AbortError/NotAllowedError). Full toasts in Step 34.
 
     - Database interactions:
 
-      - None on client; server persists account and credential as per Step 17.
+      - None on client; server verifies assertion, enforces signCount increasing, updates DB, and sets a `sid` session cookie.
 
     - Policies & limits:
 
-      - Attestation: `'none'`; ResidentKey: `'required'`; UserVerification: `'required'` — must be reflected in the built options.
-      - Algorithm: ES256 (`alg: -7`) only.
-      - Absolute URLs only; do not use a proxy; `mode: 'cors'` on fetch.
-      - Do not store any secrets or session state in local storage; rely on server session.
+      - UV required across options and verification.
+      - `allowCredentials` may be empty for discoverable credentials; builder must handle both cases.
+      - Absolute API URLs only; no proxy. Ensure `API_BASE` is an absolute URL (do NOT set `/api`). Use `mode: 'cors'` and `credentials: 'include'` on finish so cookies are accepted.
+      - HttpOnly cookie: do not attempt to read `sid` in JS; validate via DevTools or by calling an authenticated endpoint (Step 31).
+      - Do not persist auth state in localStorage; rely on `sid` cookie.
 
     - Sequencing:
 
-      - Depends on Steps 15 (reg/options), 17 (reg/finish), 26 (CORS), and 28 (encoding helpers).
-      - Precedes Step 30 (login/assertion) and later dashboard steps.
+      - Depends on Steps 18 (login/options), 19 (login/finish), 26 (CORS & cookies), and 28 (encoding helpers).
+      - Follows Step 29 (registration); precedes Step 31 (Dashboard list) and later signing flows.
 
     - Tests (happy path required, plus negatives):
 
       - Files to add:
-        - `web/tests/webauthn.spec.ts`
-        - `web/tests/webauthn-e2e.chromium.spec.ts`
+        - `web/tests/login-webauthn.spec.ts`
+        - `web/tests/login-e2e.chromium.spec.ts` (optional; see note below)
       - Happy path (pure builder tests):
-        - Verify `toCreationOptions` maps `rp_id` to `rp.id`, sets `attestation='none'`, and `authenticatorSelection.residentKey='required'`, `userVerification='required'`.
-        - Challenge is an `ArrayBuffer` with expected byte length (32) after decoding the provided base64url.
-        - `pubKeyCredParams` contains `{ type:'public-key', alg:-7 }`.
-        - `buildRegFinish` correctly base64url-encodes provided byte fields and includes `reg_session_id`.
+        - `toRequestOptions` sets `userVerification='required'`, decodes `challenge` to bytes, and maps `allow_credentials` to `allowCredentials[].id: ArrayBuffer`.
+        - When `allow_credentials` is empty, the returned options object omits `allowCredentials`.
+        - `buildLoginFinish` correctly base64url-encodes `rawId`, `authenticatorData`, `clientDataJSON`, and `signature`, includes `login_session_id`.
       - Negative cases:
-        - Invalid base64url challenge → builder throws `TypeError`.
-        - Missing required fields in response → builder throws with a clear message.
-      - Automated E2E (Chromium + Virtual Authenticator):
-        - Enable CDP WebAuthn and add a virtual authenticator with options:
-          - `protocol: 'ctap2'`, `transport: 'internal'`, `hasResidentKey: true`, `hasUserVerification: true`, `isUserVerified: true`, `automaticPresenceSimulation: true`.
-        - Start backend (Playwright `webServer` entry) and Vite dev server; navigate to Home → Register → click “Start Registration”.
-        - Expect 201 finish with `{ account_thumb_hex, credential_id_b64 }` and success UI.
-        - Command: `npm -C web run test:ui -- --project=chromium tests/webauthn-e2e.chromium.spec.ts`.
-      - Commands:
-        - `npm -C web run test:ui` (Playwright runner executes `webauthn.spec.ts`).
+        - Invalid base64url in `challenge` or `allow_credentials` → builder throws `TypeError`.
+        - Missing required fields in response → builder throws clearly.
+      - Automated E2E (Chromium + Virtual Authenticator; optional):
+        - Without a pre-registered credential in the DB, finish returns 401 (credential not recognized) by design — treat as acceptable signal the flow executed end-to-end client-side.
+        - If you first complete registration manually (or seed the DB), the same test can assert 200 and cookie presence via `document.cookie` checks.
+        - Command: `npm -C web run test:ui -- --project=chromium tests/login-e2e.chromium.spec.ts`.
 
     - Verification:
 
-      - Manual E2E (for platform authenticators):
-        - Start backend and dev server; open Register; click “Start Registration”; approve platform authenticator prompt.
-        - Expect server to return 201 with `{ account_thumb_hex, credential_id_b64 }`; UI shows thumb and a button to go to Login; clicking it routes to the Login page.
-      - Automated builder tests pass in Playwright.
-      - Automated Chromium E2E passes with Virtual Authenticator (no real prompts). Note: if the virtual authenticator returns an attestation format other than `none` (e.g., `packed`), the demo backend returns HTTP 400 by design; treat that as acceptable for the E2E in this environment.
+      - Manual E2E:
+        - Register first using the Register page. Then go to Login, click “Start Login”, approve the prompt.
+        - Expect `200 OK` with `{ account_thumb_hex, credential_id_b64 }`. Confirm cookie in DevTools Application tab → Cookies for `http://localhost:5173` (HttpOnly cookie not visible to `document.cookie`).
+        - App routes to Dashboard.
+      - Builder tests pass in Playwright.
 
       - User verification commands:
 
@@ -172,48 +167,34 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
         npm -C web ci || npm -C web install
 
         # 2) Run builder tests
-        npm -C web run test:ui --silent
+        npm -C web run test:ui -- --project=chromium tests/login-webauthn.spec.ts
 
-        # 2b) (Optional) Run Chromium E2E with Virtual Authenticator
-        # Ensure Playwright config starts both backend and Vite servers
-        npm -C web run test:ui -- --project=chromium tests/webauthn-e2e.chromium.spec.ts
+        # 3) Optional E2E without registration seed (expects 401 acceptable)
+        npm -C web run test:ui -- --project=chromium tests/login-e2e.chromium.spec.ts || true
 
-        # 3) Run backend and web (manual E2E)
-        RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 go run ./server/cmd/api &
+        # 4) Manual E2E
+        RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 go -C server run ./cmd/api &
         SERVER_PID=$!
         npm -C web run dev &
         WEB_PID=$!
-
-        # 4) Visit http://localhost:5173 → Register, perform create(), observe success thumb
-
-        # 5) Cleanup
+        # Visit http://localhost:5173 → Register, then Login. Check cookie.
         kill $WEB_PID || true
         kill $SERVER_PID || true
         ```
 
     - Acceptance criteria:
 
-      - Register page performs options → create → finish with absolute URLs; success shows `account_thumb_hex` and allows routing to Login.
-      - `toCreationOptions` sets correct flags and transforms base64url challenge to `ArrayBuffer`.
-      - `buildRegFinish` encodes all binary fields to base64url and includes `reg_session_id`.
-      - Playwright builder tests pass.
+      - Login page performs options → get → finish with absolute URLs; success displays `account_thumb_hex` and routes to Dashboard.
+      - Finish request uses `credentials: 'include'` and cookie is set on success (SameSite=Lax, HttpOnly; Secure=false for `http://localhost`).
+      - `toRequestOptions` and `buildLoginFinish` builders pass Playwright tests.
 
     - Notes:
 
-      - User object is demo-only: random 32-byte `user.id`, and simple `name/displayName`; server identity is passkey-first via COSE key (Step 17 + R-ID-KEY).
-      - Keep UI minimal; full error toast styling comes in Step 34.
+      - `allowCredentials` filtering may be empty for discoverable credentials; this is expected for platform authenticators.
+      - Some virtual authenticator configurations might not reflect production prompts; keep manual E2E as source of truth for UX.
 
     - Refs:
-      - Refs: requirement R-FLOW-REG; requirement R-PLAT-1; requirement R-PORTABLE; decision webauthn-corrections-and-standardizations; goal passkey-registration-login-uv; spec spec-a; spec spec-b
-
----
-
-30. **WebAuthn get() flow (Login)**
-
-    - `POST /authn/passkey/login/options`; convert to `PublicKeyCredentialRequestOptions`.
-    - Call `navigator.credentials.get(...)`.
-    - Send `login/finish` (use absolute API URL and `credentials: 'include'` on fetch to accept `Set-Cookie` under CORS); on success: set “logged in” UI state (no global store, just local state) and route to Dashboard.
-    - _Verify_: end-to-end login completes; cookie present.
+      - Refs: requirement R-FLOW-LOGIN; requirement R-PLAT-1; requirement R-PORTABLE; decision webauthn-corrections-and-standardizations; goal passkey-registration-login-uv; spec spec-a; spec spec-b
 
 ---
 
