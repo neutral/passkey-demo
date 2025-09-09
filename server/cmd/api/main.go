@@ -25,6 +25,7 @@ func main() {
     // In-memory stores
     regStore := webauthn.NewRegSessionStore(10000)
     loginStore := webauthn.NewLoginSessionStore(10000)
+    txStore := tx.NewTxSessionStore(10000)
 
 	// Health
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +41,9 @@ func main() {
     mux.Handle("/authn/passkey/login/options", webauthn.LoginOptionsHandler(cfg, loginStore))
     // Login finish
     mux.Handle("/authn/passkey/login/finish", webauthn.LoginFinishHandler(cfg, loginStore, db))
+    // Tx signing options/finish
+    mux.Handle("/tx/signing/options", tx.TxOptionsHandler(cfg, txStore, db))
+    mux.Handle("/tx/signing/finish", tx.TxFinishHandler(cfg, txStore, db))
     // Transactions list (authenticated)
     mux.Handle("/tx/list", tx.TxListHandler(db))
     // Account key (authenticated)

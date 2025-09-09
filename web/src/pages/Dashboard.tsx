@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { apiUrl } from '../config'
 import { base64urlToBytes } from '../lib/encoding'
 import { buildBundle, bundleToB64Hex, encodeBundleCanonical, type CoseEC2 } from '../lib/bundle'
+import { toRequestOptions, buildTxFinish } from '../lib/webauthn'
 
 type Props = { onBack: () => void }
 
@@ -17,6 +18,7 @@ export default function Dashboard({ onBack }: Props) {
   const [nonce, setNonce] = useState('')
   const [bundleB64, setBundleB64] = useState('')
   const [bundleHex, setBundleHex] = useState('')
+  const [signing, setSigning] = useState(false)
 
   async function loadList() {
     setLoading(true)
@@ -98,6 +100,50 @@ export default function Dashboard({ onBack }: Props) {
     }
   }
 
+  async function signTransaction() {
+    if (!bundleB64) { setError('Build the bundle first'); return }
+    setSigning(true)
+    setError(null)
+    try {
+      // 1) Options
+      const ro = await fetch(apiUrl('/tx/signing/options'), {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bundle_cbor_b64: bundleB64 }),
+      })
+      if (ro.status === 401) { setUnauthorized(true); return }
+      if (ro.status === 409) { throw new Error('conflict (nonce or credentials)') }
+      if (ro.status === 400) { throw new Error('invalid bundle') }
+      if (!ro.ok) throw new Error(`options: HTTP ${ro.status}`)
+      const data = await ro.json()
+      const publicKey = toRequestOptions(data)
+      const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
+      if (!cred) throw new Error('get() returned null')
+      // 2) Finish
+      const payload = buildTxFinish(cred, data.tx_session_id)
+      const rf = await fetch(apiUrl('/tx/signing/finish'), {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!rf.ok) throw new Error(`finish: HTTP ${rf.status}`)
+      // Success: clear inputs and refresh list
+      setMsg('')
+      setNonce('')
+      setBundleB64('')
+      setBundleHex('')
+      await loadList()
+    } catch (e: any) {
+      setError(e?.message || String(e))
+    } finally {
+      setSigning(false)
+    }
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <h1>Dashboard</h1>
@@ -162,6 +208,7 @@ export default function Dashboard({ onBack }: Props) {
             {!senderKey && !unauthorized && (
               <button type="button" onClick={ensureSenderKey} disabled={loading}>Load Key</button>
             )}
+            <button type="button" onClick={signTransaction} disabled={unauthorized || loading || signing || !bundleB64}>Sign</button>
           </div>
           {bundleB64 && (
             <div style={{ marginTop: 8 }}>

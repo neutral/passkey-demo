@@ -105,3 +105,25 @@ export function buildLoginFinish(cred: PublicKeyCredential, loginSessionId: stri
     },
   }
 }
+
+export function buildTxFinish(cred: PublicKeyCredential, txSessionId: string) {
+  const asr = cred.response as AuthenticatorAssertionResponse
+  const rawId = bytesToBase64url(new Uint8Array(cred.rawId as ArrayBuffer))
+  const authenticatorData = bytesToBase64url(new Uint8Array(asr.authenticatorData))
+  const clientDataJSON = bytesToBase64url(new Uint8Array(asr.clientDataJSON))
+  const signature = bytesToBase64url(new Uint8Array(asr.signature))
+  const userHandle = asr.userHandle ? bytesToBase64url(new Uint8Array(asr.userHandle)) : ''
+
+  return {
+    tx_session_id: txSessionId,
+    id: cred.id,
+    rawId,
+    type: cred.type,
+    response: {
+      authenticatorData,
+      clientDataJSON,
+      signature,
+      userHandle,
+    },
+  }
+}
