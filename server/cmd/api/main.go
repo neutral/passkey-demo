@@ -8,6 +8,7 @@ import (
     httpx "github.com/neutral/passkey-demo/internal/http"
     storepkg "github.com/neutral/passkey-demo/internal/storage"
     webauthn "github.com/neutral/passkey-demo/internal/webauthn"
+    tx "github.com/neutral/passkey-demo/internal/tx"
 )
 
 func main() {
@@ -38,6 +39,8 @@ func main() {
     mux.Handle("/authn/passkey/login/options", webauthn.LoginOptionsHandler(cfg, loginStore))
     // Login finish
     mux.Handle("/authn/passkey/login/finish", webauthn.LoginFinishHandler(cfg, loginStore, db))
+    // Transactions list (authenticated)
+    mux.Handle("/tx/list", tx.TxListHandler(db))
 
     // Wrap with outermost CORS middleware
     handler := httpx.CORSMiddleware(cfg)(mux)
