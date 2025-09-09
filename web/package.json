@@ -11,12 +11,13 @@
     "test:ui": "playwright test"
   },
   "dependencies": {
+    "cbor-x": "^1.6.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.2",
     "@eslint/js": "^9.33.0",
+    "@playwright/test": "^1.48.2",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
