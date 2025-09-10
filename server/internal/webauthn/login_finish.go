@@ -4,6 +4,7 @@ import (
     "database/sql"
     "encoding/hex"
     "encoding/json"
+    "errors"
     "log"
     "net/http"
     "net/url"
@@ -137,12 +138,16 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
 
         // Verify assertion signature over ad || SHA256(cdj)
         if err := VerifyAssertion(pub, adRaw, cdjRaw, sigRaw); err != nil {
-            status, kind := MapVerifyError(err)
-            // Emit a structured debug log for triage (dev-friendly; no raw material)
-            log.Printf("login_finish verify: kind=%s status=%d rp_id=%s origin=%s uv=%t up=%t sc=%d cred_hash=%s",
-                kind, status, cfg.RP_ID, cfg.Origin, HasUV(ad.Flags), HasUP(ad.Flags), ad.SignCount, HashID(credID))
-            http.Error(w, "assertion verification failed", status)
-            return
+            // If the only failure is high-S, try the relaxed verifier (normalize S)
+            if !errors.Is(err, ErrHighS) || VerifyAssertionAllowHighS(pub, adRaw, cdjRaw, sigRaw) != nil {
+                status, kind := MapVerifyError(err)
+                // Emit a structured debug log for triage (dev-friendly; no raw material)
+                log.Printf("login_finish verify: kind=%s status=%d rp_id=%s origin=%s uv=%t up=%t sc=%d cred_hash=%s",
+                    kind, status, cfg.RP_ID, cfg.Origin, HasUV(ad.Flags), HasUP(ad.Flags), ad.SignCount, HashID(credID))
+                http.Error(w, "assertion verification failed", status)
+                return
+            }
+            // else: accepted high-S after normalization; continue
         }
 
         // Enforce signCount policy

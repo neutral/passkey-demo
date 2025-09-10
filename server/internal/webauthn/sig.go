@@ -50,3 +50,29 @@ func VerifyAssertion(pub *ecdsa.PublicKey, ad, cdj, sigDER []byte) error {
     }
     return nil
 }
+
+// VerifyAssertionAllowHighS verifies like VerifyAssertion but accepts high-S signatures
+// by normalizing S to its low form (S' = N - S) before verification. Strict DER and
+// P-256 curve requirements still apply.
+func VerifyAssertionAllowHighS(pub *ecdsa.PublicKey, ad, cdj, sigDER []byte) error {
+    if pub == nil || pub.Curve != elliptic.P256() {
+        return ErrUnsupportedCurve
+    }
+    hcdj := sha256.Sum256(cdj)
+    msg := append([]byte{}, ad...)
+    msg = append(msg, hcdj[:]...)
+    digest := sha256.Sum256(msg)
+
+    var sig ecdsaSig
+    if rest, err := asn1.Unmarshal(sigDER, &sig); err != nil || sig.R == nil || sig.S == nil || len(rest) != 0 {
+        return ErrMalformedDER
+    }
+    s := new(big.Int).Set(sig.S)
+    if !isLowS(pub.Curve, s) {
+        s = new(big.Int).Sub(pub.Curve.Params().N, s)
+    }
+    if !ecdsa.Verify(pub, digest[:], sig.R, s) {
+        return ErrBadSignature
+    }
+    return nil
+}

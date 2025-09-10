@@ -6,6 +6,7 @@ Verify WebAuthn assertion (login) and establish an application session via a sec
 - Parse `clientDataJSON` (`type=webauthn.get`, challenge match, origin allowlist with dev localhost exception).
 - Parse `authenticatorData` header; require `rpIdHash` match and UV flag set; read `signCount`.
 - Identify account by `rawId` (credential ID) → credentials row → account COSE key; convert to ECDSA and verify signature over `ad || SHA256(cdj)`.
+- Verification policy: strict verifier first (P‑256, strict DER, low‑S). If the only failure is high‑S, accept by normalizing S (login only) using `VerifyAssertionAllowHighS`.
 - Enforce signCount policy: if the authenticator reports `signCount == 0`, treat it as "counter not supported" and do not enforce monotonicity; otherwise require strictly increasing and update the stored count. Create server session (1h) and set `sid` cookie (HttpOnly, SameSite=Lax, Secure for https origin).
 
 # Interactions

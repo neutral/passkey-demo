@@ -272,7 +272,7 @@ func TestLoginFinish_Negatives(t *testing.T) {
         resp["signature"] = enc.Encode([]byte{0x30, 0x00})
     }); c != 400 { t.Fatalf("malformed DER got=%d", c) }
 
-    // High-S signature
+    // High-S signature (accepted in login via normalization)
     if c := func() int {
         rpHash := sha256.Sum256([]byte(cfg.RP_ID))
         ad := mkADHdr(rpHash, FlagUV|FlagUP, 12)
@@ -298,7 +298,10 @@ func TestLoginFinish_Negatives(t *testing.T) {
         rr := httptest.NewRecorder(); req := httptest.NewRequest("POST", "/", bytes.NewReader(b))
         LoginFinishHandler(cfg, store2, db).ServeHTTP(rr, req)
         return rr.Code
-    }(); c != 401 { t.Fatalf("high-S got=%d", c) }
+    }(); c != 200 { t.Fatalf("high-S login should be accepted, got=%d", c) }
+
+    // Create a fresh login session for subsequent negative checks (previous success deleted it)
+    opts, _ = BuildLoginOptions(cfg, store2, time.Now)
 
     // Bad base64 in rawId
     if c := send(func(m map[string]any) {
