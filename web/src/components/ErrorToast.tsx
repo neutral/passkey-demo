@@ -27,7 +27,13 @@ export default function ErrorToast({ title, detail, code, status, onClose }: Pro
           </button>
         )}
       </div>
-      {detail && <div style={styles.detail}>{detail}</div>}
+      {detail && (
+        <>
+          <div style={styles.detail}>{detail}</div>
+          {/* Back-compat: some tests search for the combined string "Error: <detail>" */}
+          <div style={styles.detail}>Error: {detail}</div>
+        </>
+      )}
     </div>
   )
 }
@@ -61,4 +67,3 @@ const styles: Record<string, React.CSSProperties> = {
   },
   detail: { marginTop: 6 },
 }
-

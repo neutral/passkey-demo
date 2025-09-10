@@ -43,12 +43,6 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ## Next
 
-### Phase H — Frontend (React) UI
-
----
-
-34. [moved to Done]
-
 ### Phase I — Testing & Fixtures
 
 ---

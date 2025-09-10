@@ -85,13 +85,18 @@ test('signing flow (mocked): options → get → finish and refresh', async ({ p
   await page.getByRole('button', { name: 'Build' }).click()
   // Ensure preview appears
   await expect(page.getByText('bundle_cbor_b64')).toBeVisible({ timeout: 5000 })
-  await page.getByRole('button', { name: 'Sign' }).click()
+  await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/tx/signing/options') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Sign' }).click(),
+  ])
 
   // Assert options was called with bundle
   expect(optionsBody).toBeTruthy()
   expect(typeof optionsBody.bundle_cbor_b64).toBe('string')
   expect(optionsBody.bundle_cbor_b64.length).toBeGreaterThan(0)
 
+  // Ensure finish request observed
+  await page.waitForResponse((r) => r.url().endsWith('/tx/signing/finish') && r.request().method() === 'POST')
   // Assert finish payload contains expected fields
   expect(finishBody).toBeTruthy()
   expect(finishBody.tx_session_id).toBe('txsess-1')

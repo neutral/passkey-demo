@@ -127,7 +127,7 @@ export default function Dashboard({ onBack }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bundle_cbor_b64: bundleB64 }),
       })
-      if (ro.status === 401) { setUnauthorized(true); setError('HTTP 401'); return }
+      if (ro.status === 401) { setUnauthorized(true); return }
       if (ro.status === 409) { throw new Error('conflict (nonce or credentials)') }
       if (ro.status === 400) { throw new Error('invalid bundle') }
       if (!ro.ok) {
@@ -179,7 +179,7 @@ export default function Dashboard({ onBack }: Props) {
         {error && (
           <ErrorToast title="Error" detail={error} onClose={() => setError(null)} />
         )}
-        {unauthorized && !error && (
+        {unauthorized && (
           <p style={{ marginTop: 12 }}>
             Not logged in. Please <a href="#/login">Login</a>.
           </p>
