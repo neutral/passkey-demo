@@ -90,10 +90,28 @@
 
 ## Usage Rules
 
+- Non‑negotiable policy: If you change a source file, you must update its corresponding `.desc.md` in the same commit. PRs that modify source without updating the matching description will be blocked.
 - Description files are mandatory for new code generated or added by agents.
 - Update description files alongside code changes to keep them accurate.
 - Do not omit or reduce inline code comments; they remain exhaustive within source files.
 - Co‑locate description files with their targets; do not centralize elsewhere.
+
+### PR Checklist (Description Files)
+
+- For each changed source file, the PR includes an updated `<filename>.<ext>.desc.md`.
+- For each changed source folder, the PR includes an updated `<folder>.desc.md` when behavior/relations change.
+- Each updated description ends with a current `Refs:` line pointing to relevant goals/requirements/specs/decisions.
+- The PR description lists the touched description files under a "Descriptions updated" bullet.
+
+### Automation
+
+- Run `tools/desc-check.sh` locally or in CI to ensure that source changes have matching description changes.
+- Example CI step (GitHub Actions):
+
+```yaml
+- name: Check description files
+  run: bash tools/desc-check.sh origin/main HEAD
+```
 
 ## Minimal Templates
 
