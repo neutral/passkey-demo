@@ -40,3 +40,12 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Minimal toast styles (also styled inline in component for isolation) */
+.toast {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  max-width: 480px;
+  z-index: 1000;
+}

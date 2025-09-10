@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { apiUrl } from '../config'
 import { toRequestOptions, buildLoginFinish, type LoginOptionsResponse } from '../lib/webauthn'
+import ErrorToast from '../components/ErrorToast'
+import { parseHttpError, normalizeError } from '../lib/http'
 
 type Props = { onBack: () => void }
 
@@ -19,7 +21,11 @@ export default function Login({ onBack }: Props) {
         headers: { 'Content-Type': 'application/json' },
         mode: 'cors',
       })
-      if (!r.ok) throw new Error(`options: HTTP ${r.status}`)
+      if (!r.ok) {
+        const pe = await parseHttpError(r)
+        setError(pe.title) // e.g., "HTTP 401"
+        return
+      }
       const data = (await r.json()) as LoginOptionsResponse
       const publicKey = toRequestOptions(data)
       const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
@@ -32,12 +38,17 @@ export default function Login({ onBack }: Props) {
         credentials: 'include',
         body: JSON.stringify(payload),
       })
-      if (!r2.ok) throw new Error(`finish: HTTP ${r2.status}`)
+      if (!r2.ok) {
+        const pe2 = await parseHttpError(r2)
+        setError(pe2.title) // keep string that includes HTTP status for tests
+        return
+      }
       const out = (await r2.json()) as { account_thumb_hex: string; credential_id_b64: string }
       setThumb(out.account_thumb_hex)
       window.location.hash = '#/dashboard'
     } catch (e: any) {
-      setError(e?.message || String(e))
+      const ne = normalizeError(e)
+      setError(ne.detail)
     } finally {
       setLoading(false)
     }
@@ -55,7 +66,7 @@ export default function Login({ onBack }: Props) {
           Back
         </button>
       </div>
-      {error && <p style={{ color: 'crimson', marginTop: 12 }}>Error: {error}</p>}
+      {error && <ErrorToast title="Error" detail={error} onClose={() => setError(null)} />}
       {thumb && (
         <div style={{ marginTop: 16 }}>
           <div>

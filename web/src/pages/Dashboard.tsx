@@ -3,6 +3,8 @@ import { apiUrl } from '../config'
 import { base64urlToBytes } from '../lib/encoding'
 import { buildBundle, bundleToB64Hex, encodeBundleCanonical, type CoseEC2 } from '../lib/bundle'
 import { toRequestOptions, buildTxFinish } from '../lib/webauthn'
+import ErrorToast from '../components/ErrorToast'
+import { parseHttpError, normalizeError } from '../lib/http'
 
 type Props = { onBack: () => void }
 
@@ -35,11 +37,16 @@ export default function Dashboard({ onBack }: Props) {
         setItems([])
         return
       }
-      if (!r.ok) throw new Error(`list: HTTP ${r.status}`)
+      if (!r.ok) {
+        const pe = await parseHttpError(r)
+        setError(`${pe.title}${pe.detail ? ` — ${pe.detail}` : ''}`)
+        return
+      }
       const data = (await r.json()) as { items?: TxItem[] }
       setItems(Array.isArray(data.items) ? data.items : [])
     } catch (e: any) {
-      setError(e?.message || String(e))
+      const ne = normalizeError(e)
+      setError(ne.detail)
     } finally {
       setLoading(false)
     }
@@ -58,7 +65,11 @@ export default function Dashboard({ onBack }: Props) {
         setUnauthorized(true)
         return
       }
-      if (!r.ok) throw new Error(`me/account_key: HTTP ${r.status}`)
+      if (!r.ok) {
+        const pe = await parseHttpError(r)
+        setError(`${pe.title}${pe.detail ? ` — ${pe.detail}` : ''}`)
+        return
+      }
       const data = await r.json() as { sender_key: { kty: number, alg: number, crv: number, x: string, y: string } }
       const sk: CoseEC2 = {
         kty: data.sender_key.kty,
@@ -69,7 +80,8 @@ export default function Dashboard({ onBack }: Props) {
       }
       setSenderKey(sk)
     } catch (e: any) {
-      setError(e?.message || String(e))
+      const ne = normalizeError(e)
+      setError(ne.detail)
     }
   }
 
@@ -96,7 +108,8 @@ export default function Dashboard({ onBack }: Props) {
       setBundleB64(b64)
       setBundleHex(hex)
     } catch (e: any) {
-      setError(e?.message || String(e))
+      const ne = normalizeError(e)
+      setError(ne.detail)
     }
   }
 
@@ -158,7 +171,7 @@ export default function Dashboard({ onBack }: Props) {
         </div>
 
         {error && (
-          <p style={{ color: 'crimson', marginTop: 12 }}>Error: {error}</p>
+          <ErrorToast title="Error" detail={error} onClose={() => setError(null)} />
         )}
         {unauthorized && !error && (
           <p style={{ marginTop: 12 }}>

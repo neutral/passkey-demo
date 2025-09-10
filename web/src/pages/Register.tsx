@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { apiUrl } from '../config'
 import { toCreationOptions, buildRegFinish, type RegistrationOptionsResponse } from '../lib/webauthn'
+import ErrorToast from '../components/ErrorToast'
+import { parseHttpError, normalizeError } from '../lib/http'
 
 type Props = { onBack: () => void }
 
@@ -20,7 +22,11 @@ export default function Register({ onBack }: Props) {
         headers: { 'Content-Type': 'application/json' },
         mode: 'cors',
       })
-      if (!r.ok) throw new Error(`options: HTTP ${r.status}`)
+      if (!r.ok) {
+        const pe = await parseHttpError(r)
+        setError(pe.title)
+        return
+      }
       const data = (await r.json()) as RegistrationOptionsResponse
 
       // 2) Build WebAuthn creation options
@@ -38,11 +44,16 @@ export default function Register({ onBack }: Props) {
         mode: 'cors',
         body: JSON.stringify(payload),
       })
-      if (!r2.ok) throw new Error(`finish: HTTP ${r2.status}`)
+      if (!r2.ok) {
+        const pe2 = await parseHttpError(r2)
+        setError(pe2.title)
+        return
+      }
       const out = (await r2.json()) as { account_thumb_hex: string; credential_id_b64: string }
       setThumb(out.account_thumb_hex)
     } catch (e: any) {
-      setError(e?.message || String(e))
+      const ne = normalizeError(e)
+      setError(ne.detail)
     } finally {
       setLoading(false)
     }
@@ -61,7 +72,7 @@ export default function Register({ onBack }: Props) {
         </button>
       </div>
       {error && (
-        <p style={{ color: 'crimson', marginTop: 12 }}>Error: {error}</p>
+        <ErrorToast title="Error" detail={error} onClose={() => setError(null)} />
       )}
       {thumb && (
         <div style={{ marginTop: 16 }}>
