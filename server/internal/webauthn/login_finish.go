@@ -141,14 +141,20 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
             return
         }
 
-        // Enforce strictly increasing signCount
-        if int64(ad.SignCount) <= storedCount {
-            http.Error(w, "signCount not increasing", http.StatusConflict)
-            return
-        }
-        if _, err := db.Exec(`UPDATE credentials SET sign_count = ? WHERE credential_id = ?`, int64(ad.SignCount), credID); err != nil {
-            http.Error(w, "db error", http.StatusInternalServerError)
-            return
+        // Enforce signCount policy
+        // If the authenticator reports 0, treat as "counter not supported" and do not enforce monotonicity.
+        // Otherwise, require strictly increasing vs stored.
+        if ad.SignCount == 0 {
+            // Leave stored count as-is
+        } else {
+            if int64(ad.SignCount) <= storedCount {
+                http.Error(w, "signCount not increasing", http.StatusConflict)
+                return
+            }
+            if _, err := db.Exec(`UPDATE credentials SET sign_count = ? WHERE credential_id = ?`, int64(ad.SignCount), credID); err != nil {
+                http.Error(w, "db error", http.StatusInternalServerError)
+                return
+            }
         }
 
         // Create server session and set cookie

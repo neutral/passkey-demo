@@ -305,3 +305,71 @@ func TestLoginFinish_Negatives(t *testing.T) {
         m["rawId"] = "!!!!"
     }); c != 400 { t.Fatalf("bad base64 rawId got=%d", c) }
 }
+
+func TestLoginFinish_ZeroSignCountAllowed(t *testing.T) {
+    cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
+    db, err := storepkg.Open(cfg)
+    if err != nil { t.Fatalf("db open: %v", err) }
+    if err := storepkg.Migrate(db); err != nil { t.Fatalf("db migrate: %v", err) }
+
+    // Generate key and insert account + credential with stored sign_count = 0
+    priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+    if err != nil { t.Fatalf("keygen: %v", err) }
+    cose := types.CoseEC2{Kty:2, Alg:-7, Crv:1, X: pad32(priv.X.Bytes()), Y: pad32(priv.Y.Bytes())}
+    acctCBOR, _ := enc.EncodeCanonical(cose)
+    credID := []byte("cred-zero-1")
+    now := time.Now().Unix()
+    if _, err := db.Exec(`INSERT INTO accounts (acct_cbor, acct_thumb, created_at) VALUES (?, ?, ?)`, acctCBOR, acctThumb(acctCBOR), now); err != nil {
+        t.Fatalf("insert acct: %v", err)
+    }
+    if _, err := db.Exec(`INSERT INTO credentials (credential_id, acct_cbor_fk, sign_count, aaguid, created_at) VALUES (?, ?, ?, ?, ?)`, credID, acctCBOR, int64(0), []byte(nil), now); err != nil {
+        t.Fatalf("insert cred: %v", err)
+    }
+
+    // Build session/options
+    store := NewLoginSessionStore(0)
+    opts, err := BuildLoginOptions(cfg, store, time.Now)
+    if err != nil { t.Fatalf("build opts: %v", err) }
+
+    // Build CDJ JSON
+    cdj := map[string]any{"type": "webauthn.get", "challenge": opts.Challenge, "origin": cfg.Origin}
+    cdjBytes, _ := json.Marshal(cdj)
+
+    // AD header with UV and signCount = 0 (counter not supported)
+    rpHash := sha256.Sum256([]byte(cfg.RP_ID))
+    ad := mkADHdr(rpHash, FlagUV|FlagUP, 0)
+
+    // Compute digest and sign
+    hcdj := sha256.Sum256(cdjBytes)
+    d := sha256.Sum256(append(ad, hcdj[:]...))
+    sigDER, err := ecdsa.SignASN1(rand.Reader, priv, d[:])
+    if err != nil { t.Fatalf("sign: %v", err) }
+    sigDER = lowSify(elliptic.P256(), sigDER)
+
+    // Build request body
+    body := map[string]any{
+        "login_session_id": opts.LoginSessionID,
+        "id": enc.Encode(credID),
+        "rawId": enc.Encode(credID),
+        "type": "public-key",
+        "response": map[string]any{
+            "clientDataJSON": enc.Encode(cdjBytes),
+            "authenticatorData": enc.Encode(ad),
+            "signature": enc.Encode(sigDER),
+            "userHandle": "",
+        },
+    }
+    bodyBytes, _ := json.Marshal(body)
+
+    rr := httptest.NewRecorder()
+    req := httptest.NewRequest("POST", "/authn/passkey/login/finish", bytes.NewReader(bodyBytes))
+    LoginFinishHandler(cfg, store, db).ServeHTTP(rr, req)
+    if rr.Code != 200 {
+        t.Fatalf("expected 200 for zero signCount, got %d body=%s", rr.Code, rr.Body.String())
+    }
+    // Stored sign_count should remain 0
+    var sc int64
+    if err := db.QueryRow(`SELECT sign_count FROM credentials WHERE credential_id = ?`, credID).Scan(&sc); err != nil || sc != 0 {
+        t.Fatalf("stored sign_count expected 0, got=%d err=%v", sc, err)
+    }
+}
