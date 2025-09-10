@@ -25,3 +25,6 @@ web/test-results
 
 # semantic search
 .ck
+.DS_Store
+/server/api
+/server/vectors
