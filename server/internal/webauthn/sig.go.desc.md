@@ -11,4 +11,4 @@ Verify WebAuthn assertion signatures (ES256) over `SHA256(authenticatorData || S
 - Used in login/sign finish handlers after parsing AD/CDJ and retrieving the account public key.
 
 # Refs
-Refs: requirement R-FLOW-LOGIN; requirement R-FLOW-SIGN; requirement R-PLAT-2; decision webauthn-corrections-and-standardizations
+Refs: requirement R-FLOW-LOGIN; requirement R-FLOW-SIGN; requirement R-PLAT-2; decision webauthn-corrections-and-standardizations; decision webauthn-accept-high-s-login-only

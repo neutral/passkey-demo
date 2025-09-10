@@ -14,4 +14,4 @@ Verify WebAuthn assertion (login) and establish an application session via a sec
 - Error mapping via `MapVerifyError` and `MapPolicyError` for consistent HTTP statuses.
 
 # Refs
-Refs: goal passkey-registration-login-uv; requirement R-FLOW-LOGIN; spec R-FLOW-LOGIN; decision webauthn-corrections-and-standardizations; decision webauthn-signcount-zero-counter-policy; spec session-cookies-usage-explainer
+Refs: goal passkey-registration-login-uv; requirement R-FLOW-LOGIN; spec R-FLOW-LOGIN; decision webauthn-corrections-and-standardizations; decision webauthn-signcount-zero-counter-policy; decision webauthn-accept-high-s-login-only; spec session-cookies-usage-explainer
