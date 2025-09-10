@@ -3,6 +3,7 @@ package main
 import (
     "log"
     "net/http"
+    "time"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
     httpx "github.com/neutral/passkey-demo/internal/http"
@@ -50,7 +51,8 @@ func main() {
     mux.Handle("/me/account_key", me.AccountKeyHandler(db))
 
     // Wrap with outermost CORS middleware
-    handler := httpx.CORSMiddleware(cfg)(mux)
+    // Layer: CORS (outermost) → Session middleware → mux
+    handler := httpx.CORSMiddleware(cfg)(httpx.SessionMiddleware(db, true, time.Hour)(mux))
 
     log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
     log.Printf("server listening on :%s", cfg.Port)

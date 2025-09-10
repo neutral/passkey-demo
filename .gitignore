@@ -11,6 +11,10 @@ server/api
 # sqlite
 server/*.db
 server/**/*.db
+server/*.db-shm
+server/**/*.db-shm
+server/*.db-wal
+server/**/*.db-wal
 
 # env
 .env
@@ -18,3 +22,6 @@ web/.env*
 
 # tests
 web/test-results
+
+# semantic search
+.ck

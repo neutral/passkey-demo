@@ -1,5 +1,5 @@
 # Purpose
-Entrypoint for the Go HTTP server used in the demo. It starts an `http.Server` on the configured port and exposes a `/health` endpoint that returns `200 OK` with body `ok`. It wires WebAuthn registration and login endpoints.
+Entrypoint for the Go HTTP server used in the demo. It starts an `http.Server` on the configured port and exposes a `/health` endpoint that returns `200 OK` with body `ok`. It wires WebAuthn registration/login endpoints and transaction signing endpoints, plus a helper to fetch the logged-in account key.
 
 # Key Logic
 - Reads `PORT` from env (default `8080`).
@@ -8,6 +8,10 @@ Entrypoint for the Go HTTP server used in the demo. It starts an `http.Server` o
   - `POST /authn/passkey/registration/finish`
   - `POST /authn/passkey/login/options`
   - `POST /authn/passkey/login/finish`
+  - `GET  /tx/list`
+  - `POST /tx/signing/options`
+  - `POST /tx/signing/finish`
+  - `GET  /me/account_key`
 - Wraps the mux with a CORS middleware (`internal/http.CORSMiddleware(cfg)`) as the outermost layer:
   - Answers preflight (`OPTIONS`) with `204` for allowed origins.
   - Adds `Access-Control-Allow-Origin: <origin>`, `Access-Control-Allow-Credentials: true`, and `Vary: Origin` on allowed responses.
@@ -16,7 +20,7 @@ Entrypoint for the Go HTTP server used in the demo. It starts an `http.Server` o
 # Interactions
 - Loads configuration via `internal/config.Load()` and uses `cfg.Port` for the listen address; logs rp_id, origin, and db path at startup.
 - Opens SQLite via `internal/storage.Open` + `Migrate` and passes DB handle into handlers.
-- Creates in‑memory stores for registration/login sessions (demo‑grade).
+- Creates in‑memory stores for registration/login sessions and a shared `TxSessionStore` for `/tx/signing/*` (demo‑grade).
 - Called directly by `go run ./cmd/api` during development; will be the main binary for the server.
 
 # Refs

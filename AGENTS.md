@@ -231,6 +231,17 @@ git push -u origin step-<n>-<kebab-name>
 
 Write scripts in the `tools/` folder to automate repetitive actions.
 
+### Semantic Search (ck)
+
+- Install check: run `ck --version` or `command -v ck`; if missing, install with `cargo install ck-search`.
+- Index status: run `ck --status .` or check `./.ck/`; build with `ck --index .` (safe to delete/rebuild `.ck/`).
+- When to use:
+  - Exact text/regex → use default `ck "pattern" path/` (grep-compatible).
+  - Intent-level concept → use `ck --sem "query" path/` (requires index).
+  - Balance precision + recall → use `ck --hybrid "query" path/`.
+  - Need whole functions/classes → add `--full-section`; for scripts add `--json`.
+- See `tools/ck.md` for detailed flags, examples, and workflows.
+
 ## Refactoring Strategy
 
 - Refer to `prompts/refactoring-strategy.md` for the reusable prompt and checklist on identifying, documenting, and prioritizing refactoring opportunities. Capture ideas under `blueprint/_refactor/` and do not implement them unless explicitly prioritized.
