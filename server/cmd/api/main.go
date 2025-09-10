@@ -49,6 +49,7 @@ func main() {
     mux.Handle("/tx/list", tx.TxListHandler(db))
     // Account key (authenticated)
     mux.Handle("/me/account_key", me.AccountKeyHandler(db))
+    // Debug endpoints removed; keep minimal surface
 
     // Wrap with outermost CORS middleware
     // Layer: CORS (outermost) → Session middleware → mux

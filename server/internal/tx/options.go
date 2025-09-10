@@ -7,6 +7,7 @@ import (
     "encoding/hex"
     "encoding/json"
     "errors"
+    "log"
     "net/http"
     "sync"
     "time"
@@ -15,6 +16,7 @@ import (
     httpctx "github.com/neutral/passkey-demo/internal/http"
     b64 "github.com/neutral/passkey-demo/internal/encoding"
     types "github.com/neutral/passkey-demo/internal/types"
+    webauthn "github.com/neutral/passkey-demo/internal/webauthn"
 )
 
 // TxSession holds server-side state for a pending transaction signing flow.
@@ -168,16 +170,19 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) h
         } else {
             c, err := r.Cookie("sid")
             if err != nil || c.Value == "" {
+                log.Printf("tx_options: unauthorized (missing sid cookie)")
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             }
             var expSec int64
             row := db.QueryRow(`SELECT acct_cbor, expires_at FROM sessions WHERE session_id = ?`, c.Value)
             if err := row.Scan(&acctCBOR, &expSec); err != nil {
+                log.Printf("tx_options: unauthorized (session not found) sid_hash=%s", webauthn.HashID([]byte(c.Value)))
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             }
             if time.Now().Unix() >= expSec {
+                log.Printf("tx_options: unauthorized (session expired) sid_hash=%s", webauthn.HashID([]byte(c.Value)))
                 http.Error(w, "session expired", http.StatusUnauthorized)
                 return
             }
@@ -194,15 +199,23 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) h
             // Map known errors to appropriate statuses
             switch {
             case errors.Is(err, ErrBundleBase64), errors.Is(err, ErrBundleCBOR):
+                log.Printf("tx_options: invalid bundle acct_hash=%s", webauthn.HashID(acctCBOR))
                 http.Error(w, "invalid bundle", http.StatusBadRequest)
                 return
             case errors.Is(err, ErrSenderKeyMismatch):
+                log.Printf("tx_options: sender_key mismatch acct_hash=%s", webauthn.HashID(acctCBOR))
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrNonceNotMonotonic), errors.Is(err, ErrNoCredentials):
+                if errors.Is(err, ErrNonceNotMonotonic) {
+                    log.Printf("tx_options: conflict (nonce not monotonic) acct_hash=%s", webauthn.HashID(acctCBOR))
+                } else {
+                    log.Printf("tx_options: conflict (no credentials) acct_hash=%s", webauthn.HashID(acctCBOR))
+                }
                 http.Error(w, "conflict", http.StatusConflict)
                 return
             default:
+                log.Printf("tx_options: internal error acct_hash=%s err=%v", webauthn.HashID(acctCBOR), err)
                 http.Error(w, "internal error", http.StatusInternalServerError)
                 return
             }

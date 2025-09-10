@@ -42,17 +42,9 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 34 — Error Toasts](blueprint/done/phase-h-step-34-error-toasts.md)
 - [Step 35 — Go Unit Tests](blueprint/done/phase-i-step-35-go-unit-tests.md)
 - [Step 36 — Golden Vectors](blueprint/done/phase-i-step-36-golden-vectors.md)
+- [Step 37 — Manual E2E](blueprint/done/phase-i-step-37-manual-e2e.md)
 
 ## Next
-
-### Phase I — Testing & Fixtures
-
----
-
-37. **Manual E2E**
-
-    - Run server + web; perform registration, login, and sign two messages with nonces 1, 2 in Safari and Chrome on macOS.
-    - _Verify_: `/tx/list` shows two entries; DB reflects persisted rows; flows succeed in both browsers with platform authenticators.
 
 ### Phase J — Hardening (Demo-grade)
 

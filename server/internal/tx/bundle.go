@@ -9,6 +9,7 @@ import (
 
     enc "github.com/neutral/passkey-demo/internal/encoding"
     types "github.com/neutral/passkey-demo/internal/types"
+    cbor "github.com/fxamacker/cbor/v2"
 )
 
 // AnchoredBundle holds the parsed logical bundle, its canonical CBOR bytes B,
@@ -51,17 +52,137 @@ func ValidateAndAnchorBundle(ctx context.Context, db *sql.DB, acctCBOR []byte, b
     if err := enc.DecodeCanonical(raw, &bun); err != nil {
         return nil, ErrBundleCBOR
     }
+    // Fallback: some encoders may use tags/extensions that trip struct decode for nested COSE.
+    // If SenderKey appears empty, try a generic decode to extract COSE fields.
+    if bun.SenderKey.Kty == 0 && bun.SenderKey.Alg == 0 && bun.SenderKey.Crv == 0 &&
+        len(bun.SenderKey.X) == 0 && len(bun.SenderKey.Y) == 0 {
+        // Robust fallback using fxamacker RawMessage to extract nested COSE map (key 0)
+        var rm cbor.RawMessage
+        // Try map[int64]
+        if rm == nil {
+            var top map[int64]cbor.RawMessage
+            if err := cbor.Unmarshal(raw, &top); err == nil {
+                if v, ok := top[0]; ok && len(v) > 0 { rm = v }
+            }
+        }
+        // Try map[uint64]
+        if rm == nil {
+            var top map[uint64]cbor.RawMessage
+            if err := cbor.Unmarshal(raw, &top); err == nil {
+                if v, ok := top[0]; ok && len(v) > 0 { rm = v }
+            }
+        }
+        // Try map[any]
+        if rm == nil {
+            var top map[any]cbor.RawMessage
+            if err := cbor.Unmarshal(raw, &top); err == nil {
+                for k, v := range top {
+                    switch kv := k.(type) {
+                    case int:
+                        if kv == 0 && len(v) > 0 { rm = v }
+                    case int64:
+                        if kv == 0 && len(v) > 0 { rm = v }
+                    case uint64:
+                        if kv == 0 && len(v) > 0 { rm = v }
+                    }
+                }
+            }
+        }
+        if len(rm) > 0 {
+            // First try typed struct
+            var cose struct {
+                Kty int    `cbor:"1"`
+                Alg int    `cbor:"3"`
+                Crv int    `cbor:"-1"`
+                X   []byte `cbor:"-2"`
+                Y   []byte `cbor:"-3"`
+            }
+            if err := cbor.Unmarshal(rm, &cose); err == nil {
+                bun.SenderKey.Kty = cose.Kty
+                bun.SenderKey.Alg = cose.Alg
+                bun.SenderKey.Crv = cose.Crv
+                bun.SenderKey.X = append([]byte(nil), cose.X...)
+                bun.SenderKey.Y = append([]byte(nil), cose.Y...)
+            }
+            // If still empty, try generic map decode and coerce
+            if bun.SenderKey.Kty == 0 && bun.SenderKey.Alg == 0 && bun.SenderKey.Crv == 0 &&
+                len(bun.SenderKey.X) == 0 && len(bun.SenderKey.Y) == 0 {
+                var gm map[any]any
+                if err := cbor.Unmarshal(rm, &gm); err == nil {
+                    getInt := func(v any) (int, bool) {
+                        switch t := v.(type) {
+                        case int:
+                            return t, true
+                        case int64:
+                            return int(t), true
+                        case uint64:
+                            return int(t), true
+                        case float64:
+                            return int(t), true
+                        default:
+                            return 0, false
+                        }
+                    }
+                    getBytes := func(v any) ([]byte, bool) {
+                        switch t := v.(type) {
+                        case []byte:
+                            return append([]byte(nil), t...), true
+                        case cbor.Tag:
+                            // unwrap tagged content if it's byte string
+                            if b, ok := t.Content.([]byte); ok {
+                                return append([]byte(nil), b...), true
+                            }
+                            return nil, false
+                        default:
+                            return nil, false
+                        }
+                    }
+                    for k, v := range gm {
+                        var keyInt int
+                        ok := false
+                        switch kk := k.(type) {
+                        case int:
+                            keyInt, ok = kk, true
+                        case int64:
+                            keyInt, ok = int(kk), true
+                        case uint64:
+                            keyInt, ok = int(kk), true
+                        case string:
+                            // attempt to parse string form of numeric key
+                            // ignore errors
+                        }
+                        if !ok {
+                            continue
+                        }
+                        switch keyInt {
+                        case 1:
+                            if i, ok := getInt(v); ok { bun.SenderKey.Kty = i }
+                        case 3:
+                            if i, ok := getInt(v); ok { bun.SenderKey.Alg = i }
+                        case -1:
+                            if i, ok := getInt(v); ok { bun.SenderKey.Crv = i }
+                        case -2:
+                            if b, ok := getBytes(v); ok { bun.SenderKey.X = b }
+                        case -3:
+                            if b, ok := getBytes(v); ok { bun.SenderKey.Y = b }
+                        }
+                    }
+                }
+            }
+        }
+    }
     // Canonical re-encode → B
     B, err := enc.EncodeCanonical(bun)
     if err != nil {
         return nil, ErrBundleCBOR
     }
-    // Account binding: canonical CBOR of SenderKey must equal acctCBOR
-    senderCBOR, err := enc.EncodeCanonical(bun.SenderKey)
-    if err != nil {
+    // Account binding: compare logical COSE fields to tolerate encoder differences
+    var acct types.CoseEC2
+    if err := enc.DecodeCanonical(acctCBOR, &acct); err != nil {
         return nil, ErrBundleCBOR
     }
-    if !bytes.Equal(senderCBOR, acctCBOR) {
+    if bun.SenderKey.Kty != acct.Kty || bun.SenderKey.Alg != acct.Alg || bun.SenderKey.Crv != acct.Crv ||
+        !bytes.Equal(bun.SenderKey.X, acct.X) || !bytes.Equal(bun.SenderKey.Y, acct.Y) {
         return nil, ErrSenderKeyMismatch
     }
     // Nonce policy: strictly increasing per account
@@ -82,4 +203,3 @@ func ValidateAndAnchorBundle(ctx context.Context, db *sql.DB, acctCBOR []byte, b
     out.TxID = sha256.Sum256(append([]byte(anchorTxIDPrefix), B...))
     return &out, nil
 }
-

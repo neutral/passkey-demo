@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { apiUrl } from '../config'
 import { base64urlToBytes } from '../lib/encoding'
 import { buildBundle, bundleToB64Hex, encodeBundleCanonical, type CoseEC2 } from '../lib/bundle'
+import { decodeCBOR } from '../lib/cbor'
 import { toRequestOptions, buildTxFinish } from '../lib/webauthn'
 import ErrorToast from '../components/ErrorToast'
 import { parseHttpError, normalizeError } from '../lib/http'
@@ -21,6 +22,35 @@ export default function Dashboard({ onBack }: Props) {
   const [bundleB64, setBundleB64] = useState('')
   const [bundleHex, setBundleHex] = useState('')
   const [signing, setSigning] = useState(false)
+  const [senderCoseObj, setSenderCoseObj] = useState<any>(null)
+
+  function toUint8(v: any): Uint8Array {
+    if (v instanceof Uint8Array) return v
+    if (Array.isArray(v)) return new Uint8Array(v)
+    if (v && typeof v === 'object' && 'buffer' in v) {
+      try { return new Uint8Array(v as ArrayBufferLike) } catch {}
+    }
+    return new Uint8Array(0)
+  }
+
+  function toCoseMap(obj: any): Map<number, any> | null {
+    if (obj instanceof Map) return obj as Map<number, any>
+    if (obj && typeof obj === 'object') {
+      const m = new Map<number, any>()
+      for (const k of Object.keys(obj)) {
+        const ik = parseInt(k, 10)
+        if (!Number.isFinite(ik)) continue
+        const v = (obj as any)[k]
+        if (ik === -2 || ik === -3) {
+          m.set(ik, toUint8(v))
+        } else if (ik === 1 || ik === 3 || ik === -1) {
+          m.set(ik, Number(v))
+        }
+      }
+      if (m.has(1) && (m.has(-2) || m.has(-3))) return m
+    }
+    return null
+  }
 
   async function loadList() {
     setLoading(true)
@@ -57,21 +87,21 @@ export default function Dashboard({ onBack }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function ensureSenderKey() {
-    if (senderKey || unauthorized) return
+  async function ensureSenderKey(force = false): Promise<CoseEC2 | null> {
+    if (!force && (senderKey || unauthorized)) return senderKey
     try {
       const r = await fetch(apiUrl('/me/account_key'), { method: 'GET', mode: 'cors', credentials: 'include' })
       if (r.status === 401) {
         setUnauthorized(true)
         setError('HTTP 401')
-        return
+        return null
       }
       if (!r.ok) {
         const pe = await parseHttpError(r)
         setError(`${pe.title}${pe.detail ? ` — ${pe.detail}` : ''}`)
-        return
+        return null
       }
-      const data = await r.json() as { sender_key: { kty: number, alg: number, crv: number, x: string, y: string } }
+      const data = await r.json() as { acct_cbor_b64?: string, sender_key: { kty: number, alg: number, crv: number, x: string, y: string } }
       const sk: CoseEC2 = {
         kty: data.sender_key.kty,
         alg: data.sender_key.alg,
@@ -80,9 +110,19 @@ export default function Dashboard({ onBack }: Props) {
         y: base64urlToBytes(data.sender_key.y),
       }
       setSenderKey(sk)
+      if (data.acct_cbor_b64) {
+        try {
+          const buf = base64urlToBytes(data.acct_cbor_b64)
+          const obj = decodeCBOR(buf)
+          const mm = toCoseMap(obj)
+          setSenderCoseObj(mm || obj)
+        } catch { setSenderCoseObj(null) }
+      } else { setSenderCoseObj(null) }
+      return sk
     } catch (e: any) {
       const ne = normalizeError(e)
       setError(ne.detail)
+      return null
     }
   }
 
@@ -90,9 +130,10 @@ export default function Dashboard({ onBack }: Props) {
     setError(null)
     setBundleB64('')
     setBundleHex('')
-    if (!senderKey) await ensureSenderKey()
+    // Always force-refresh the account key to avoid stale state across re-logins/browsers
+    const sk = await ensureSenderKey(true)
     if (unauthorized) return
-    if (!senderKey) return
+    if (!sk) return
     const n = Number(nonce)
     if (!Number.isFinite(n) || n <= 0) {
       setError('Enter a positive integer nonce')
@@ -103,8 +144,14 @@ export default function Dashboard({ onBack }: Props) {
       return
     }
     try {
-      const b = buildBundle(senderKey, n, msg.trim())
-      const B = encodeBundleCanonical(b)
+      let B: Uint8Array
+      if (senderCoseObj) {
+        const b = new Map<number, any>([[0, senderCoseObj], [1, n], [2, msg.trim()]])
+        B = encodeBundleCanonical(b)
+      } else {
+        const b = buildBundle(sk, n, msg.trim())
+        B = encodeBundleCanonical(b)
+      }
       const { b64, hex } = bundleToB64Hex(B)
       setBundleB64(b64)
       setBundleHex(hex)
@@ -127,7 +174,16 @@ export default function Dashboard({ onBack }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bundle_cbor_b64: bundleB64 }),
       })
-      if (ro.status === 401) { setUnauthorized(true); return }
+      if (ro.status === 401) {
+        // Distinguish missing session vs sender_key mismatch by probing account_key
+        const probe = await fetch(apiUrl('/me/account_key'), { method: 'GET', mode: 'cors', credentials: 'include' })
+        if (probe.status === 200) {
+          setError('Account key mismatch — click Build to refresh and try again')
+          return
+        }
+        setUnauthorized(true)
+        return
+      }
       if (ro.status === 409) { throw new Error('conflict (nonce or credentials)') }
       if (ro.status === 400) { throw new Error('invalid bundle') }
       if (!ro.ok) {

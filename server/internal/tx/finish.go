@@ -8,6 +8,7 @@ import (
     "encoding/hex"
     "encoding/json"
     "errors"
+    "log"
     "net/http"
     "strings"
     "time"
@@ -149,12 +150,18 @@ func BuildTxFinish(ctx context.Context, cfg *cfgpkg.Config, txStore *TxSessionSt
     if err := webauthn.VerifyAssertion(pub, adRaw, cdjRaw, sigRaw); err != nil {
         return TxFinishResponse{}, err
     }
-    // Enforce strictly increasing signCount
-    if int64(ad.SignCount) <= storedCount {
-        return TxFinishResponse{}, ErrSignCount
-    }
-    if _, err := db.ExecContext(ctx, `UPDATE credentials SET sign_count = ? WHERE credential_id = ?`, int64(ad.SignCount), credID); err != nil {
-        return TxFinishResponse{}, err
+    // Enforce signCount policy
+    // If the authenticator reports 0, treat as counter-not-supported and do not enforce monotonicity or update stored count.
+    // Otherwise, require strictly increasing vs stored.
+    if ad.SignCount == 0 {
+        // leave stored count unchanged
+    } else {
+        if int64(ad.SignCount) <= storedCount {
+            return TxFinishResponse{}, ErrSignCount
+        }
+        if _, err := db.ExecContext(ctx, `UPDATE credentials SET sign_count = ? WHERE credential_id = ?`, int64(ad.SignCount), credID); err != nil {
+            return TxFinishResponse{}, err
+        }
     }
     // Compute tx_id from canonical B and persist transaction
     // Decode bundle to extract nonce/message
@@ -195,13 +202,31 @@ func TxFinishHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) ht
         resp, err := BuildTxFinish(r.Context(), cfg, txStore, db, c.Value, in, time.Now)
         if err != nil {
             switch {
-            case errors.Is(err, ErrAuthSession), errors.Is(err, ErrTxSession), errors.Is(err, ErrCredUnknown), errors.Is(err, ErrCredMismatch), errors.Is(err, ErrAllowlist):
+            case errors.Is(err, ErrAuthSession):
+                log.Printf("tx_finish: unauthorized (auth session) sid_hash=%s", webauthn.HashID([]byte(c.Value)))
+                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                return
+            case errors.Is(err, ErrTxSession):
+                log.Printf("tx_finish: unauthorized (tx session) tx_session_id=%s", in.TxSessionID)
+                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                return
+            case errors.Is(err, ErrCredUnknown):
+                log.Printf("tx_finish: unauthorized (credential unknown) tx_session_id=%s", in.TxSessionID)
+                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                return
+            case errors.Is(err, ErrCredMismatch):
+                log.Printf("tx_finish: unauthorized (credential/account mismatch) tx_session_id=%s", in.TxSessionID)
+                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                return
+            case errors.Is(err, ErrAllowlist):
+                log.Printf("tx_finish: unauthorized (allowlist miss) tx_session_id=%s", in.TxSessionID)
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrBadJSON), errors.Is(err, ErrBadBase64), errors.Is(err, ErrTypeMismatch):
                 http.Error(w, "bad request", http.StatusBadRequest)
                 return
             case errors.Is(err, ErrChallenge):
+                log.Printf("tx_finish: challenge mismatch tx_session_id=%s", in.TxSessionID)
                 http.Error(w, "challenge mismatch", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrSignCount):
@@ -225,4 +250,3 @@ func TxFinishHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) ht
         _ = json.NewEncoder(w).Encode(resp)
     }
 }
-

@@ -7,7 +7,7 @@ Validate a client-provided Bundle (base64url CBOR), recompute canonical CBOR byt
 - Compute anchors:
   - `challenge = SHA-256("CHALv1" || B)`
   - `tx_id = SHA-256("TXIDv1" || B)`
-- Account binding: canonical CBOR of `sender_key` must equal `acct_cbor` from the logged-in session.
+- Account binding: compare logical COSE fields (`kty`, `alg`, `crv`, `x`, `y`) of `sender_key` against `acct_cbor` from the logged-in session (tolerates encoder differences while preserving identity binding).
 - Nonce policy: `bundle.nonce` must be strictly greater than `MAX(nonce)` in `transactions` for the account.
 - Sentinel errors for mapping by the HTTP layer: `ErrBundleBase64`, `ErrBundleCBOR`, `ErrSenderKeyMismatch`, `ErrNonceNotMonotonic`.
 
@@ -18,4 +18,3 @@ Validate a client-provided Bundle (base64url CBOR), recompute canonical CBOR byt
 
 # Refs
 Refs: goal server-derived-challenge-and-txid; goal minimal-cbor-bundle; requirement R-FLOW-SIGN; requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations
-
