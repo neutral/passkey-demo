@@ -54,6 +54,9 @@ func insertAcctCredSess(t *testing.T, db *sql.DB, acctCBOR, credID []byte, sc in
 }
 
 func TestPhaseF_E2E_OptionsFinishList(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping E2E test in -short mode")
+    }
     db := openPhaseDB(t)
     defer db.Close()
     store := NewTxSessionStore(0)

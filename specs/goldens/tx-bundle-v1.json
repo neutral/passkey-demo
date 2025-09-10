@@ -1,0 +1,19 @@
+{
+  "version": "tx-bundle-v1",
+  "inputs": {
+    "message": "hello",
+    "nonce": 1,
+    "sender_key_cbor_b64": "pWExAmEzJmItMQFiLTJYIGsX0fLhLEJH-Lzm5WOkQPJ3A32BLeszoPShOUXYmMKWYi0zWCBP40Li_hp_m47n60p8D54WK84zV2sxXs7LtkBoN79R9Q",
+    "sender_key_cbor_hex": "a5613102613326622d3101622d3258206b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296622d3358204fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"
+  },
+  "bundle": {
+    "bundle_cbor_b64": "o2EwpWExAmEzJmItMQFiLTJYIGsX0fLhLEJH-Lzm5WOkQPJ3A32BLeszoPShOUXYmMKWYi0zWCBP40Li_hp_m47n60p8D54WK84zV2sxXs7LtkBoN79R9WExAWEyZWhlbGxv",
+    "bundle_cbor_hex": "a36130a5613102613326622d3101622d3258206b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296622d3358204fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f561310161326568656c6c6f"
+  },
+  "anchors": {
+    "challenge_b64": "8cG6YhWWw-nC_j0GYcx1V2RtUFtD-OTOu71VqCYnxxo",
+    "challenge_hex": "f1c1ba621596c3e9c2fe3d0661cc7557646d505b43f8e4cebbbd55a82627c71a",
+    "tx_id_hex": "d84d889cd77eb001446698304372bfaddff64dcd2da65ad21eca29ef1dd5f14a"
+  }
+}
+
