@@ -132,7 +132,7 @@ export default function Dashboard({ onBack }: Props) {
       if (ro.status === 400) { throw new Error('invalid bundle') }
       if (!ro.ok) {
         const pe = await parseHttpError(ro)
-        const msg = pe.detail ? `${pe.detail}${pe.code ? ` (${pe.code})` : ''}` : `HTTP ${pe.status}`
+        const msg = `HTTP ${pe.status}${pe.detail ? ` — ${pe.detail}${pe.code ? ` (${pe.code})` : ''}` : ''}`
         setError(msg)
         return
       }
