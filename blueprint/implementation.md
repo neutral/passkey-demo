@@ -50,10 +50,12 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 35. **Go Unit Tests**
 
     - Purpose
+
       - Raise confidence in core crypto/encoding, WebAuthn parsing/verification/policy, session/middleware, and transaction flows.
       - Lock in critical invariants: canonical CBOR, anchor derivation, low‑S enforcement, strict signCount increase, account binding, and nonce monotonicity.
 
     - General Strategy
+
       - Layered pyramid: Encoding/crypto → WebAuthn parse/verify → HTTP middleware → TX validation/handlers → Storage/config.
       - Determinism: use deterministic or seeded inputs (fixed COSE points, canonical CBOR) and `t.TempDir` SQLite DBs.
       - Time injection: where expiry matters, pass `now func() time.Time` so tests can simulate TTL/expiry.
@@ -63,6 +65,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
       - Concurrency: add replay/parallel finish checks and run with `-race`.
 
     - Existing Tests (inventory)
+
       - Encoding/crypto: canonical CBOR determinism, roundtrips, malformed decode; COSE→ECDSA valid/invalid; base64url helpers.
       - WebAuthn: AD flags/length/counter; CDJ types/base64 and invalids; VerifyAssertion happy/tamper/high‑S/DER/curve; policy helpers; login/registration options/finish.
       - HTTP: session middleware happy/expired/missing; CORS; rate limiting; body limits.
@@ -70,6 +73,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
       - Storage/config: PRAGMAs and tables; config defaults/normalize/allowlists.
 
     - Coverage Gaps & Additional Tests
+
       - TX/anchors (deterministic/golden):
         - Build a fixed bundle B; assert `challenge = SHA256("CHALv1"||B)`, `tx_id = SHA256("TXIDv1"||B)` match expected hex; `challenge != tx_id`; B’ ≠ B flips anchors.
       - Finish handler mapping (table):
@@ -89,6 +93,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
         - Roundtrip with/without `valid_until`; canonical key order; omission of zero values.
 
     - Advanced Invariants
+
       - Canonical CBOR uniqueness: re‑encode of parsed bundle B equals original canonical B.
       - Anchor sensitivity: small change in message/nonce changes both anchors.
       - Strict signCount: `ad.SignCount` must be strictly greater than stored; equal/lower = 409.
@@ -97,12 +102,14 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
       - UV required: `HasUV(ad.Flags)` must be true even if signature verifies.
 
     - Test Harness Utilities
+
       - Deterministic COSE generators (base point or from ecdsa key → padded 32‑byte coords).
       - `openMemDB()` + `storage.Migrate()` per test; `t.Cleanup` handles closing.
       - Builders: `mkBundle()`, `encodeCanonical()`, `mkAD(flags, signCount)`, `mkCDJ(challenge,type,origin)`.
       - Time helpers: closures to advance `now` for expiry tests.
 
     - Files To Add
+
       - `server/internal/tx/anchors_test.go`: golden anchors for B; inequality for B’ ≠ B; `challenge != tx_id`.
       - `server/internal/tx/finish_handler_negative_test.go`: table‑driven error→status mapping; single‑use deletion.
       - `server/internal/tx/replay_race_test.go`: two goroutines finishing same session; exactly one success.
@@ -113,17 +120,20 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
       - `server/internal/types/bundle_roundtrip_test.go`: optional `valid_until` behavior and canonical order.
 
     - Execution
+
       - Unit tests: `go test ./server/...` and with race: `go test -race ./server/...`.
       - Fuzz (local/time‑boxed CI): `go test -run=^$ -fuzz=Fuzz ./server/internal/webauthn` (and encoding/crypto).
       - Focused: `go test ./server/internal/tx -run Anchors` etc.
 
     - Acceptance Criteria
+
       - New tests compile and pass locally and under `-race`.
       - Fuzz targets stable (no panics for arbitrary input in allotted time).
       - Critical invariants are enforced via tests listed above.
       - Existing tests continue to pass.
 
     - Open Questions
+
       - Scope/timebox for fuzzing in CI vs nightly.
       - Body limit/rate‑limit envelopes align with Step 38.
 

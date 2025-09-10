@@ -81,7 +81,7 @@ func TestExtractRegistrationData_Errors(t *testing.T) {
     }
     // Unsupported fmt
     ad := mkADWithAtt(FlagAT, 0, aaguid, credID, coseB)
-    att2 := mkAttObj(t, ad, "packed")
+    att2 := mkAttObj(t, ad, "bogusfmt")
     if _, _, _, _, err := ExtractRegistrationData(att2); err == nil {
         t.Fatalf("expected fmt error")
     }
