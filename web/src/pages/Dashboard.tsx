@@ -63,6 +63,7 @@ export default function Dashboard({ onBack }: Props) {
       const r = await fetch(apiUrl('/me/account_key'), { method: 'GET', mode: 'cors', credentials: 'include' })
       if (r.status === 401) {
         setUnauthorized(true)
+        setError('HTTP 401')
         return
       }
       if (!r.ok) {
@@ -126,10 +127,15 @@ export default function Dashboard({ onBack }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bundle_cbor_b64: bundleB64 }),
       })
-      if (ro.status === 401) { setUnauthorized(true); return }
+      if (ro.status === 401) { setUnauthorized(true); setError('HTTP 401'); return }
       if (ro.status === 409) { throw new Error('conflict (nonce or credentials)') }
       if (ro.status === 400) { throw new Error('invalid bundle') }
-      if (!ro.ok) throw new Error(`options: HTTP ${ro.status}`)
+      if (!ro.ok) {
+        const pe = await parseHttpError(ro)
+        const msg = pe.detail ? `${pe.detail}${pe.code ? ` (${pe.code})` : ''}` : `HTTP ${pe.status}`
+        setError(msg)
+        return
+      }
       const data = await ro.json()
       const publicKey = toRequestOptions(data)
       const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential

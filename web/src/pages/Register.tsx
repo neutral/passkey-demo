@@ -24,7 +24,7 @@ export default function Register({ onBack }: Props) {
       })
       if (!r.ok) {
         const pe = await parseHttpError(r)
-        setError(pe.title)
+        setError(pe.detail || pe.title)
         return
       }
       const data = (await r.json()) as RegistrationOptionsResponse
@@ -46,7 +46,7 @@ export default function Register({ onBack }: Props) {
       })
       if (!r2.ok) {
         const pe2 = await parseHttpError(r2)
-        setError(pe2.title)
+        setError(pe2.detail || pe2.title)
         return
       }
       const out = (await r2.json()) as { account_thumb_hex: string; credential_id_b64: string }
