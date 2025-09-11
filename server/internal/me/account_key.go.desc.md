@@ -2,7 +2,7 @@
 Expose the logged-in account’s COSE EC2 public key (sender_key) so the frontend can build a canonical bundle bound to the correct identity.
 
 # Key Logic
-- Authenticated via session: reads `acct_cbor` from context or cookie `sid`.
+- Authenticated via session middleware only: reads `acct_cbor` from request context (no cookie/DB fallback).
 - Decodes `acct_cbor` (canonical CBOR) into COSE EC2 and returns JSON with base64url `x` and `y`.
 - 401 when unauthorized; no writes performed.
 
@@ -11,4 +11,3 @@ Expose the logged-in account’s COSE EC2 public key (sender_key) so the fronten
 
 # Refs
 Refs: requirement R-FLOW-SIGN; requirement R-PLAT-2; decision webauthn-corrections-and-standardizations
-

@@ -79,23 +79,23 @@ The client prepares the transaction bundle and sends it to the server to obtain 
 - Request: `POST /tx/signing/options`
 
 ```json
-{
-  "bundle": "<b64url-cbor-B>"
-}
+{ "bundle_cbor_b64": "<b64url-cbor-B>" }
 ```
 
 - Response: 200
 
 ```json
 {
-  "tx_session_id": "<uuid>",
-  "tx_id": "<hex>",
-  "publicKey": {
-    "challenge": "<b64url>",
-    "rpId": "example.com",
-    "userVerification": "required",
-    "allowCredentials": [{ "type": "public-key", "id": "<b64url>" }]
-  }
+  "tx_session_id": "<b64>",
+  "challenge": "<b64>",
+  "options": {
+    "rp_id": "example.com",
+    "origin": "https://example.com",
+    "uv_required": true,
+    "allow_credentials": ["<b64>"]
+  },
+  "tx_id_hex": "<hex>",
+  "expires_at": 1735689600
 }
 ```
 
@@ -103,15 +103,15 @@ The client prepares the transaction bundle and sends it to the server to obtain 
 
 ```json
 {
-  "tx_session_id": "<uuid>",
-  "credential": {
-    "id": "<b64url>",
-    "type": "public-key",
-    "response": {
-      "authenticatorData": "<b64url>",
-      "clientDataJSON": "<b64url>",
-      "signature": "<b64url>"
-    }
+  "tx_session_id": "<b64>",
+  "id": "<b64>",
+  "rawId": "<b64>",
+  "type": "public-key",
+  "response": {
+    "authenticatorData": "<b64>",
+    "clientDataJSON": "<b64>",
+    "signature": "<b64>",
+    "userHandle": ""
   }
 }
 ```
@@ -119,18 +119,16 @@ The client prepares the transaction bundle and sends it to the server to obtain 
 - Response: 200
 
 ```json
-{
-  "tx_id": "<hex>",
-  "ok": true
-}
+{ "tx_id_hex": "<hex>", "stored": true }
 ```
 
 ## Errors and Observability
 
-- 400: invalid bundle encoding or challenge mismatch; no retry.
-- 401: invalid signature or origin; reject and log.
-- 409: nonce not strictly increasing; reject and record incident.
-- 409: non‑monotonic `signCount`; lock and alert.
+- 400: invalid bundle encoding or challenge mismatch → envelope `{code: "ERR_BAD_REQUEST"}`.
+- 401: unauthorized (missing session), sender_key mismatch, or invalid signature/origin → `{code: "ERR_UNAUTHORIZED"}`.
+- 403: origin or rpId policy violation → `{code: "ERR_FORBIDDEN"}`.
+- 409: nonce not strictly increasing or no credentials on account → `{code: "ERR_CONFLICT"}`.
+- Correlation: responses may include `correlation_id` for tracing.
 - Metrics: `tx_sign_attempts`, `tx_sign_success`, `tx_sign_failures` with reason; latency per endpoint.
 - Logs: include `tx_session_id`, `tx_id`, `credential_id`, `nonce`, `acct_thumb`; exclude raw `B` from logs; store in DB only.
 
@@ -148,4 +146,3 @@ The client prepares the transaction bundle and sends it to the server to obtain 
 
 - Build canonical CBOR bundle; call options; run `navigator.credentials.get({...})`; submit finish; expect 200 with `tx_id`.
 - Query list endpoint or DB to confirm record exists with matching `tx_id` and `nonce`.
-

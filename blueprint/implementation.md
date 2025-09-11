@@ -43,6 +43,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 35 — Go Unit Tests](blueprint/done/phase-i-step-35-go-unit-tests.md)
 - [Step 36 — Golden Vectors](blueprint/done/phase-i-step-36-golden-vectors.md)
 - [Step 37 — Manual E2E](blueprint/done/phase-i-step-37-manual-e2e.md)
+- [Step 37 — Refactoring](blueprint/done/phase-i-step-37b-refactoring-plan.md)
 
 ## Next
 

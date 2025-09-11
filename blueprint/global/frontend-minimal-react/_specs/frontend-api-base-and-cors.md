@@ -12,6 +12,7 @@
 - Absolute API URLs via `API_BASE` and `apiUrl(path)` in `web/src/config.ts`.
 - CORS allowed origin is `http://localhost:5173`; fetch with `mode: 'cors'` and set `credentials: 'include'` when cookies are required.
 - Cookies: `HttpOnly; SameSite=Lax; Secure=false` on `http://localhost` (Secure=true for https origins).
+ - Error envelope: backend returns `{code,error,correlation_id?}` on non‑2xx; frontend should parse and surface concise messages.
 
 ## What to Avoid
 - Do not use a Vite dev proxy. Do not set `VITE_API_BASE` to a relative path like `/api` (breaks `new URL(path, API_BASE)`).
@@ -19,6 +20,7 @@
 
 ## Best Practices
 - Centralize API base in `web/src/config.ts`; avoid scattering base URLs.
+- Use a small API client wrapper (`web/src/lib/api.ts`) that always sets `credentials: 'include'` and decodes the error envelope into a typed `ApiError`.
 - Keep ports stable (`strictPort: true` in `vite.config.ts`).
 - Prefer small helpers for base64url/UTF‑8 conversions and WebAuthn builders; avoid heavy deps.
 - In tests, start both Vite and the Go backend using Playwright `webServer` entries.
@@ -29,5 +31,4 @@
 - Prod: not covered here; proxy/CDN decisions belong to deployment.
 
 ## Refs
-Refs: requirement R-PLAT-1; requirement R-OPS-DEV; decision webauthn-corrections-and-standardizations; spec cors-usage-explainer; spec session-cookies-usage-explainer
-
+Refs: requirement R-PLAT-1; requirement R-OPS-DEV; decision webauthn-corrections-and-standardizations; decision http-error-envelope; spec cors-usage-explainer; spec session-cookies-usage-explainer

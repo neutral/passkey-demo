@@ -2,14 +2,13 @@ package tx
 
 import (
     "context"
-    "crypto/rand"
     "database/sql"
     "encoding/hex"
     "encoding/json"
     "errors"
     "log"
     "net/http"
-    "sync"
+    // no sync needed: store is backed by ttlstore
     "time"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
@@ -17,6 +16,10 @@ import (
     b64 "github.com/neutral/passkey-demo/internal/encoding"
     types "github.com/neutral/passkey-demo/internal/types"
     webauthn "github.com/neutral/passkey-demo/internal/webauthn"
+    errx "github.com/neutral/passkey-demo/internal/httpx/errors"
+    randutil "github.com/neutral/passkey-demo/internal/util/randutil"
+    ttl "github.com/neutral/passkey-demo/internal/util/ttlstore"
+    repos "github.com/neutral/passkey-demo/internal/repos"
 )
 
 // TxSession holds server-side state for a pending transaction signing flow.
@@ -29,42 +32,22 @@ type TxSession struct {
 }
 
 // TxSessionStore is a concurrency-safe in-memory store for tx sessions.
-type TxSessionStore struct {
-    mu       sync.Mutex
-    items    map[string]TxSession
-    capacity int // 0 = unlimited
-}
+type TxSessionStore struct{ inner *ttl.Store[string, TxSession] }
 
 // NewTxSessionStore constructs a new store with an optional capacity limit.
 func NewTxSessionStore(capacity int) *TxSessionStore {
-    return &TxSessionStore{items: make(map[string]TxSession), capacity: capacity}
+    // TTL 5 minutes with background GC
+    return &TxSessionStore{inner: ttl.New[string, TxSession](capacity, 5*time.Minute, true)}
 }
 
 // Put inserts or updates a session by id.
-func (s *TxSessionStore) Put(id string, v TxSession) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    if s.capacity > 0 && len(s.items) >= s.capacity {
-        return errors.New("tx session store at capacity")
-    }
-    s.items[id] = v
-    return nil
-}
+func (s *TxSessionStore) Put(id string, v TxSession) error { return s.inner.Put(id, v) }
 
 // Get returns a session by id.
-func (s *TxSessionStore) Get(id string) (TxSession, bool) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    v, ok := s.items[id]
-    return v, ok
-}
+func (s *TxSessionStore) Get(id string) (TxSession, bool) { return s.inner.Get(id) }
 
 // Delete removes a session by id.
-func (s *TxSessionStore) Delete(id string) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    delete(s.items, id)
-}
+func (s *TxSessionStore) Delete(id string) { s.inner.Delete(id) }
 
 // Inbound payload for /tx/signing/options.
 type TxOptionsInbound struct {
@@ -83,14 +66,6 @@ type TxOptionsResponse struct {
 // ErrNoCredentials indicates the account has no credentials in the DB.
 var ErrNoCredentials = errors.New("no credentials for account")
 
-// randBytes returns n cryptographically secure random bytes.
-func randBytes(n int) ([]byte, error) {
-    b := make([]byte, n)
-    if _, err := rand.Read(b); err != nil {
-        return nil, err
-    }
-    return b, nil
-}
 
 // BuildTxOptions validates the bundle, derives anchors, collects credential ids, stores a tx session, and returns response JSON fields.
 func BuildTxOptions(ctx context.Context, cfg *cfgpkg.Config, store *TxSessionStore, db *sql.DB, acctCBOR []byte, bundleB64 string, now func() time.Time) (TxOptionsResponse, error) {
@@ -120,7 +95,7 @@ func BuildTxOptions(ctx context.Context, cfg *cfgpkg.Config, store *TxSessionSto
         return TxOptionsResponse{}, ErrNoCredentials
     }
     // Session id and expiry
-    sidRaw, err := randBytes(24)
+    sidRaw, err := randutil.BytesE(24)
     if err != nil {
         return TxOptionsResponse{}, err
     }
@@ -156,55 +131,57 @@ func BuildTxOptions(ctx context.Context, cfg *cfgpkg.Config, store *TxSessionSto
     }, nil
 }
 
+// BuildTxOptionsWithRepo is like BuildTxOptions but uses a credentials repo
+// to list credential ids for the account.
+func BuildTxOptionsWithRepo(ctx context.Context, cfg *cfgpkg.Config, store *TxSessionStore, creds *repos.CredentialsRepo, db *sql.DB, acctCBOR []byte, bundleB64 string, now func() time.Time) (TxOptionsResponse, error) {
+    anchored, err := ValidateAndAnchorBundle(ctx, db, acctCBOR, bundleB64)
+    if err != nil { return TxOptionsResponse{}, err }
+    credIDs, err := creds.ListIDsByAccount(ctx, acctCBOR)
+    if err != nil { return TxOptionsResponse{}, err }
+    if len(credIDs) == 0 { return TxOptionsResponse{}, ErrNoCredentials }
+    sidRaw, err := randutil.BytesE(24)
+    if err != nil { return TxOptionsResponse{}, err }
+    sid := b64.Encode(sidRaw)
+    exp := now().Add(5 * time.Minute)
+    if err := store.Put(sid, TxSession{B: append([]byte(nil), anchored.B...), Challenge: append([]byte(nil), anchored.Challenge[:]...), AcctCBOR: append([]byte(nil), acctCBOR...), CredentialIDs: credIDs, ExpiresAt: exp}); err != nil { return TxOptionsResponse{}, err }
+    allow := make([]string, 0, len(credIDs))
+    for _, id := range credIDs { allow = append(allow, b64.Encode(id)) }
+    return TxOptionsResponse{TxSessionID: sid, Challenge: b64.Encode(anchored.Challenge[:]), Options: types.LoginOptions{RP_ID: cfg.RP_ID, Origin: cfg.Origin, UVRequired: true, AllowCredentials: allow}, TxIDHex: hex.EncodeToString(anchored.TxID[:]), ExpiresAt: exp.Unix()}, nil
+}
+
 // TxOptionsHandler handles POST /tx/signing/options.
-func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) http.HandlerFunc {
+// Requires session middleware to populate account context; no cookie fallback.
+func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, creds *repos.CredentialsRepo, db *sql.DB) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
-            http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+            errx.WriteReq(w, r, http.StatusMethodNotAllowed, errx.CodeMethodNotAllowed, "method not allowed")
             return
         }
-        // Resolve session from middleware context (preferred), else fallback to cookie lookup.
-        var acctCBOR []byte
-        if s, ok := httpctx.FromSession(r.Context()); ok {
-            acctCBOR = s.AcctCBOR
-        } else {
-            c, err := r.Cookie("sid")
-            if err != nil || c.Value == "" {
-                log.Printf("tx_options: unauthorized (missing sid cookie)")
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
-                return
-            }
-            var expSec int64
-            row := db.QueryRow(`SELECT acct_cbor, expires_at FROM sessions WHERE session_id = ?`, c.Value)
-            if err := row.Scan(&acctCBOR, &expSec); err != nil {
-                log.Printf("tx_options: unauthorized (session not found) sid_hash=%s", webauthn.HashID([]byte(c.Value)))
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
-                return
-            }
-            if time.Now().Unix() >= expSec {
-                log.Printf("tx_options: unauthorized (session expired) sid_hash=%s", webauthn.HashID([]byte(c.Value)))
-                http.Error(w, "session expired", http.StatusUnauthorized)
-                return
-            }
+        // Resolve session strictly from middleware context.
+        s, ok := httpctx.FromSession(r.Context())
+        if !ok {
+            errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
+            return
         }
+        acctCBOR := s.AcctCBOR
         // Parse inbound JSON
         var in TxOptionsInbound
         if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-            http.Error(w, "bad json", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad json")
             return
         }
-        // Build response via helper
-        resp, err := BuildTxOptions(r.Context(), cfg, txStore, db, acctCBOR, in.BundleCBOR, time.Now)
+        // Build response via helper (repo-backed)
+        resp, err := BuildTxOptionsWithRepo(r.Context(), cfg, txStore, creds, db, acctCBOR, in.BundleCBOR, time.Now)
         if err != nil {
             // Map known errors to appropriate statuses
             switch {
             case errors.Is(err, ErrBundleBase64), errors.Is(err, ErrBundleCBOR):
                 log.Printf("tx_options: invalid bundle acct_hash=%s", webauthn.HashID(acctCBOR))
-                http.Error(w, "invalid bundle", http.StatusBadRequest)
+                errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "invalid bundle")
                 return
             case errors.Is(err, ErrSenderKeyMismatch):
                 log.Printf("tx_options: sender_key mismatch acct_hash=%s", webauthn.HashID(acctCBOR))
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrNonceNotMonotonic), errors.Is(err, ErrNoCredentials):
                 if errors.Is(err, ErrNonceNotMonotonic) {
@@ -212,11 +189,11 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) h
                 } else {
                     log.Printf("tx_options: conflict (no credentials) acct_hash=%s", webauthn.HashID(acctCBOR))
                 }
-                http.Error(w, "conflict", http.StatusConflict)
+                errx.WriteReq(w, r, http.StatusConflict, errx.CodeConflict, "conflict")
                 return
             default:
                 log.Printf("tx_options: internal error acct_hash=%s err=%v", webauthn.HashID(acctCBOR), err)
-                http.Error(w, "internal error", http.StatusInternalServerError)
+                errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
                 return
             }
         }

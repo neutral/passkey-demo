@@ -84,26 +84,25 @@ The user is now logged in without a password, purely via cryptographic authentic
 
 ## Request/Response Examples
 
-- Request: `POST /authn/passkey/login/options`
+- Request: `POST /authn/passkey/login/options` (empty body)
 
 ```json
-{
-  "rpId": "example.com",
-  "origin": "https://example.com"
-}
+{}
 ```
 
 - Response: 200
 
 ```json
 {
-  "login_session_id": "<uuid>",
-  "publicKey": {
-    "challenge": "<b64url>",
-    "rpId": "example.com",
-    "userVerification": "required",
-    "allowCredentials": [{ "type": "public-key", "id": "<b64url>" }]
-  }
+  "login_session_id": "<b64>",
+  "challenge": "<b64>",
+  "options": {
+    "rp_id": "example.com",
+    "origin": "https://example.com",
+    "uv_required": true,
+    "allow_credentials": []
+  },
+  "expires_at": 1735689600
 }
 ```
 
@@ -125,23 +124,25 @@ The user is now logged in without a password, purely via cryptographic authentic
 }
 ```
 
-- Response: 200
+- Response: 200 (sets `sid` HttpOnly cookie)
 
 ```json
-{ "ok": true }
+{ "account_thumb_hex": "ab12...fe", "credential_id_b64": "<b64>" }
 ```
 
 ## Errors and Observability
 
-- 400: missing fields or malformed payload; no retry.
-- 401: invalid assertion (challenge/origin/signature); no retry.
-- 409: non‑monotonic `signCount`; lock and alert.
+- 400: missing fields or malformed payload → envelope `{code: "ERR_BAD_REQUEST"}`.
+- 401: invalid assertion (challenge/origin/signature) → `{code: "ERR_UNAUTHORIZED"}`.
+- 403: origin or rpId policy violation → `{code: "ERR_FORBIDDEN"}`.
+- 409: non‑monotonic `signCount` → `{code: "ERR_CONFLICT"}`.
+- Responses may include `correlation_id` for tracing.
 - Metrics: `login_attempts`, `login_success`, `login_failures` with reason.
 - Logs: include `login_session_id`, `credential_id`, `acct_thumb`; exclude PII.
 
 ## Postconditions
 
-- Session established (secure cookie or token) for the authenticated account.
+- Session established (HttpOnly cookie `sid`) for the authenticated account.
 - Stored `signCount` advanced to the value from authenticator data.
 
 ## Outputs
@@ -153,4 +154,3 @@ The user is now logged in without a password, purely via cryptographic authentic
 
 - Trigger options; run `navigator.credentials.get({...})` in the app; submit finish; expect 200 and session cookie.
 - Confirm session-protected endpoint (e.g., `GET /me`) returns account context.
-

@@ -10,18 +10,18 @@
 ## Proposal
 - Introduce `internal/httpx/errors` with:
   - Envelope: `{ code: string, error: string, correlation_id?: string }`.
-  - `func Write(w http.ResponseWriter, status int, code, msg string)` to write JSON with correct headers.
-  - `func WithCorrelation(ctx) (ctx, id)` + `ExtractCorrelation(ctx)` to plumb an optional correlation ID.
-  - Mappers: consolidate `MapVerifyError` and `MapPolicyError` into `Map` that accepts sentinel errors and returns `(status, code)`.
+  - `Write(w, status, code, msg)` to write JSON with correct headers.
+  - `WriteReq(w, r, status, code, msg)` to include `correlation_id` when present.
+  - Mappers: consolidate `MapVerifyError` and `MapPolicyError` into `Map(status, code)` (bridge in future step).
 - Conventions:
   - Codes are PascalCase matching sentinel names where applicable (e.g., `ErrNonceNotMonotonic`).
   - User-facing `error` strings are concise; details live in logs.
 
 ## Migration Plan
 1) Add `internal/httpx/errors` and unit tests.
-2) Update registration/login/tx handlers to use `errors.Write` and `errors.Map`.
-3) Remove ad hoc `http.Error` call sites and duplicate mappers.
-4) Add correlation IDs to logs, propagate from request context.
+2) Adopt in `/tx/signing/options`; expand to other handlers incrementally.
+3) Keep existing policy/verify mappers for now; centralize mapping in a follow-up change.
+4) Add Request ID middleware and include `correlation_id` in envelopes.
 
 ## Risks & Mitigations
 - Over-specifying codes: keep mapping minimal and aligned to sentinels; evolve via ADRs if needed.
@@ -32,9 +32,8 @@
 - Integration: handler tests assert envelope fields and statuses across success/failure paths.
 
 ## Acceptance Criteria
-- All error responses use the standard envelope and centralized mapper.
-- Handler tests validate correct status and `code` for representative failures.
+- Error envelope used in modified endpoints; unit tests for envelope shape.
+- Mapping consistency documented; consolidation planned via ADR.
 
 ## Refs
 - Refs: requirement R-ERR; goal server-derived-challenge-and-txid; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations; requirement R-PLAT-2
-

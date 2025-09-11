@@ -1,0 +1,15 @@
+# Purpose
+Provide a standard JSON error envelope for API responses, including a stable `code` and a human-readable message. This enables consistent frontend handling and improves observability.
+
+# Key Logic
+- Defines `Envelope{code,error,correlation_id}`.
+- `Write(w,status,code,message)` sets `Content-Type` JSON, status code, and serializes the envelope.
+- `WriteReq(w,r,status,code,message)` additionally includes `correlation_id` from request context when present.
+- Predefines canonical error codes (e.g., `ERR_UNAUTHORIZED`, `ERR_BAD_REQUEST`, `ERR_CONFLICT`).
+
+# Interactions
+- Used initially by `/tx/signing/options`; other handlers can adopt it incrementally.
+- Future: may include `correlation_id` sourced from request ID middleware.
+
+# Refs
+Refs: requirement R-ERR; decision http-error-envelope; decision encoding-and-ceremony-guardrails

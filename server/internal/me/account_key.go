@@ -23,6 +23,7 @@ type accountKeyResponse struct {
 
 // AccountKeyHandler serves GET /me/account_key (authenticated).
 // It returns the logged-in account's COSE EC2 public key as JSON with base64url x/y.
+// Requires session middleware; does not fall back to sid cookie lookup.
 func AccountKeyHandler(db *sql.DB) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodGet {
@@ -30,23 +31,13 @@ func AccountKeyHandler(db *sql.DB) http.HandlerFunc {
             return
         }
 
-        // Resolve account from session context (preferred) or via sid cookie lookup
-        var acctCBOR []byte
-        if s, ok := httpctx.FromSession(r.Context()); ok {
-            acctCBOR = s.AcctCBOR
-        } else {
-            c, err := r.Cookie("sid")
-            if err != nil || c.Value == "" {
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
-                return
-            }
-            var exp int64
-            row := db.QueryRow(`SELECT acct_cbor, expires_at FROM sessions WHERE session_id = ?`, c.Value)
-            if err := row.Scan(&acctCBOR, &exp); err != nil {
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
-                return
-            }
+        // Resolve account strictly from session context.
+        s, ok := httpctx.FromSession(r.Context())
+        if !ok {
+            http.Error(w, "unauthorized", http.StatusUnauthorized)
+            return
         }
+        acctCBOR := s.AcctCBOR
 
         // Decode acct_cbor to COSE EC2 and return as JSON
         var cose struct {
@@ -71,4 +62,3 @@ func AccountKeyHandler(db *sql.DB) http.HandlerFunc {
         _ = json.NewEncoder(w).Encode(resp)
     }
 }
-

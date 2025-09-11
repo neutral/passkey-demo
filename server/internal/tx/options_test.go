@@ -12,9 +12,12 @@ import (
 
     _ "github.com/mattn/go-sqlite3"
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
+    "context"
     b64 "github.com/neutral/passkey-demo/internal/encoding"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
     storage "github.com/neutral/passkey-demo/internal/storage"
     types "github.com/neutral/passkey-demo/internal/types"
+    repos "github.com/neutral/passkey-demo/internal/repos"
 )
 
 func testCfg() *cfgpkg.Config {
@@ -95,7 +98,9 @@ func TestTxOptionsHandler_Happy(t *testing.T) {
     body, _ := json.Marshal(in)
 
     // Request
-    h := TxOptionsHandler(cfg, store, db)
+    credsRepo, err := repos.NewCredentials(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
+    h := httpctx.SessionMiddleware(db, true, time.Hour)(TxOptionsHandler(cfg, store, credsRepo, db))
     rr := httptest.NewRecorder()
     req := httptest.NewRequest("POST", "/tx/signing/options", bytes.NewReader(body))
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
@@ -143,13 +148,18 @@ func TestTxOptionsHandler_Negatives(t *testing.T) {
     sid := b64.Encode([]byte("sid-123456789012345678901234"))
     insertSession(t, db, sid, acctCBOR, time.Now().Add(1*time.Hour).Unix())
 
-    h := TxOptionsHandler(cfg, store, db)
+    credsRepo, err := repos.NewCredentials(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
+    h := httpctx.SessionMiddleware(db, true, time.Hour)(TxOptionsHandler(cfg, store, credsRepo, db))
 
     // 1) Missing cookie → 401
     rr := httptest.NewRecorder()
     req := httptest.NewRequest("POST", "/tx/signing/options", bytes.NewReader([]byte(`{"bundle_cbor_b64":"AA"}`)))
     h.ServeHTTP(rr, req)
-    if rr.Code != 401 { t.Fatalf("missing cookie status=%d", rr.Code) }
+    if rr.Code != 401 { t.Fatalf("missing session status=%d", rr.Code) }
+    var env struct{ Code string `json:"code"` }
+    _ = json.Unmarshal(rr.Body.Bytes(), &env)
+    if env.Code == "" { t.Fatalf("expected error envelope code") }
 
     // 2) Expired session → 401
     sid2 := b64.Encode([]byte("sid-2-12345678901234567890123"))
@@ -159,6 +169,8 @@ func TestTxOptionsHandler_Negatives(t *testing.T) {
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid2})
     h.ServeHTTP(rr, req)
     if rr.Code != 401 { t.Fatalf("expired session status=%d", rr.Code) }
+    _ = json.Unmarshal(rr.Body.Bytes(), &env)
+    if env.Code == "" { t.Fatalf("expected error envelope code") }
 
     // Build a valid bundle for further tests
     bun := types.Bundle{SenderKey: k, Nonce: 1, Message: "m"}
@@ -170,6 +182,8 @@ func TestTxOptionsHandler_Negatives(t *testing.T) {
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
     h.ServeHTTP(rr, req)
     if rr.Code != 400 { t.Fatalf("bad base64 status=%d", rr.Code) }
+    _ = json.Unmarshal(rr.Body.Bytes(), &env)
+    if env.Code == "" { t.Fatalf("expected error envelope code") }
 
     // 4) Sender key mismatch → 401
     k2 := k
@@ -182,10 +196,12 @@ func TestTxOptionsHandler_Negatives(t *testing.T) {
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
     h.ServeHTTP(rr, req)
     if rr.Code != 401 { t.Fatalf("sender mismatch status=%d", rr.Code) }
+    _ = json.Unmarshal(rr.Body.Bytes(), &env)
+    if env.Code == "" { t.Fatalf("expected error envelope code") }
 
     // 5) Nonce not monotonic → 409
     // Preload a transaction with nonce=10
-    _, err := db.Exec(`INSERT INTO transactions (tx_id, acct_cbor, nonce, message, bundle_cbor, auth_data, client_data, signature, created_at) VALUES (?, ?, 10, 'x', 'B', 'AD', 'CD', 'SIG', 0)`, []byte("id"), acctCBOR)
+    _, err = db.Exec(`INSERT INTO transactions (tx_id, acct_cbor, nonce, message, bundle_cbor, auth_data, client_data, signature, created_at) VALUES (?, ?, 10, 'x', 'B', 'AD', 'CD', 'SIG', 0)`, []byte("id"), acctCBOR)
     if err != nil { t.Fatalf("insert tx: %v", err) }
     bunLow := types.Bundle{SenderKey: k, Nonce: 10, Message: "m"}
     bodyLow, _ := json.Marshal(TxOptionsInbound{BundleCBOR: b64.Encode(encodeCanonical(t, bunLow))})
@@ -194,6 +210,8 @@ func TestTxOptionsHandler_Negatives(t *testing.T) {
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
     h.ServeHTTP(rr, req)
     if rr.Code != 409 { t.Fatalf("nonce conflict status=%d", rr.Code) }
+    _ = json.Unmarshal(rr.Body.Bytes(), &env)
+    if env.Code == "" { t.Fatalf("expected error envelope code") }
 
     // 6) No credentials for account → 409
     // Create a new account without credentials
@@ -211,6 +229,8 @@ func TestTxOptionsHandler_Negatives(t *testing.T) {
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid3})
     h.ServeHTTP(rr, req)
     if rr.Code != 409 { t.Fatalf("no credentials status=%d", rr.Code) }
+    _ = json.Unmarshal(rr.Body.Bytes(), &env)
+    if env.Code == "" { t.Fatalf("expected error envelope code") }
 
     _ = validBody
 }

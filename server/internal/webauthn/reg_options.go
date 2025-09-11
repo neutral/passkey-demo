@@ -1,16 +1,15 @@
 package webauthn
 
 import (
-    "crypto/rand"
     "encoding/json"
-    "errors"
     "net/http"
-    "sync"
     "time"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
     b64 "github.com/neutral/passkey-demo/internal/encoding"
     types "github.com/neutral/passkey-demo/internal/types"
+    randutil "github.com/neutral/passkey-demo/internal/util/randutil"
+    ttl "github.com/neutral/passkey-demo/internal/util/ttlstore"
 )
 
 // RegSession holds server-side state for a pending registration.
@@ -22,47 +21,18 @@ type RegSession struct {
 }
 
 // RegSessionStore is a concurrency-safe in-memory store for registration sessions.
-type RegSessionStore struct {
-    mu       sync.Mutex
-    items    map[string]RegSession
-    capacity int // 0 = unlimited
-}
+type RegSessionStore struct{ inner *ttl.Store[string, RegSession] }
 
 func NewRegSessionStore(capacity int) *RegSessionStore {
-    return &RegSessionStore{items: make(map[string]RegSession), capacity: capacity}
+    // TTL 5 minutes with background GC
+    return &RegSessionStore{inner: ttl.New[string, RegSession](capacity, 5*time.Minute, true)}
 }
 
-func (s *RegSessionStore) Put(id string, v RegSession) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    if s.capacity > 0 && len(s.items) >= s.capacity {
-        return errors.New("registration session store at capacity")
-    }
-    s.items[id] = v
-    return nil
-}
-
-func (s *RegSessionStore) Get(id string) (RegSession, bool) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    v, ok := s.items[id]
-    return v, ok
-}
-
-func (s *RegSessionStore) Delete(id string) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    delete(s.items, id)
-}
+func (s *RegSessionStore) Put(id string, v RegSession) error { return s.inner.Put(id, v) }
+func (s *RegSessionStore) Get(id string) (RegSession, bool) { return s.inner.Get(id) }
+func (s *RegSessionStore) Delete(id string)                 { s.inner.Delete(id) }
 
 // randBytes returns n bytes using crypto/rand.
-func randBytes(n int) ([]byte, error) {
-    b := make([]byte, n)
-    if _, err := rand.Read(b); err != nil {
-        return nil, err
-    }
-    return b, nil
-}
 
 // RegistrationOptionsResponse defines the JSON returned by the options handler.
 type RegistrationOptionsResponse struct {
@@ -75,13 +45,13 @@ type RegistrationOptionsResponse struct {
 // BuildRegistrationOptions creates a new registration session, stores it, and returns the response object.
 func BuildRegistrationOptions(cfg *cfgpkg.Config, store *RegSessionStore, now func() time.Time) (RegistrationOptionsResponse, error) {
     // 24 bytes session id (>=128 bits)
-    sidRaw, err := randBytes(24)
+    sidRaw, err := randutil.BytesE(24)
     if err != nil {
         return RegistrationOptionsResponse{}, err
     }
     sid := b64.Encode(sidRaw)
     // 32-byte challenge
-    chRaw, err := randBytes(32)
+    chRaw, err := randutil.BytesE(32)
     if err != nil {
         return RegistrationOptionsResponse{}, err
     }
@@ -128,4 +98,3 @@ func RegistrationOptionsHandler(cfg *cfgpkg.Config, store *RegSessionStore) http
         _ = enc.Encode(resp)
     }
 }
-

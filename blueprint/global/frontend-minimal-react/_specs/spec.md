@@ -36,7 +36,8 @@
 - Avoid persisting sensitive data client-side; rely on server session cookie.
 
 ## Errors / Observability
-- Surface clear error messages for WebAuthn and HTTP failures; reflect server status codes (400/401/403/409/413/429/5xx) with concise UI notices.
+- Surface clear error messages for WebAuthn and HTTP failures using the backend error envelope `{code,error,correlation_id?}`.
+- Use `web/src/lib/api.ts` to centralize `credentials: 'include'` and envelope parsing into a typed `ApiError`.
 - Log minimal diagnostic info in dev console; no PII in logs.
 
 ## Testing Strategy
@@ -48,4 +49,4 @@
 - Confirm bundler/dev server setup for http://localhost:5173 (e.g., Vite) and CORS settings as needed.
 - Identify the CBOR and base64url utility libraries used in the frontend.
 
-Refs: requirement frontend-minimal-react; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails; spec spec-a; spec spec-b; goal simple-ui-and-storage; goal ui-simplicity-two-buttons
+Refs: requirement frontend-minimal-react; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails; decision http-error-envelope; goal simple-ui-and-storage; goal ui-simplicity-two-buttons

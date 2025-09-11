@@ -16,6 +16,7 @@ import (
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
     cryptoutil "github.com/neutral/passkey-demo/internal/crypto"
     types "github.com/neutral/passkey-demo/internal/types"
+    randutil "github.com/neutral/passkey-demo/internal/util/randutil"
 )
 
 // loginFinishInbound mirrors the shape sent by the browser for login finish.
@@ -167,7 +168,7 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
         }
 
         // Create server session and set cookie
-        sidRaw, err := randBytes(24)
+        sidRaw, err := randutil.BytesE(24)
         if err != nil {
             http.Error(w, "internal error", http.StatusInternalServerError)
             return

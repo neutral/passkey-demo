@@ -1,6 +1,7 @@
 package tx
 
 import (
+    "context"
     "bytes"
     "crypto/elliptic"
     "crypto/sha256"
@@ -17,6 +18,8 @@ import (
     enc "github.com/neutral/passkey-demo/internal/encoding"
     storage "github.com/neutral/passkey-demo/internal/storage"
     types "github.com/neutral/passkey-demo/internal/types"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
+    repos "github.com/neutral/passkey-demo/internal/repos"
 )
 
 func openDBFinishNeg(t *testing.T) *sql.DB {
@@ -53,10 +56,13 @@ func TestTxFinishHandler_ErrorMappings(t *testing.T) {
     store := NewTxSessionStore(0)
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173"}
 
-    // Missing cookie → 401
+    // Missing cookie/session → 401
     rr := httptest.NewRecorder()
     req := httptest.NewRequest("POST", "/tx/signing/finish", bytes.NewReader([]byte("{}")))
-    TxFinishHandler(cfg, store, db).ServeHTTP(rr, req)
+    credsRepo, err := repos.NewCredentials(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
+    h := httpctx.SessionMiddleware(db, true, time.Hour)(TxFinishHandler(cfg, store, db, credsRepo))
+    h.ServeHTTP(rr, req)
     if rr.Code != 401 { t.Fatalf("missing cookie: %d", rr.Code) }
 
     // Prepare account + auth session
@@ -71,7 +77,7 @@ func TestTxFinishHandler_ErrorMappings(t *testing.T) {
     bufExp, _ := json.Marshal(bodyExp)
     rr = httptest.NewRecorder(); req = httptest.NewRequest("POST", "/tx/signing/finish", bytes.NewReader(bufExp))
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
-    TxFinishHandler(cfg, store, db).ServeHTTP(rr, req)
+    h.ServeHTTP(rr, req)
     if rr.Code != 401 { t.Fatalf("expired tx session: %d", rr.Code) }
 
     // Challenge mismatch → 401
@@ -94,7 +100,7 @@ func TestTxFinishHandler_ErrorMappings(t *testing.T) {
     buf, _ := json.Marshal(in)
     rr = httptest.NewRecorder(); req = httptest.NewRequest("POST", "/tx/signing/finish", bytes.NewReader(buf))
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
-    TxFinishHandler(cfg, store, db).ServeHTTP(rr, req)
+    h.ServeHTTP(rr, req)
     if rr.Code != 401 { t.Fatalf("challenge mismatch: %d", rr.Code) }
 
     // Origin not allowed → 403 via policy mapping
@@ -106,12 +112,12 @@ func TestTxFinishHandler_ErrorMappings(t *testing.T) {
     buf2, _ := json.Marshal(in2)
     rr = httptest.NewRecorder(); req = httptest.NewRequest("POST", "/tx/signing/finish", bytes.NewReader(buf2))
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
-    TxFinishHandler(cfg, store, db).ServeHTTP(rr, req)
+    h.ServeHTTP(rr, req)
     if rr.Code != 403 { t.Fatalf("origin not allowed: %d", rr.Code) }
 
     // Bad JSON → 400 (malformed body)
     rr = httptest.NewRecorder(); req = httptest.NewRequest("POST", "/tx/signing/finish", bytes.NewReader([]byte("{")))
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
-    TxFinishHandler(cfg, store, db).ServeHTTP(rr, req)
+    h.ServeHTTP(rr, req)
     if rr.Code != 400 { t.Fatalf("bad json: %d", rr.Code) }
 }

@@ -4,8 +4,8 @@
 Clarify why registration endpoints under `/authn/*` are not wrapped by Step 24’s session middleware, whereas `/tx/*` routes are.
 
 ## Overview
-- Session middleware enforces a logged‑in context via `sid` and applies to protected `/tx/*`.
-- Registration (`/authn/passkey/registration/*`) must operate pre‑auth; login finish creates the session; thus `/authn/*` stays unchanged.
+- Session middleware enforces a logged‑in context via `sid` and applies to protected `/tx/*` routes.
+- Registration (`/authn/passkey/registration/*`) operates pre‑auth; `login/finish` creates the session; thus `/authn/*` stays unauthenticated.
 
 ## Rationale
 - Pre‑auth ceremonies: Registration and login use ceremony‑scoped stores and must succeed without `sid`.
@@ -15,8 +15,7 @@ Clarify why registration endpoints under `/authn/*` are not wrapped by Step 24�
 
 ## Implications
 - `/authn/*` remains accessible without `sid`; `/tx/*` requires it.
-- Non‑auth middleware (limits/CORS) can still wrap `/authn/*` in later steps.
+- Group middlewares (limits/CORS) may wrap `/authn/*` without changing auth.
 
 ## Refs
 Refs: requirement R-FLOW-REG; requirement R-FLOW-LOGIN; requirement R-PLAT-2; goal passkey-registration-login-uv; decision webauthn-corrections-and-standardizations
-

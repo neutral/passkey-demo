@@ -6,6 +6,7 @@ import { decodeCBOR } from '../lib/cbor'
 import { toRequestOptions, buildTxFinish } from '../lib/webauthn'
 import ErrorToast from '../components/ErrorToast'
 import { parseHttpError, normalizeError } from '../lib/http'
+import { postJson, ApiError } from '../lib/api'
 
 type Props = { onBack: () => void }
 
@@ -167,32 +168,7 @@ export default function Dashboard({ onBack }: Props) {
     setError(null)
     try {
       // 1) Options
-      const ro = await fetch(apiUrl('/tx/signing/options'), {
-        method: 'POST',
-        mode: 'cors',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bundle_cbor_b64: bundleB64 }),
-      })
-      if (ro.status === 401) {
-        // Distinguish missing session vs sender_key mismatch by probing account_key
-        const probe = await fetch(apiUrl('/me/account_key'), { method: 'GET', mode: 'cors', credentials: 'include' })
-        if (probe.status === 200) {
-          setError('Account key mismatch — click Build to refresh and try again')
-          return
-        }
-        setUnauthorized(true)
-        return
-      }
-      if (ro.status === 409) { throw new Error('conflict (nonce or credentials)') }
-      if (ro.status === 400) { throw new Error('invalid bundle') }
-      if (!ro.ok) {
-        const pe = await parseHttpError(ro)
-        const msg = `HTTP ${pe.status}${pe.detail ? ` — ${pe.detail}${pe.code ? ` (${pe.code})` : ''}` : ''}`
-        setError(msg)
-        return
-      }
-      const data = await ro.json()
+      const data = await postJson<any>(apiUrl('/tx/signing/options'), { bundle_cbor_b64: bundleB64 })
       const publicKey = toRequestOptions(data)
       const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
       if (!cred) throw new Error('get() returned null')
@@ -213,6 +189,20 @@ export default function Dashboard({ onBack }: Props) {
       setBundleHex('')
       await loadList()
     } catch (e: any) {
+      if (e instanceof ApiError && e.status === 401) {
+        // Distinguish missing session vs sender_key mismatch by probing account_key
+        const probe = await fetch(apiUrl('/me/account_key'), { method: 'GET', mode: 'cors', credentials: 'include' })
+        if (probe.status === 200) {
+          setError('Account key mismatch — click Build to refresh and try again')
+          return
+        }
+        setUnauthorized(true)
+        return
+      }
+      if (e instanceof ApiError) {
+        setError(`HTTP ${e.status} — ${e.message}${e.code ? ` (${e.code})` : ''}`)
+        return
+      }
       setError(e?.message || String(e))
     } finally {
       setSigning(false)

@@ -7,11 +7,14 @@ import (
     "net/http/httptest"
     "testing"
     "time"
+    "context"
 
     _ "github.com/mattn/go-sqlite3"
     "crypto/sha256"
     b64 "github.com/neutral/passkey-demo/internal/encoding"
     storage "github.com/neutral/passkey-demo/internal/storage"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
+    repos "github.com/neutral/passkey-demo/internal/repos"
 )
 
 func openListDB(t *testing.T) *sql.DB {
@@ -68,7 +71,9 @@ func TestTxList_HappyAndIsolation(t *testing.T) {
     // Transaction for B
     insertTx(t, db, acctB, []byte("id-b"), 9, "mb", 3000)
 
-    h := TxListHandler(db)
+    txRepo, err := repos.NewTransactions(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
+    h := httpctx.SessionMiddleware(db, true, time.Hour)(TxListHandler(txRepo))
 
     // List for A
     rr := httptest.NewRecorder()
@@ -99,7 +104,9 @@ func TestTxList_HappyAndIsolation(t *testing.T) {
 func TestTxList_Negatives(t *testing.T) {
     db := openListDB(t)
     defer db.Close()
-    h := TxListHandler(db)
+    txRepo, err := repos.NewTransactions(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
+    h := httpctx.SessionMiddleware(db, true, time.Hour)(TxListHandler(txRepo))
 
     // Missing cookie
     rr := httptest.NewRecorder(); req := httptest.NewRequest("GET", "/tx/list", nil)

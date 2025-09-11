@@ -2,9 +2,9 @@
 List transactions for the authenticated account. Scopes results by the session cookie `sid` and returns `tx_id_hex`, `nonce`, `message`, and `created_at`.
 
 # Key Logic
-- Read `sid` cookie; resolve `acct_cbor` and expiry from `sessions`.
-- If missing or expired, return 401.
-- Query `transactions` by `acct_cbor` ordered by `created_at DESC`.
+- Requires session middleware; obtain `acct_cbor` from request context (no cookie/DB fallback).
+- If no session, return 401.
+- Query `transactions` via prepared repo by `acct_cbor` ordered by `created_at DESC`.
 - Hex‑encode `tx_id` (BLOB) and return items in a JSON envelope.
 
 # Interactions
@@ -13,4 +13,3 @@ List transactions for the authenticated account. Scopes results by the session c
 
 # Refs
 Refs: goal transaction-content-signing; requirement R-FLOW-SIGN; requirement R-PLAT-2; decision webauthn-corrections-and-standardizations
-

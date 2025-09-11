@@ -2,14 +2,14 @@ package webauthn
 
 import (
     "encoding/json"
-    "errors"
     "net/http"
-    "sync"
     "time"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
     b64 "github.com/neutral/passkey-demo/internal/encoding"
     types "github.com/neutral/passkey-demo/internal/types"
+    randutil "github.com/neutral/passkey-demo/internal/util/randutil"
+    ttl "github.com/neutral/passkey-demo/internal/util/ttlstore"
 )
 
 // LoginSession holds server-side state for a pending login/assertion.
@@ -21,38 +21,16 @@ type LoginSession struct {
 }
 
 // LoginSessionStore is a concurrency-safe in-memory store for login sessions.
-type LoginSessionStore struct {
-    mu       sync.Mutex
-    items    map[string]LoginSession
-    capacity int // 0 = unlimited
-}
+type LoginSessionStore struct{ inner *ttl.Store[string, LoginSession] }
 
 func NewLoginSessionStore(capacity int) *LoginSessionStore {
-    return &LoginSessionStore{items: make(map[string]LoginSession), capacity: capacity}
+    // TTL 5 minutes with background GC
+    return &LoginSessionStore{inner: ttl.New[string, LoginSession](capacity, 5*time.Minute, true)}
 }
 
-func (s *LoginSessionStore) Put(id string, v LoginSession) error {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    if s.capacity > 0 && len(s.items) >= s.capacity {
-        return errors.New("login session store at capacity")
-    }
-    s.items[id] = v
-    return nil
-}
-
-func (s *LoginSessionStore) Get(id string) (LoginSession, bool) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    v, ok := s.items[id]
-    return v, ok
-}
-
-func (s *LoginSessionStore) Delete(id string) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
-    delete(s.items, id)
-}
+func (s *LoginSessionStore) Put(id string, v LoginSession) error { return s.inner.Put(id, v) }
+func (s *LoginSessionStore) Get(id string) (LoginSession, bool) { return s.inner.Get(id) }
+func (s *LoginSessionStore) Delete(id string)                 { s.inner.Delete(id) }
 
 // LoginOptionsResponse defines the JSON returned by the login options handler.
 type LoginOptionsResponse struct {
@@ -65,13 +43,13 @@ type LoginOptionsResponse struct {
 // BuildLoginOptions creates a new login session, stores it, and returns the response object.
 func BuildLoginOptions(cfg *cfgpkg.Config, store *LoginSessionStore, now func() time.Time) (LoginOptionsResponse, error) {
     // 24 bytes session id (>=128 bits)
-    sidRaw, err := randBytes(24)
+    sidRaw, err := randutil.BytesE(24)
     if err != nil {
         return LoginOptionsResponse{}, err
     }
     sid := b64.Encode(sidRaw)
     // 32-byte challenge
-    chRaw, err := randBytes(32)
+    chRaw, err := randutil.BytesE(32)
     if err != nil {
         return LoginOptionsResponse{}, err
     }
@@ -117,4 +95,3 @@ func LoginOptionsHandler(cfg *cfgpkg.Config, store *LoginSessionStore) http.Hand
         _ = json.NewEncoder(w).Encode(resp)
     }
 }
-

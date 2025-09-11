@@ -3,14 +3,14 @@ package main
 import (
     "log"
     "net/http"
-    "time"
+    "context"
 
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
-    httpx "github.com/neutral/passkey-demo/internal/http"
     storepkg "github.com/neutral/passkey-demo/internal/storage"
+    app "github.com/neutral/passkey-demo/internal/app"
+    repos "github.com/neutral/passkey-demo/internal/repos"
     webauthn "github.com/neutral/passkey-demo/internal/webauthn"
     tx "github.com/neutral/passkey-demo/internal/tx"
-    me "github.com/neutral/passkey-demo/internal/me"
 )
 
 func main() {
@@ -18,7 +18,6 @@ func main() {
     if err != nil {
         log.Fatalf("config error: %v", err)
     }
-    mux := http.NewServeMux()
     // DB
     db, err := storepkg.Open(cfg)
     if err != nil { log.Fatalf("db open: %v", err) }
@@ -28,32 +27,15 @@ func main() {
     loginStore := webauthn.NewLoginSessionStore(10000)
     txStore := tx.NewTxSessionStore(10000)
 
-	// Health
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
+    // Prepare read-only repositories (prepared statements)
+    credsRepo, err := repos.NewCredentials(context.Background(), db)
+    if err != nil { log.Fatalf("repos credentials: %v", err) }
+    txRepo, err := repos.NewTransactions(context.Background(), db)
+    if err != nil { log.Fatalf("repos transactions: %v", err) }
+    deps := app.Deps{RegStore: regStore, LoginStore: loginStore, TxStore: txStore, CredsRepo: credsRepo, TxRepo: txRepo}
 
-    // Registration options
-    mux.Handle("/authn/passkey/registration/options", webauthn.RegistrationOptionsHandler(cfg, regStore))
-    // Registration finish
-    mux.Handle("/authn/passkey/registration/finish", webauthn.RegistrationFinishHandler(cfg, regStore, db))
-    // Login options
-    mux.Handle("/authn/passkey/login/options", webauthn.LoginOptionsHandler(cfg, loginStore))
-    // Login finish
-    mux.Handle("/authn/passkey/login/finish", webauthn.LoginFinishHandler(cfg, loginStore, db))
-    // Tx signing options/finish
-    mux.Handle("/tx/signing/options", tx.TxOptionsHandler(cfg, txStore, db))
-    mux.Handle("/tx/signing/finish", tx.TxFinishHandler(cfg, txStore, db))
-    // Transactions list (authenticated)
-    mux.Handle("/tx/list", tx.TxListHandler(db))
-    // Account key (authenticated)
-    mux.Handle("/me/account_key", me.AccountKeyHandler(db))
-    // Debug endpoints removed; keep minimal surface
-
-    // Wrap with outermost CORS middleware
-    // Layer: CORS (outermost) → Session middleware → mux
-    handler := httpx.CORSMiddleware(cfg)(httpx.SessionMiddleware(db, true, time.Hour)(mux))
+    // Build router with group middlewares and global wrappers
+    handler := app.BuildRouter(cfg, db, deps)
 
     log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
     log.Printf("server listening on :%s", cfg.Port)

@@ -22,6 +22,8 @@ import (
     enc "github.com/neutral/passkey-demo/internal/encoding"
     storage "github.com/neutral/passkey-demo/internal/storage"
     types "github.com/neutral/passkey-demo/internal/types"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
+    repos "github.com/neutral/passkey-demo/internal/repos"
 )
 
 func openPhaseDB(t *testing.T) *sql.DB {
@@ -93,15 +95,21 @@ func TestPhaseF_E2E_OptionsFinishList(t *testing.T) {
     body.Response.AuthenticatorData = b64.Encode(ad)
     body.Response.Signature = b64.Encode(sig)
     buf, _ := json.Marshal(body)
+    credsRepo, err := repos.NewCredentials(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
     rr := httptest.NewRecorder(); req := httptest.NewRequest("POST", "/tx/signing/finish", bytes.NewReader(buf))
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
-    TxFinishHandler(cfg, store, db).ServeHTTP(rr, req)
+    h := httpctx.SessionMiddleware(db, true, time.Hour)(TxFinishHandler(cfg, store, db, credsRepo))
+    h.ServeHTTP(rr, req)
     if rr.Code != 200 { t.Fatalf("finish status=%d body=%s", rr.Code, rr.Body.String()) }
 
     // List and verify presence
+    txRepo, err := repos.NewTransactions(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
     rr = httptest.NewRecorder(); req = httptest.NewRequest("GET", "/tx/list", nil)
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})
-    TxListHandler(db).ServeHTTP(rr, req)
+    h2 := httpctx.SessionMiddleware(db, true, time.Hour)(TxListHandler(txRepo))
+    h2.ServeHTTP(rr, req)
     if rr.Code != 200 { t.Fatalf("list status=%d", rr.Code) }
     var out TxListResponse
     if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil { t.Fatalf("json: %v", err) }

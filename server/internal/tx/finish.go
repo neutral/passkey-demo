@@ -8,7 +8,6 @@ import (
     "encoding/hex"
     "encoding/json"
     "errors"
-    "log"
     "net/http"
     "strings"
     "time"
@@ -19,6 +18,8 @@ import (
     cryptoutil "github.com/neutral/passkey-demo/internal/crypto"
     types "github.com/neutral/passkey-demo/internal/types"
     webauthn "github.com/neutral/passkey-demo/internal/webauthn"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
+    repos "github.com/neutral/passkey-demo/internal/repos"
 )
 
 // Inbound payload for /tx/signing/finish.
@@ -182,15 +183,128 @@ func BuildTxFinish(ctx context.Context, cfg *cfgpkg.Config, txStore *TxSessionSt
     return TxFinishResponse{TxIDHex: hex.EncodeToString(txID[:]), Stored: true}, nil
 }
 
+// BuildTxFinishWithAcct is like BuildTxFinish but uses the provided acctCBOR
+// from session middleware and does not consult the sessions table.
+func BuildTxFinishWithAcct(ctx context.Context, cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB, creds *repos.CredentialsRepo, acctCBOR []byte, in TxFinishInbound, now func() time.Time) (TxFinishResponse, error) {
+    // Tx session lookup
+    txSess, ok := txStore.Get(in.TxSessionID)
+    if !ok || now().After(txSess.ExpiresAt) {
+        return TxFinishResponse{}, ErrTxSession
+    }
+    // Parse CDJ
+    cdjRaw, err := b64.Decode(in.Response.ClientDataJSON)
+    if err != nil {
+        return TxFinishResponse{}, ErrBadBase64
+    }
+    cdj, err := webauthn.ParseClientDataJSON(cdjRaw)
+    if err != nil {
+        return TxFinishResponse{}, ErrBadJSON
+    }
+    if !webauthn.IsGet(cdj) {
+        return TxFinishResponse{}, ErrTypeMismatch
+    }
+    if string(cdj.Challenge) != string(txSess.Challenge) {
+        return TxFinishResponse{}, ErrChallenge
+    }
+    // Origin policy
+    devLocal := strings.HasPrefix(cfg.Origin, "http://localhost")
+    if err := webauthn.CheckOrigin(cdj.Origin, cfg.Origin, cfg.OriginAllowlist, devLocal); err != nil {
+        return TxFinishResponse{}, err
+    }
+    // Parse AD and signature
+    adRaw, err := b64.Decode(in.Response.AuthenticatorData)
+    if err != nil {
+        return TxFinishResponse{}, ErrBadBase64
+    }
+    sigRaw, err := b64.Decode(in.Response.Signature)
+    if err != nil {
+        return TxFinishResponse{}, ErrBadBase64
+    }
+    ad, _, err := webauthn.ParseAuthData(adRaw)
+    if err != nil {
+        return TxFinishResponse{}, ErrBadJSON
+    }
+    // rpId policy
+    if err := webauthn.CheckRpIdHashAllowed(ad.RpIDHash, cfg.RP_ID, cfg.RPAllowlist); err != nil {
+        return TxFinishResponse{}, err
+    }
+    // UV required
+    if !webauthn.HasUV(ad.Flags) {
+        return TxFinishResponse{}, webauthn.ErrOriginNotAllowed // map to 403 via policy mapper
+    }
+    // Credential id
+    credID, err := b64.Decode(in.RawID)
+    if err != nil || len(credID) == 0 {
+        return TxFinishResponse{}, ErrBadBase64
+    }
+    if in.ID != in.RawID { // mismatch between id and rawId
+        return TxFinishResponse{}, ErrBadJSON
+    }
+    // Load credential
+    storedAcct, storedCount, err := creds.GetAccountAndCount(ctx, credID)
+    if err != nil {
+        return TxFinishResponse{}, ErrCredUnknown
+    }
+    if !bytes.Equal(storedAcct, txSess.AcctCBOR) || !bytes.Equal(storedAcct, acctCBOR) {
+        return TxFinishResponse{}, ErrCredMismatch
+    }
+    // Must be in allowlist from options
+    allowed := false
+    for _, id := range txSess.CredentialIDs {
+        if bytes.Equal(id, credID) { allowed = true; break }
+    }
+    if !allowed {
+        return TxFinishResponse{}, ErrAllowlist
+    }
+    // Account public key
+    var cose types.CoseEC2
+    if err := enc.DecodeCanonical(txSess.AcctCBOR, &cose); err != nil {
+        return TxFinishResponse{}, ErrBadJSON
+    }
+    pub, err := cryptoutil.ToECDSA(&cose)
+    if err != nil {
+        return TxFinishResponse{}, ErrBadJSON
+    }
+    // Verify assertion signature
+    if err := webauthn.VerifyAssertion(pub, adRaw, cdjRaw, sigRaw); err != nil {
+        return TxFinishResponse{}, err
+    }
+    // Enforce signCount policy
+    if ad.SignCount == 0 {
+        // leave stored count unchanged
+    } else {
+        if int64(ad.SignCount) <= storedCount {
+            return TxFinishResponse{}, ErrSignCount
+        }
+        if _, err := db.ExecContext(ctx, `UPDATE credentials SET sign_count = ? WHERE credential_id = ?`, int64(ad.SignCount), credID); err != nil {
+            return TxFinishResponse{}, err
+        }
+    }
+    // Compute tx_id from canonical B and persist transaction
+    var bun types.Bundle
+    if err := enc.DecodeCanonical(txSess.B, &bun); err != nil {
+        return TxFinishResponse{}, ErrBadJSON
+    }
+    txID := sha256.Sum256(append([]byte(anchorTxIDPrefix), txSess.B...))
+    nowUnix := now().Unix()
+    if _, err := db.ExecContext(ctx, `INSERT INTO transactions (tx_id, acct_cbor, nonce, message, bundle_cbor, auth_data, client_data, signature, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        txID[:], txSess.AcctCBOR, int64(bun.Nonce), bun.Message, txSess.B, adRaw, cdjRaw, sigRaw, nowUnix,
+    ); err != nil {
+        return TxFinishResponse{}, err
+    }
+    txStore.Delete(in.TxSessionID)
+    return TxFinishResponse{TxIDHex: hex.EncodeToString(txID[:]), Stored: true}, nil
+}
+
 // TxFinishHandler handles POST /tx/signing/finish.
-func TxFinishHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) http.HandlerFunc {
+func TxFinishHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB, creds *repos.CredentialsRepo) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
             http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
             return
         }
-        c, err := r.Cookie("sid")
-        if err != nil || c.Value == "" {
+        s, ok := httpctx.FromSession(r.Context())
+        if !ok {
             http.Error(w, "unauthorized", http.StatusUnauthorized)
             return
         }
@@ -199,34 +313,28 @@ func TxFinishHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB) ht
             http.Error(w, "bad json", http.StatusBadRequest)
             return
         }
-        resp, err := BuildTxFinish(r.Context(), cfg, txStore, db, c.Value, in, time.Now)
+        resp, err := BuildTxFinishWithAcct(r.Context(), cfg, txStore, db, creds, s.AcctCBOR, in, time.Now)
         if err != nil {
             switch {
             case errors.Is(err, ErrAuthSession):
-                log.Printf("tx_finish: unauthorized (auth session) sid_hash=%s", webauthn.HashID([]byte(c.Value)))
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrTxSession):
-                log.Printf("tx_finish: unauthorized (tx session) tx_session_id=%s", in.TxSessionID)
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrCredUnknown):
-                log.Printf("tx_finish: unauthorized (credential unknown) tx_session_id=%s", in.TxSessionID)
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrCredMismatch):
-                log.Printf("tx_finish: unauthorized (credential/account mismatch) tx_session_id=%s", in.TxSessionID)
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrAllowlist):
-                log.Printf("tx_finish: unauthorized (allowlist miss) tx_session_id=%s", in.TxSessionID)
                 http.Error(w, "unauthorized", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrBadJSON), errors.Is(err, ErrBadBase64), errors.Is(err, ErrTypeMismatch):
                 http.Error(w, "bad request", http.StatusBadRequest)
                 return
             case errors.Is(err, ErrChallenge):
-                log.Printf("tx_finish: challenge mismatch tx_session_id=%s", in.TxSessionID)
                 http.Error(w, "challenge mismatch", http.StatusUnauthorized)
                 return
             case errors.Is(err, ErrSignCount):

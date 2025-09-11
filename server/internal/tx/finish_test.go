@@ -21,8 +21,10 @@ import (
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
     b64 "github.com/neutral/passkey-demo/internal/encoding"
     enc "github.com/neutral/passkey-demo/internal/encoding"
+    httpctx "github.com/neutral/passkey-demo/internal/http"
     storage "github.com/neutral/passkey-demo/internal/storage"
     types "github.com/neutral/passkey-demo/internal/types"
+    repos "github.com/neutral/passkey-demo/internal/repos"
 )
 
 func openFinishDB(t *testing.T) *sql.DB {
@@ -100,7 +102,9 @@ func TestTxFinish_Happy(t *testing.T) {
     buf, _ := json.Marshal(body)
 
     // Call handler
-    h := TxFinishHandler(cfg, store, db)
+    credsRepo, err := repos.NewCredentials(context.Background(), db)
+    if err != nil { t.Fatalf("repo: %v", err) }
+    h := httpctx.SessionMiddleware(db, true, time.Hour)(TxFinishHandler(cfg, store, db, credsRepo))
     rr := httptest.NewRecorder()
     req := httptest.NewRequest("POST", "/tx/signing/finish", bytes.NewReader(buf))
     req.AddCookie(&http.Cookie{Name: "sid", Value: sid})

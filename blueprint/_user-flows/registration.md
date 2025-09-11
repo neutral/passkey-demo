@@ -106,29 +106,22 @@ The registration flow ensures the public key is bound to the correct origin and 
 - Request: `POST /authn/passkey/registration/options`
 
 ```json
-{
-  "rpId": "example.com",
-  "origin": "https://example.com"
-}
+{}
 ```
 
 - Response: 200
 
 ```json
 {
-  "reg_session_id": "<uuid>",
-  "publicKey": {
-    "rp": { "id": "example.com", "name": "Passkey Demo" },
-    "user": { "id": "<b64url>", "name": "user", "displayName": "User" },
-    "challenge": "<b64url>",
-    "pubKeyCredParams": [{ "type": "public-key", "alg": -7 }],
-    "authenticatorSelection": {
-      "residentKey": "required",
-      "userVerification": "required"
-    },
-    "attestation": "none",
-    "timeout": 60000
-  }
+  "reg_session_id": "<b64>",
+  "challenge": "<b64>",
+  "options": {
+    "rp_id": "example.com",
+    "origin": "https://example.com",
+    "uv_required": true,
+    "attestation": "none"
+  },
+  "expires_at": 1735689600
 }
 ```
 
@@ -151,10 +144,7 @@ The registration flow ensures the public key is bound to the correct origin and 
 - Response: 201
 
 ```json
-{
-  "account_id": "<hex-thumbprint>",
-  "credential_id": "<b64url>"
-}
+{ "account_thumb_hex": "<hex-thumbprint>", "credential_id_b64": "<b64>" }
 ```
 
 ## Errors and Observability
@@ -173,10 +163,10 @@ The registration flow ensures the public key is bound to the correct origin and 
 
 ## Outputs
 
-- 201 Created; returns `account_id` and `credential_id`.
+- 201 Created; returns `account_thumb_hex` and `credential_id_b64`.
 - Database: new account and credential records with initial `signCount`.
 
 ## Verification
 
-- Trigger options; run `navigator.credentials.create({...})` in the app; submit finish; expect 201 with `account_id` and `credential_id`.
+- Trigger options; run `navigator.credentials.create({...})` in the app; submit finish; expect 201 with `account_thumb_hex` and `credential_id_b64`.
 - Check DB for new account and credential; confirm `signCount` stored and `residentKey` policy enforced.

@@ -23,7 +23,7 @@
   - `Secure` set to `true` only when the configured `ORIGIN` is HTTPS; for localhost http dev, `Secure` is omitted.
 - Subsequent API calls from the SPA include the cookie automatically when using `credentials: 'include'` and matching SameSite rules.
 - Protected endpoints (e.g., transaction APIs) require a valid, unexpired session; otherwise they return 401 Unauthorized.
-- Session middleware looks up the session by `sid`, checks expiry, and attaches the account identity to the request context.
+- Session middleware looks up the session by `sid`, checks expiry, and attaches the account identity to the request context. Handlers do not read cookies directly.
 
 ## Performance & Safety Settings
 - Session TTL: ~1 hour; may refresh on activity (middleware can extend expiry when half TTL remains).
@@ -57,4 +57,3 @@
 
 ## Refs
 - Refs: requirement R-PLAT-2; requirement R-OPS-DEV; requirement R-ERR; goal simple-ui-and-storage; decision webauthn-corrections-and-standardizations
-
