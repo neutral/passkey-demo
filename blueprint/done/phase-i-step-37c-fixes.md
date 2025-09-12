@@ -1,4 +1,4 @@
-# Step 37c — Integration Fixes and Standardizations
+# Phase I — Step 37c — Integration Fixes and Standardizations
 
 ## Purpose
 Capture the set of integration fixes and standardizations applied after the 37b refactoring plan to stabilize the system and remove drift across layers.
@@ -75,4 +75,3 @@ Capture the set of integration fixes and standardizations applied after the 37b 
 ## Refs
 
 Refs: goal simple-ui-and-storage; goal passkey-registration-login-uv; goal transaction-content-signing; requirement R-ERR; requirement R-PLAT-2; requirement sqlite-persistence; decision router-builder-wiring; decision http-error-envelope; decision session-store-refactor; decision data-access-repos-prepared; decision request-id-and-slog-json
-

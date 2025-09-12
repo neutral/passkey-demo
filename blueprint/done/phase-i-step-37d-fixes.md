@@ -1,4 +1,4 @@
-# Step 38b — Fixes and UX Improvements
+# Phase I — Step 37d — Fixes and UX Improvements
 
 ## Purpose
 Address observed issues after the 37b refactor rollout: intermittent 401 on `/tx/signing/finish`, incorrect nonce recorded as 0, and reduce user error by auto-filling the next nonce in the UI.
@@ -48,4 +48,3 @@ Address observed issues after the 37b refactor rollout: intermittent 401 on `/tx
 ## Refs
 
 Refs: requirement R-FLOW-SIGN; goal transaction-content-signing; decision encoding-and-ceremony-guardrails; decision weboauthn-corrections-and-standardizations; decision weboauthn-accept-high-s-signing-too
-
