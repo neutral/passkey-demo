@@ -6,7 +6,7 @@ Handle `POST /authn/passkey/login/finish`: verify a WebAuthn assertion for login
 - Validates CDJ (`type=get`, challenge equality, origin policy) and AD (rpIdHash, UV flag).
 - Looks up credential → account, converts account COSE to EC key, and verifies ES256 signature (low‑S enforced; high‑S normalized for compatibility).
 - Enforces `signCount` strictly increasing when non-zero; updates stored counter.
-- On success: creates a server session row and sets `sid` cookie (HttpOnly, SameSite=Lax, Secure when `origin` is https).
+- On success: creates a server session row with `expires_at = now + 3600s` (1 hour TTL) and sets `sid` cookie (HttpOnly, SameSite=Lax, Secure when `origin` is https).
 - Errors: uses JSON error envelope `{code,error,correlation_id?}` mapped to 400/401/403/409/5xx.
 
 # Interactions
@@ -15,4 +15,3 @@ Handle `POST /authn/passkey/login/finish`: verify a WebAuthn assertion for login
 
 # Refs
 Refs: requirement R-FLOW-LOGIN; requirement R-SEC-UV; requirement R-ERR; decision http-error-envelope; decision webauthn-corrections-and-standardizations
-

@@ -2,7 +2,7 @@
 Central router builder that wires the HTTP server routes and applies group-level middlewares. It centralizes all `ServeMux` registrations for the backend and enforces consistent layering for cross-cutting concerns.
 
 # Relations
-- Outermost wrapper is `internal/httpx/middleware.RequestID`, then `internal/http.CORSMiddleware`, then `internal/http.SessionMiddleware`.
+- Outermost wrapper is `internal/httpx/middleware.RequestID`, then `internal/http.CORSMiddleware`, then `internal/http.SessionMiddleware` (configured with refresh enabled and TTL = 1 hour).
 - Group middlewares (`BodyLimitMiddleware`, `RateLimitMiddleware`) applied around `/authn/*` and `/tx/*` handlers.
 - Depends on `internal/config` for runtime settings; injects in-memory session stores and prepared-statement repositories through `Deps`.
 - Uses handlers from `internal/webauthn`, `internal/tx`, and `internal/me`.
