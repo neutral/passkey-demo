@@ -274,7 +274,13 @@ export default function Dashboard({ onBack }: Props) {
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" onClick={buildBundlePreview} disabled={unauthorized || loading}>Build</button>
             {!senderKey && !unauthorized && (
-              <button type="button" onClick={ensureSenderKey} disabled={loading}>Load Key</button>
+              <button
+                type="button"
+                onClick={() => { void ensureSenderKey(true) }}
+                disabled={loading}
+              >
+                Load Key
+              </button>
             )}
             <button type="button" onClick={signTransaction} disabled={unauthorized || loading || signing || !bundleB64}>Sign</button>
           </div>
