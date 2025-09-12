@@ -50,6 +50,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 40 — Logging](blueprint/done/phase-j-step-40-logging.md)
 - [Step 41 — Build scripts](blueprint/done/phase-j-step-41-build-scripts.md)
 - [Step 42 — API examples](blueprint/done/phase-k-step-42-api-examples.md)
+- [Step 43 — Postman / REST Client file](blueprint/done/phase-k-step-43-postman-rest-client.md)
 
 ## Next
 
@@ -57,16 +58,9 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ---
 
-42. **API examples**
-
-    Moved to: [phase-k-step-42-api-examples](blueprint/done/phase-k-step-42-api-examples.md)
-
----
-
 43. **Postman / REST Client file**
 
-    - Provide a collection with placeholders; helpful for observing JSON shapes.
-    - _Verify_: collection can be imported.
+    Moved to: [phase-k-step-43-postman-rest-client](blueprint/done/phase-k-step-43-postman-rest-client.md)
 
 ---
 

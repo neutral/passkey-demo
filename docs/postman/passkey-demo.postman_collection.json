@@ -1,0 +1,99 @@
+{
+  "info": {
+    "name": "passkey-demo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {"method": "GET", "url": "{{baseUrl}}/health"}
+    },
+    {
+      "name": "Registration",
+      "item": [
+        {
+          "name": "registration/options",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/authn/passkey/registration/options"
+          }
+        },
+        {
+          "name": "registration/finish (example body)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/authn/passkey/registration/finish",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reg_session_id\": \"<b64>\",\n  \"id\": \"<b64>\",\n  \"rawId\": \"<b64>\",\n  \"type\": \"public-key\",\n  \"response\": {\n    \"attestationObject\": \"<b64>\",\n    \"clientDataJSON\": \"<b64>\"\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login",
+      "item": [
+        {
+          "name": "login/options",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/authn/passkey/login/options"
+          }
+        },
+        {
+          "name": "login/finish (example body)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/authn/passkey/login/finish",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login_session_id\": \"<b64>\",\n  \"id\": \"<b64>\",\n  \"rawId\": \"<b64>\",\n  \"type\": \"public-key\",\n  \"response\": {\n    \"authenticatorData\": \"<b64>\",\n    \"clientDataJSON\": \"<b64>\",\n    \"signature\": \"<b64>\",\n    \"userHandle\": \"<b64>\"\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account & Transactions",
+      "item": [
+        {
+          "name": "me/account_key (cookie required)",
+          "request": {"method": "GET", "url": "{{baseUrl}}/me/account_key"}
+        },
+        {
+          "name": "tx/list (cookie required)",
+          "request": {"method": "GET", "url": "{{baseUrl}}/tx/list"}
+        },
+        {
+          "name": "tx/signing/options (cookie required)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/tx/signing/options",
+            "body": {"mode": "raw", "raw": "{\n  \"bundle_cbor_b64\": \"<b64>\"\n}"}
+          }
+        },
+        {
+          "name": "tx/signing/finish (example body)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/tx/signing/finish",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tx_session_id\": \"<b64>\",\n  \"id\": \"<b64>\",\n  \"rawId\": \"<b64>\",\n  \"type\": \"public-key\",\n  \"response\": {\n    \"authenticatorData\": \"<b64>\",\n    \"clientDataJSON\": \"<b64>\",\n    \"signature\": \"<b64>\",\n    \"userHandle\": \"<b64>\"\n  }\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080"}
+  ]
+}

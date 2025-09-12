@@ -1,0 +1,90 @@
+# Health
+GET http://localhost:8080/health
+
+###
+
+# Registration — options
+POST http://localhost:8080/authn/passkey/registration/options
+Content-Type: application/json
+
+###
+
+# Registration — finish (payload skeleton; non-runnable)
+POST http://localhost:8080/authn/passkey/registration/finish
+Content-Type: application/json
+
+{
+  "reg_session_id": "<b64>",
+  "id": "<b64>",
+  "rawId": "<b64>",
+  "type": "public-key",
+  "response": {
+    "attestationObject": "<b64>",
+    "clientDataJSON": "<b64>"
+  }
+}
+
+###
+
+# Login — options
+POST http://localhost:8080/authn/passkey/login/options
+Content-Type: application/json
+
+###
+
+# Login — finish (payload skeleton; non-runnable)
+POST http://localhost:8080/authn/passkey/login/finish
+Content-Type: application/json
+
+{
+  "login_session_id": "<b64>",
+  "id": "<b64>",
+  "rawId": "<b64>",
+  "type": "public-key",
+  "response": {
+    "authenticatorData": "<b64>",
+    "clientDataJSON": "<b64>",
+    "signature": "<b64>",
+    "userHandle": "<b64>"
+  }
+}
+
+###
+
+# Account key (requires cookie jar enabled in REST Client settings)
+GET http://localhost:8080/me/account_key
+
+###
+
+# Transactions — list (requires cookie jar)
+GET http://localhost:8080/tx/list
+
+###
+
+# Transactions — signing options (requires cookie jar)
+POST http://localhost:8080/tx/signing/options
+Content-Type: application/json
+
+{
+  "bundle_cbor_b64": "<b64>"
+}
+
+###
+
+# Transactions — signing finish (payload skeleton; non-runnable)
+POST http://localhost:8080/tx/signing/finish
+Content-Type: application/json
+
+{
+  "tx_session_id": "<b64>",
+  "id": "<b64>",
+  "rawId": "<b64>",
+  "type": "public-key",
+  "response": {
+    "authenticatorData": "<b64>",
+    "clientDataJSON": "<b64>",
+    "signature": "<b64>",
+    "userHandle": "<b64>"
+  }
+}
+
