@@ -5,6 +5,7 @@ Describe the per-account nonce policy used to prevent replay and enforce orderin
 
 ## Overview
 - Every account maintains a strictly increasing `nonce` in the Bundle.
+- Nonce must be a positive integer (> 0); zero is rejected at validation time.
 - Server looks up `MAX(nonce)` in `transactions` for the account and rejects any bundle with `nonce <= last_nonce`.
 - Policy is enforced during options issuance so clients receive early, clear feedback (e.g., HTTP 409 at the handler layer).
 
@@ -16,4 +17,3 @@ Describe the per-account nonce policy used to prevent replay and enforce orderin
 
 ## Refs
 Refs: goal transaction-content-signing; requirement R-FLOW-SIGN; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails
-

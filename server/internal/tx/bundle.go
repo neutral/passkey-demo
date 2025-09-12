@@ -171,6 +171,52 @@ func ValidateAndAnchorBundle(ctx context.Context, db *sql.DB, acctCBOR []byte, b
             }
         }
     }
+    // If nonce wasn't populated due to encoder variance, attempt a generic decode
+    // to extract `nonce` (key 1) and `message` (key 2). This guards against cases
+    // where CBOR libraries encode small integers as floats or the typed struct
+    // mapping is bypassed.
+    if bun.Nonce == 0 || bun.Message == "" {
+        var gm map[any]any
+        if err := enc.DecodeCanonical(raw, &gm); err == nil {
+            // helper to coerce numeric to uint64
+            getU64 := func(v any) (uint64, bool) {
+                switch t := v.(type) {
+                case uint64:
+                    return t, true
+                case int64:
+                    if t >= 0 { return uint64(t), true }
+                case int:
+                    if t >= 0 { return uint64(t), true }
+                case float64:
+                    if t >= 0 && t == float64(uint64(t)) { return uint64(t), true }
+                }
+                return 0, false
+            }
+            for k, v := range gm {
+                var keyInt int
+                switch kk := k.(type) {
+                case int:
+                    keyInt = kk
+                case int64:
+                    keyInt = int(kk)
+                case uint64:
+                    keyInt = int(kk)
+                default:
+                    continue
+                }
+                switch keyInt {
+                case 1:
+                    if bun.Nonce == 0 { if u, ok := getU64(v); ok { bun.Nonce = u } }
+                case 2:
+                    if bun.Message == "" { if s, ok := v.(string); ok { bun.Message = s } }
+                }
+            }
+        }
+    }
+    // Reject zero nonce (must be positive integer)
+    if bun.Nonce == 0 {
+        return nil, ErrBundleCBOR
+    }
     // Canonical re-encode → B
     B, err := enc.EncodeCanonical(bun)
     if err != nil {
