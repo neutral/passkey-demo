@@ -32,7 +32,10 @@
 - Purely server-side change.
 
 ## Tests
-- Unit tests will cover Unicode/A-label pairs and invalid hostcases in a follow-up; current short test suite remains green.
+- Added unit tests for Unicode/A-label pairs:
+  - RP ID: `bücher.ch` ⇄ `xn--bcher-kva.ch`, `café.fr` ⇄ `xn--caf-dma.fr`.
+  - Origin allowlist/candidate cross-matching (unicode vs ascii).
+- IPv6 literal exact allow remains supported (no IDNA on IPs).
 
 ## Verification
 - Build + short tests:
@@ -45,4 +48,9 @@ cd server && go build ./... && go test -short ./...
 
 ## Refs
 - Refs: requirement R-PLAT-2
+
+## Appendix — Additional notes
+- Config: RP IDs and RP allowlist are normalized to A-label at load; invalid entries fail fast.
+- Policy: Origin hostnames normalized to A-label at request time; IPv6 literals bypass IDNA.
+- Specs/Docs: Updated server/config and policy descriptions, and platform spec to document normalization points and behavior.
 
