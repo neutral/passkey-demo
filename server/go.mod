@@ -6,9 +6,11 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/veqryn/slog-context v0.8.0
+	golang.org/x/net v0.44.0
 )
 
 require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	golang.org/x/text v0.29.0 // indirect
 )

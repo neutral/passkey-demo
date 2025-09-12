@@ -6,6 +6,7 @@ import (
     "os"
     "strconv"
     "strings"
+    "golang.org/x/net/idna"
 )
 
 // Config holds runtime settings for the server.
@@ -47,6 +48,20 @@ func Load() (*Config, error) {
     }
     if !contains(originList, origin) {
         originList = append(originList, origin)
+    }
+
+    // Normalize RP IDs to A-label (punycode) and validate
+    var err error
+    rpID, err = idna.Lookup.ToASCII(rpID)
+    if err != nil || rpID == "" {
+        return nil, errors.New("RP_ID invalid (IDNA)")
+    }
+    for i := range rpList {
+        ascii, e := idna.Lookup.ToASCII(strings.ToLower(strings.TrimSpace(rpList[i])))
+        if e != nil || ascii == "" {
+            return nil, errors.New("RP_ID_ALLOWLIST invalid (IDNA)")
+        }
+        rpList[i] = ascii
     }
 
     // Validate
@@ -106,4 +121,3 @@ func contains(ss []string, v string) bool {
     }
     return false
 }
-

@@ -7,6 +7,7 @@ import (
     "net"
     "net/url"
     "strings"
+    "golang.org/x/net/idna"
 )
 
 // Sentinel errors for RP ID and Origin policy checks.
@@ -20,13 +21,21 @@ var (
     ErrOriginNotAllowed  = errors.New("origin not allowed")
 )
 
-func normalizeHost(h string) string {
+func normalizeHost(h string) (string, error) {
     h = strings.ToLower(strings.TrimSpace(h))
-    // Accept a single trailing dot
     if strings.HasSuffix(h, ".") {
         h = strings.TrimSuffix(h, ".")
     }
-    return h
+    // Bypass IDNA for IP literals
+    if net.ParseIP(h) != nil {
+        return h, nil
+    }
+    // Convert to A-label (punycode)
+    ascii, err := idna.Lookup.ToASCII(h)
+    if err != nil {
+        return "", err
+    }
+    return ascii, nil
 }
 
 func validateAndNormalizeRpID(rpID string) (string, error) {
@@ -45,7 +54,12 @@ func validateAndNormalizeRpID(rpID string) (string, error) {
     if rp != "localhost" && net.ParseIP(rp) != nil {
         return "", ErrRpIdInvalid
     }
-    return rp, nil
+    // IDNA ToASCII for Unicode RP IDs
+    ascii, err := idna.Lookup.ToASCII(rp)
+    if err != nil {
+        return "", ErrRpIdInvalid
+    }
+    return ascii, nil
 }
 
 // CheckRpIdHash validates the rpID string and compares SHA-256(rpID) to the authenticator's rpIdHash.
@@ -101,7 +115,10 @@ func parseAndNormalizeOrigin(s string) (parsedOrigin, error) {
     if u.Scheme == "" || u.Host == "" {
         return parsedOrigin{}, ErrOriginMalformed
     }
-    host := normalizeHost(u.Hostname())
+    host, err := normalizeHost(u.Hostname())
+    if err != nil {
+        return parsedOrigin{}, ErrOriginMalformed
+    }
     port := u.Port()
     if port == "" {
         port = defaultPortForScheme(strings.ToLower(u.Scheme))

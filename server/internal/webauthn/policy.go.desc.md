@@ -7,8 +7,8 @@ Enforce WebAuthn relying party binding by checking the RP ID hash from authentic
 - `CheckOrigin(origin, expected string, allow []string, devLocalhostOK bool) error` — Parses and normalizes origin and matches against `{expected} ∪ allow` with scheme policy.
 
 # Normalization & Policy
-- RP ID: lowercase; reject scheme/path/spaces/IP (except `localhost`); accept single trailing dot.
-- Origin: parse URL; host lowercased; accept single trailing dot; default ports (80/443) when port omitted.
+- RP ID: lowercase → strip trailing dot → IDNA ToASCII (punycode) → reject scheme/path/spaces/IP (except `localhost`).
+- Origin: parse URL; host lowercase → strip trailing dot → IDNA ToASCII; default ports (80/443) when port omitted.
 - Scheme: require `https`; allow `http` only for `localhost` when `devLocalhostOK` is true.
 - Allowlists: exact matches only; no wildcards or eTLD+1.
 
@@ -18,4 +18,3 @@ Enforce WebAuthn relying party binding by checking the RP ID hash from authentic
 
 # Refs
 Refs: specs/webauthn-rp-origin-verification-spec.md; specs/rp-origin-test-vectors.md; specs/rp-origin-risks-and-ambiguities.md
-
