@@ -8,7 +8,7 @@ Handle `POST /authn/passkey/registration/finish`: validate attestation, enforce 
 - Persists account (idempotent on `acct_cbor`) and credential (conflicts produce 409).
 - Deletes the registration session after success (single-use).
 - Errors: uses JSON error envelope `{code,error,correlation_id?}` mapped to 400/401/403/409/5xx.
-- Logging: emits a structured success log `reg_finish` with `account_thumb_hex`, `credential_id_hash` (hashed, not raw), `sign_count`, and `correlation_id` when present.
+- Logging: emits a structured success log `reg_finish` (via `InfoContext`; context handler injects `correlation_id`) with `account_thumb_hex`, `credential_id_hash` (hashed, not raw), and `sign_count`.
 
 # Interactions
 - Writes `accounts` and `credentials` tables; uses `internal/encoding` and `internal/crypto`.

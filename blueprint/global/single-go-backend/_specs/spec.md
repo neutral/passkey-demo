@@ -96,6 +96,7 @@
 ## Errors / Observability
 - Use 400/401/403/409/413/429/5xx appropriately; structured error envelope `{code,error,correlation_id?}`.
 - Request ID middleware attaches `X-Request-ID`; envelope includes `correlation_id` when present.
+- Logging: use `log/slog` JSON with a context-aware handler (slog-context) so `correlation_id` is injected automatically when using `InfoContext`.
 - Emit structured log events for major flows: `reg_options`, `reg_finish`, `login_options`, `login_finish`, `tx_options`, `tx_finish`; verification failures emit `webauthn_assert_verify` with `error_kind`.
 
 ## Testing Strategy

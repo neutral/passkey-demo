@@ -11,7 +11,6 @@ import (
     randutil "github.com/neutral/passkey-demo/internal/util/randutil"
     ttl "github.com/neutral/passkey-demo/internal/util/ttlstore"
     "log/slog"
-    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 // RegSession holds server-side state for a pending registration.
@@ -95,23 +94,13 @@ func RegistrationOptionsHandler(cfg *cfgpkg.Config, store *RegSessionStore) http
             http.Error(w, "internal error", http.StatusInternalServerError)
             return
         }
-        // Structured success log
-        if reqID, ok := mid.FromContext(r.Context()); ok {
-            slog.Info("reg_options",
-                slog.String("correlation_id", reqID),
-                slog.String("rp_id", cfg.RP_ID),
-                slog.String("origin", cfg.Origin),
-                slog.Int64("expires_at", resp.ExpiresAt),
-                slog.Int("session_id_len", len(resp.RegSessionID)),
-            )
-        } else {
-            slog.Info("reg_options",
-                slog.String("rp_id", cfg.RP_ID),
-                slog.String("origin", cfg.Origin),
-                slog.Int64("expires_at", resp.ExpiresAt),
-                slog.Int("session_id_len", len(resp.RegSessionID)),
-            )
-        }
+        // Structured success log (context handler injects correlation_id)
+        slog.InfoContext(r.Context(), "reg_options",
+            slog.String("rp_id", cfg.RP_ID),
+            slog.String("origin", cfg.Origin),
+            slog.Int64("expires_at", resp.ExpiresAt),
+            slog.Int("session_id_len", len(resp.RegSessionID)),
+        )
         w.Header().Set("Content-Type", "application/json")
         enc := json.NewEncoder(w)
         _ = enc.Encode(resp)

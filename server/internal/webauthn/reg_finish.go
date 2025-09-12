@@ -15,7 +15,6 @@ import (
     cryptoutil "github.com/neutral/passkey-demo/internal/crypto"
     errx "github.com/neutral/passkey-demo/internal/httpx/errors"
     "log/slog"
-    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 type regFinishInbound struct {
@@ -150,21 +149,12 @@ func RegistrationFinishHandler(cfg *cfgpkg.Config, store *RegSessionStore, db *s
         // Success: delete session (single-use)
         store.Delete(in.RegSessionID)
 
-        // Structured success log
-        if reqID, ok := mid.FromContext(r.Context()); ok {
-            slog.Info("reg_finish",
-                slog.String("correlation_id", reqID),
-                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
-                slog.String("credential_id_hash", HashID(credID)),
-                slog.Uint64("sign_count", uint64(ad.SignCount)),
-            )
-        } else {
-            slog.Info("reg_finish",
-                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
-                slog.String("credential_id_hash", HashID(credID)),
-                slog.Uint64("sign_count", uint64(ad.SignCount)),
-            )
-        }
+        // Structured success log (context handler injects correlation_id)
+        slog.InfoContext(r.Context(), "reg_finish",
+            slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
+            slog.String("credential_id_hash", HashID(credID)),
+            slog.Uint64("sign_count", uint64(ad.SignCount)),
+        )
         resp := regFinishResponse{AccountThumbHex: hex.EncodeToString(thumb), CredentialIDB64: b64.Encode(credID)}
         w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(http.StatusCreated)

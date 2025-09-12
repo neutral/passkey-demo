@@ -20,7 +20,6 @@ import (
     ttl "github.com/neutral/passkey-demo/internal/util/ttlstore"
     repos "github.com/neutral/passkey-demo/internal/repos"
     "log/slog"
-    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 // TxSession holds server-side state for a pending transaction signing flow.
@@ -177,111 +176,55 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, creds *repos.
             // Map known errors to appropriate statuses
             switch {
             case errors.Is(err, ErrBundleBase64), errors.Is(err, ErrBundleCBOR):
-                if reqID, ok := mid.FromContext(r.Context()); ok {
-                    slog.Info("tx_options",
-                        slog.String("correlation_id", reqID),
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "invalid_bundle"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                } else {
-                    slog.Info("tx_options",
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "invalid_bundle"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                }
+                slog.InfoContext(r.Context(), "tx_options",
+                    slog.String("outcome", "failure"),
+                    slog.String("reason", "invalid_bundle"),
+                    slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                )
                 errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "invalid bundle")
                 return
             case errors.Is(err, ErrMessageTooLong), errors.Is(err, ErrNonceOutOfRange):
-                if reqID, ok := mid.FromContext(r.Context()); ok {
-                    slog.Info("tx_options",
-                        slog.String("correlation_id", reqID),
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "bundle_limits"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                } else {
-                    slog.Info("tx_options",
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "bundle_limits"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                }
+                slog.InfoContext(r.Context(), "tx_options",
+                    slog.String("outcome", "failure"),
+                    slog.String("reason", "bundle_limits"),
+                    slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                )
                 errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "invalid bundle")
                 return
             case errors.Is(err, ErrSenderKeyMismatch):
-                if reqID, ok := mid.FromContext(r.Context()); ok {
-                    slog.Info("tx_options",
-                        slog.String("correlation_id", reqID),
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "sender_key_mismatch"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                } else {
-                    slog.Info("tx_options",
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "sender_key_mismatch"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                }
+                slog.InfoContext(r.Context(), "tx_options",
+                    slog.String("outcome", "failure"),
+                    slog.String("reason", "sender_key_mismatch"),
+                    slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                )
                 errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrNonceNotMonotonic), errors.Is(err, ErrNoCredentials):
-                if reqID, ok := mid.FromContext(r.Context()); ok {
-                    reason := "no_credentials"
-                    if errors.Is(err, ErrNonceNotMonotonic) { reason = "nonce_not_monotonic" }
-                    slog.Info("tx_options",
-                        slog.String("correlation_id", reqID),
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", reason),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                } else {
-                    reason := "no_credentials"
-                    if errors.Is(err, ErrNonceNotMonotonic) { reason = "nonce_not_monotonic" }
-                    slog.Info("tx_options",
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", reason),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                }
+                reason := "no_credentials"
+                if errors.Is(err, ErrNonceNotMonotonic) { reason = "nonce_not_monotonic" }
+                slog.InfoContext(r.Context(), "tx_options",
+                    slog.String("outcome", "failure"),
+                    slog.String("reason", reason),
+                    slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                )
                 errx.WriteReq(w, r, http.StatusConflict, errx.CodeConflict, "conflict")
                 return
             default:
-                if reqID, ok := mid.FromContext(r.Context()); ok {
-                    slog.Info("tx_options",
-                        slog.String("correlation_id", reqID),
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "internal_error"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                } else {
-                    slog.Info("tx_options",
-                        slog.String("outcome", "failure"),
-                        slog.String("reason", "internal_error"),
-                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
-                    )
-                }
+                slog.InfoContext(r.Context(), "tx_options",
+                    slog.String("outcome", "failure"),
+                    slog.String("reason", "internal_error"),
+                    slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                )
                 errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
                 return
             }
         }
         // Structured success log
-        if reqID, ok := mid.FromContext(r.Context()); ok {
-            slog.Info("tx_options",
-                slog.String("correlation_id", reqID),
-                slog.String("outcome", "success"),
-                slog.String("tx_id_hex", resp.TxIDHex),
-                slog.Int("allow_count", len(resp.Options.AllowCredentials)),
-            )
-        } else {
-            slog.Info("tx_options",
-                slog.String("outcome", "success"),
-                slog.String("tx_id_hex", resp.TxIDHex),
-                slog.Int("allow_count", len(resp.Options.AllowCredentials)),
-            )
-        }
+        slog.InfoContext(r.Context(), "tx_options",
+            slog.String("outcome", "success"),
+            slog.String("tx_id_hex", resp.TxIDHex),
+            slog.Int("allow_count", len(resp.Options.AllowCredentials)),
+        )
         w.Header().Set("Content-Type", "application/json")
         _ = json.NewEncoder(w).Encode(resp)
     }

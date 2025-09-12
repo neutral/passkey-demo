@@ -5,6 +5,7 @@ import (
     "log/slog"
     "os"
     "strings"
+    slogctx "github.com/veqryn/slog-context"
 )
 
 // GetLevelFromEnv parses LOG_LEVEL into a slog.Level.
@@ -38,10 +39,11 @@ func NewWithLevelVar(lv *slog.LevelVar, format string, addSource bool) *slog.Log
     default:
         h = slog.NewJSONHandler(os.Stdout, opts)
     }
-    return slog.New(h)
+    // Wrap with context-aware handler so attributes in context are included
+    ch := slogctx.NewHandler(h, nil)
+    return slog.New(ch)
 }
 
 // FromContext returns the default logger for now.
 // Placeholder to adopt a context-aware handler in the future.
 func FromContext(ctx context.Context) *slog.Logger { return slog.Default() }
-

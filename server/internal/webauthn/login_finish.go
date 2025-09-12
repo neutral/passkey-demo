@@ -207,20 +207,12 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
 
         // Success log and response
         thumb := acctThumb(acctCBOR)
-        if reqID, ok := mid.FromContext(r.Context()); ok {
-            slog.Info("login_finish",
-                slog.String("correlation_id", reqID),
-                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
-                slog.String("credential_id_hash", HashID(credID)),
-                slog.Uint64("sign_count", uint64(ad.SignCount)),
-            )
-        } else {
-            slog.Info("login_finish",
-                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
-                slog.String("credential_id_hash", HashID(credID)),
-                slog.Uint64("sign_count", uint64(ad.SignCount)),
-            )
-        }
+        // Structured success log (context handler injects correlation_id)
+        slog.InfoContext(r.Context(), "login_finish",
+            slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
+            slog.String("credential_id_hash", HashID(credID)),
+            slog.Uint64("sign_count", uint64(ad.SignCount)),
+        )
         resp := loginFinishResponse{AccountThumbHex: hex.EncodeToString(thumb), CredentialIDB64: b64.Encode(credID)}
         w.Header().Set("Content-Type", "application/json")
         _ = json.NewEncoder(w).Encode(resp)

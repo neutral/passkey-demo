@@ -202,18 +202,10 @@ func BuildTxFinish(ctx context.Context, cfg *cfgpkg.Config, txStore *TxSessionSt
     // Single-use: delete tx session
     txStore.Delete(in.TxSessionID)
     // Structured success log
-    if reqID, ok := mid.FromContext(ctx); ok {
-        slog.Info("tx_finish",
-            slog.String("correlation_id", reqID),
-            slog.String("tx_id_hex", hex.EncodeToString(txID[:])),
-            slog.Bool("stored", true),
-        )
-    } else {
-        slog.Info("tx_finish",
-            slog.String("tx_id_hex", hex.EncodeToString(txID[:])),
-            slog.Bool("stored", true),
-        )
-    }
+    slog.InfoContext(ctx, "tx_finish",
+        slog.String("tx_id_hex", hex.EncodeToString(txID[:])),
+        slog.Bool("stored", true),
+    )
     return TxFinishResponse{TxIDHex: hex.EncodeToString(txID[:]), Stored: true}, nil
 }
 

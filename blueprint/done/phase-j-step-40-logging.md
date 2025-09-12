@@ -144,3 +144,14 @@ make web
   - Removed all `log.Print*` usages and `import "log"` from `server/`.
   - Build and short tests pass: `cd server && go build ./... && go test -short ./...`.
 
+### Appendix B — Context-aware handler adoption (follow-up)
+
+- Change: Adopted `slog-context` to inject `correlation_id` into logs automatically when using `InfoContext`.
+  - Logger: wrap JSON/Text handler with `slogctx.NewHandler(...)` in `internal/logging`.
+  - Middleware: `RequestID` now prepends `slog.String("correlation_id", id)` into the request context.
+  - Handlers: migrated success logs to `slog.InfoContext(r.Context(), ...)` so the handler includes the correlation id.
+  - Verify logs: continue using `LogAssertion` with explicit `TraceID` to avoid refactoring its API.
+- Docs/specs updated:
+  - `server/server.desc.md` notes `slog-context` usage.
+  - Handler `.desc.md` files reference `InfoContext` + automatic correlation id.
+  - Spec now mentions context-aware handler under Observability.

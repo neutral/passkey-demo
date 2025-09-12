@@ -9,9 +9,9 @@ Serve `POST /tx/signing/options` for authenticated users: validate the client-pr
 - Response: JSON `{ tx_session_id, challenge, options{rp_id, origin, uv_required, allow_credentials}, tx_id_hex, expires_at }`.
 
 # Observability
-- Emits structured logs `tx_options`:
-  - Success: `outcome=success`, `tx_id_hex`, `allow_count`, and `correlation_id` when present.
-  - Failures: `outcome=failure` with `reason` in {`invalid_bundle`,`bundle_limits`,`sender_key_mismatch`,`nonce_not_monotonic`,`no_credentials`,`internal_error`} and `account_hash=hex(SHA-256(acct_cbor))`; includes `correlation_id` when present.
+- Emits structured logs `tx_options` via `InfoContext` (context handler injects `correlation_id`):
+  - Success: `outcome=success`, `tx_id_hex`, `allow_count`.
+  - Failures: `outcome=failure` with `reason` in {`invalid_bundle`,`bundle_limits`,`sender_key_mismatch`,`nonce_not_monotonic`,`no_credentials`,`internal_error`} and `account_hash=hex(SHA-256(acct_cbor))`.
 
 - Depends on `internal/tx/bundle.go` for bundle validation and anchors.
 - Error mapping: returns JSON error envelope `{code,error,correlation_id?}` with statuses:
