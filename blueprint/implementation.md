@@ -49,16 +49,9 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 39 — Session security](blueprint/done/phase-j-step-39-session-security.md)
 - [Step 40 — Logging](blueprint/done/phase-j-step-40-logging.md)
 - [Step 41 — Build scripts](blueprint/done/phase-j-step-41-build-scripts.md)
+- [Step 42 — API examples](blueprint/done/phase-k-step-42-api-examples.md)
 
 ## Next
-
-### Phase J — Hardening (Demo-grade)
-
----
-
-41. **Build scripts**
-
-    Moved to: [phase-j-step-41-build-scripts](blueprint/done/phase-j-step-41-build-scripts.md)
 
 ### Phase K — Developer Experience
 
@@ -66,8 +59,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 42. **API examples**
 
-    - Add `docs/` with curl examples for each endpoint (sans WebAuthn ceremony).
-    - _Verify_: docs render in repo.
+    Moved to: [phase-k-step-42-api-examples](blueprint/done/phase-k-step-42-api-examples.md)
 
 ---
 
