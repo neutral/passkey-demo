@@ -51,6 +51,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 41 — Build scripts](blueprint/done/phase-j-step-41-build-scripts.md)
 - [Step 42 — API examples](blueprint/done/phase-k-step-42-api-examples.md)
 - [Step 43 — Postman / REST Client file](blueprint/done/phase-k-step-43-postman-rest-client.md)
+- [Step 44 — Env sample](blueprint/done/phase-k-step-44-env-sample.md)
 
 ## Next
 
@@ -58,16 +59,9 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ---
 
-43. **Postman / REST Client file**
-
-    Moved to: [phase-k-step-43-postman-rest-client](blueprint/done/phase-k-step-43-postman-rest-client.md)
-
----
-
 44. **Env sample**
 
-    - `.env.example` with `RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`.
-    - _Verify_: loads correctly.
+    Moved to: [phase-k-step-44-env-sample](blueprint/done/phase-k-step-44-env-sample.md)
 
 ---
 
