@@ -99,3 +99,32 @@ func TestCheckOrigin_IPv6LiteralAllowedExact(t *testing.T) {
     }
 }
 
+func TestIDNA_RpID_Normalization(t *testing.T) {
+    // bücher.ch ⇄ xn--bcher-kva.ch
+    ascii := "xn--bcher-kva.ch"
+    unicode := "bücher.ch"
+    ad := rpHash(ascii)
+    if err := CheckRpIdHash(ad, unicode); err != nil {
+        t.Fatalf("unicode rpID should match ascii hash: %v", err)
+    }
+    // café.fr ⇄ xn--caf-dma.fr
+    ascii2 := "xn--caf-dma.fr"
+    unicode2 := "café.fr"
+    ad2 := rpHash(ascii2)
+    if err := CheckRpIdHash(ad2, unicode2); err != nil {
+        t.Fatalf("unicode rpID should match ascii hash: %v", err)
+    }
+}
+
+func TestIDNA_Origin_Normalization(t *testing.T) {
+    // Allowlist unicode, candidate ascii
+    allow := []string{"https://bücher.ch"}
+    if err := CheckOrigin("https://xn--bcher-kva.ch", "https://example.com", allow, false); err != nil {
+        t.Fatalf("ascii candidate should match unicode allow host: %v", err)
+    }
+    // Allowlist ascii, candidate unicode
+    allow2 := []string{"https://xn--caf-dma.fr"}
+    if err := CheckOrigin("https://café.fr", "https://example.com", allow2, false); err != nil {
+        t.Fatalf("unicode candidate should match ascii allow host: %v", err)
+    }
+}
