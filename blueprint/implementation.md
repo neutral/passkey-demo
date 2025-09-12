@@ -51,19 +51,13 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 41 — Build scripts](blueprint/done/phase-j-step-41-build-scripts.md)
 - [Step 42 — API examples](blueprint/done/phase-k-step-42-api-examples.md)
 - [Step 43 — Postman / REST Client file](blueprint/done/phase-k-step-43-postman-rest-client.md)
- - [Step 44 — Env sample](blueprint/done/phase-k-step-44-env-sample.md)
- - [Step 45 — README](blueprint/done/phase-k-step-45-readme.md)
+- [Step 44 — Env sample](blueprint/done/phase-k-step-44-env-sample.md)
+- [Step 45 — README](blueprint/done/phase-k-step-45-readme.md)
 - [Step 44 — Env sample](blueprint/done/phase-k-step-44-env-sample.md)
 
 ## Next
 
-### Phase K — Developer Experience
-
----
-
-45. **README**
-
-    Moved to: [phase-k-step-45-readme](blueprint/done/phase-k-step-45-readme.md)
+None.
 
 ---
 

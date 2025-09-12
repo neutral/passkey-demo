@@ -36,16 +36,20 @@ Project goals, requirements, specs, decisions, and the implementation plan live 
 ```
 .
 ├─ server/
-│  ├─ cmd/api/main.go          # minimal HTTP server (health check)
+│  ├─ cmd/api/main.go          # API entrypoint (slog, router)
 │  ├─ internal/
-│  │  ├─ http/                 # HTTP handlers (planned)
-│  │  ├─ webauthn/             # WebAuthn ceremonies, policy, verifiers (planned)
-│  │  ├─ cbor/                 # minimal CBOR helpers for content bundle (planned)
-│  │  ├─ store/                # SQLite-backed account/credential storage (planned)
-│  │  └─ config/               # config/env loading (planned)
+│  │  ├─ app/                  # router builder and wiring
+│  │  ├─ httpx/                # middleware (request id, cors, session, errors)
+│  │  ├─ webauthn/             # ceremonies, policy, verification, utilities
+│  │  ├─ tx/                   # transaction bundle, options/finish, listing
+│  │  ├─ repos/                # prepared-statement repositories
+│  │  ├─ storage/              # SQLite open/migrate helpers
+│  │  ├─ types/                # shared types (COSE, options)
+│  │  ├─ encoding/             # base64url, canonical CBOR helpers
+│  │  └─ util/                 # small utilities (rand, ttl store)
 │  ├─ go.mod
 │  ├─ go.sum
-│  └─ .env                     # PORT, RP_ID, ORIGIN, DB_PATH (reference)
+│  └─ (config via env vars)
 ├─ web/
 │  ├─ src/
 │  │  ├─ pages/                # Register, Login, Dashboard
@@ -63,17 +67,17 @@ Project goals, requirements, specs, decisions, and the implementation plan live 
 
 ## Configuration
 
-### Server (`server/.env`)
+### Root `.env` (optional)
 
 ```
 PORT=8080
 RP_ID=localhost
 ORIGIN=http://localhost:5173
-DB_PATH=./demo.db
+DB_PATH=server/demo.db
 ```
 
 Notes:
-- The minimal server does **not** auto-load `.env`. Export vars in your shell if you change them.
+- The server does not auto-load `.env`; Quickstart sources it before `make run` for convenience.
 - `RP_ID` must match the effective domain used by the browser for WebAuthn (e.g., `localhost` for local dev; a real domain in production).
 
 ### Web (`web/.env.development`)
@@ -88,18 +92,14 @@ VITE_API_BASE=/api
 
 ---
 
-## API Overview (planned)
+## API Overview (current)
 
-The API surface for passkey flows (to be implemented; tracked in `blueprint/implementation.md`):
+Core endpoints (see `docs/api-examples.md` and Postman collection for examples):
 
-- POST `/authn/passkey/registration/options` → `PublicKeyCredentialCreationOptions`
-- POST `/authn/passkey/registration/finish` → verifies attestation and creates account+credential
-- POST `/authn/passkey/login/options` → `PublicKeyCredentialRequestOptions`
-- POST `/authn/passkey/login/finish` → verifies assertion and establishes session
-- POST `/tx/sign` → sign a minimal CBOR content bundle with passkey; server verifies signature
-- GET `/transaction/list` → list signed transactions for the current user
-
-Current status: only `/health` is wired; features are being built.
+- Health: `GET /health`
+- Registration: `POST /authn/passkey/registration/options`, `POST /authn/passkey/registration/finish`
+- Login: `POST /authn/passkey/login/options`, `POST /authn/passkey/login/finish`
+- Transactions: `POST /tx/signing/options`, `POST /tx/signing/finish`, `GET /tx/list`
 
 ---
 
@@ -123,25 +123,26 @@ cd ..
 
 ## Run (Development)
 
-Open **two terminals** in the repo root:
+You can either run both together (recommended) or separate terminals:
 
-**Terminal A — API**
-
-```bash
-make server
-# runs: cd server && go run ./cmd/api
-# API: http://localhost:8080  (health: /health)
-```
-
-**Terminal B — UI**
+Together (single terminal):
 
 ```bash
-make web
-# runs: cd web && npm run dev
-# UI: http://localhost:5173  (proxying /api → :8080)
+cp -n .env.example .env || true
+set -a; source .env 2>/dev/null || true; set +a
+make run
 ```
 
-Visit: **[http://localhost:5173](http://localhost:5173)**
+Separate terminals:
+
+```bash
+# Terminal A — API
+make server  # http://localhost:8080 (health: /health)
+
+# Terminal B — UI
+make web     # http://localhost:5173 (proxying /api → :8080)
+```
+Then visit: http://localhost:5173
 
 ---
 
