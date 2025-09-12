@@ -89,8 +89,8 @@
 - Auth: session middleware reads `sid` cookie (HttpOnly, SameSite=Lax, Secure where applicable) and provides account context to protected handlers. Handlers never read cookies directly.
 
 ## WebAuthn Verification Details
-- ClientDataJSON: `type` matches ceremony; `challenge` equals server-stored; `origin` allowlisted.
-- AuthenticatorData: `rpIdHash = SHA-256(rp_id)`; UV flag set; `signCount` strictly increases.
+- ClientDataJSON: `type` matches ceremony; `challenge` equals server-stored; `origin` allowlisted (host normalized to A-label via IDNA before comparison).
+- AuthenticatorData: `rpIdHash = SHA-256(rp_id)` (rp_id normalized to A-label via IDNA before hashing); UV flag set; `signCount` strictly increases.
 - Signature: `digest = SHA256(AD || SHA256(CDJ))`; DER parse; enforce low‑S; verify with account COSE key.
 
 ## Errors / Observability

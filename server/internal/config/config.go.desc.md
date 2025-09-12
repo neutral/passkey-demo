@@ -4,7 +4,11 @@ Centralized runtime configuration for the server. Reads environment variables, a
 # Key Logic
 - Env vars: `RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`, `RP_ID_ALLOWLIST`, `ORIGIN_ALLOWLIST`.
 - Defaults: `RP_ID=localhost`, `ORIGIN=http://localhost:5173`, `PORT=8080`, `DB_PATH=server/demo.db`.
-- Normalizes values (lowercase RP, trim origin/trailing slash), ensures primary values are present in allowlists, and validates formats (URL scheme/host, numeric port, no wildcards).
+- Normalization:
+  - RP IDs: lowercase → IDNA ToASCII (punycode) → include in `RPAllowlist`.
+  - `RP_ID_ALLOWLIST`: each entry normalized via IDNA ToASCII.
+  - Origin: trim and strip trailing slash (host normalization occurs at policy check time).
+- Validations: URL scheme/host for Origin; numeric Port; disallow wildcards/spaces in allowlists.
 - API: `Config` struct and `Load()` constructor.
 
 # Interactions

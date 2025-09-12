@@ -16,5 +16,8 @@ Backend service written in Go that implements WebAuthn registration/login and tr
   - Attributes: correlation id (`X-Request-ID`) injected via context handler, `rp_id`, `origin`, hashed identifiers (e.g., `credential_id_hash`, `account_thumb_hex`), and stable `error_kind`.
 - Standard JSON error envelopes `{code,error,correlation_id?}`; router wraps RequestID middleware so both logs and error bodies correlate.
 
+# Policy Notes
+- Hosts are normalized to A-label (IDNA/punycode) before RP ID hashing and Origin host comparison; IPv6 literals bypass IDNA.
+
 # Refs
 Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails; decision structured-logging-with-slog-guidelines; decision request-id-and-slog-json; decision http-error-envelope
