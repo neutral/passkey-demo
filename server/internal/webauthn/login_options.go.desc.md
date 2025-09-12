@@ -4,7 +4,7 @@ Issue WebAuthn assertion (login) options and manage short‑lived login sessions
 # Key Logic
 - `LoginSessionStore(capacity)`: backed by generic `ttlstore` (capacity-bounded, 5m TTL with GC) holding `{challenge, rp_id, origin, expires_at}` keyed by `login_session_id`.
 - `BuildLoginOptions`: 24‑byte session id, 32‑byte challenge (via `randutil`), TTL 5m; persists session and returns JSON with `options`.
-- `LoginOptionsHandler`: POST endpoint that returns `rp_id`, `origin`, `uv_required=true`, `allow_credentials=[]`.
+- `LoginOptionsHandler`: POST endpoint that returns `rp_id`, `origin`, `uv_required=true`, `allow_credentials=[]`; emits `login_options` structured log with `correlation_id` (when present), `rp_id`, `origin`, and `expires_at`.
 
 # Interactions
 - Reads config from `internal/config` for `RP_ID`, `Origin`.

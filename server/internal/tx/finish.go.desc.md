@@ -15,6 +15,7 @@ Complete the transaction signing ceremony: validate CDJ/AD against the tx sessio
 - Called by `POST /tx/signing/finish`; depends on `TxSessionStore` and the account session established by login.
 - Uses `internal/webauthn` for CDJ/AD parsing, policy checks, and signature verification.
 - Uses `internal/httpx/errors` for error envelopes; includes `correlation_id` when request id middleware is present.
+- Emits structured success log `tx_finish` with `tx_id_hex`, `stored=true`, and `correlation_id` when present.
 
 # Refs
-Refs: goal server-derived-challenge-and-txid; goal transaction-content-signing; requirement R-FLOW-SIGN; requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations
+Refs: goal server-derived-challenge-and-txid; goal transaction-content-signing; requirement R-FLOW-SIGN; requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations; decision structured-logging-with-slog-guidelines; decision request-id-and-slog-json

@@ -13,7 +13,7 @@ Parse `attestationObject` (fmt: none) to extract authenticatorData header, AAGUI
 # Notes
 - Supports `fmt: "none"` only; ignores `attStmt`. Extensions after COSE key are not parsed.
 - Uses fxamacker/cbor decoder with `cbor.RawMessage` to capture exact COSE key bytes.
+- Emits structured debug logs (`reg_finish_debug`) on parsing/format failures with safe metadata only (no raw materials): `detail` in {`attestation_cbor_decode_failed`,`unsupported_attestation_fmt`,`parse_authdata_failed`,`at_flag_not_set`,`parse_attested_data_failed`,`parse_cose_key_failed`} plus sizes/flags where useful.
 
 # Refs
-Refs: WebAuthn spec (attestationObject, attestedCredentialData); types.CoseEC2; Step 14 AD parsing; encoding/cbor utilities.
-
+Refs: WebAuthn spec (attestationObject, attestedCredentialData); types.CoseEC2; Step 14 AD parsing; encoding/cbor utilities; decision structured-logging-with-slog-guidelines; decision request-id-and-slog-json

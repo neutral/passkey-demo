@@ -6,7 +6,6 @@ import (
     "encoding/hex"
     "encoding/json"
     "errors"
-    "log"
     "net/http"
     // no sync needed: store is backed by ttlstore
     "time"
@@ -20,6 +19,8 @@ import (
     randutil "github.com/neutral/passkey-demo/internal/util/randutil"
     ttl "github.com/neutral/passkey-demo/internal/util/ttlstore"
     repos "github.com/neutral/passkey-demo/internal/repos"
+    "log/slog"
+    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 // TxSession holds server-side state for a pending transaction signing flow.
@@ -176,30 +177,110 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, creds *repos.
             // Map known errors to appropriate statuses
             switch {
             case errors.Is(err, ErrBundleBase64), errors.Is(err, ErrBundleCBOR):
-                log.Printf("tx_options: invalid bundle acct_hash=%s", webauthn.HashID(acctCBOR))
+                if reqID, ok := mid.FromContext(r.Context()); ok {
+                    slog.Info("tx_options",
+                        slog.String("correlation_id", reqID),
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "invalid_bundle"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                } else {
+                    slog.Info("tx_options",
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "invalid_bundle"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                }
                 errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "invalid bundle")
                 return
             case errors.Is(err, ErrMessageTooLong), errors.Is(err, ErrNonceOutOfRange):
-                log.Printf("tx_options: bundle limits acct_hash=%s", webauthn.HashID(acctCBOR))
+                if reqID, ok := mid.FromContext(r.Context()); ok {
+                    slog.Info("tx_options",
+                        slog.String("correlation_id", reqID),
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "bundle_limits"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                } else {
+                    slog.Info("tx_options",
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "bundle_limits"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                }
                 errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "invalid bundle")
                 return
             case errors.Is(err, ErrSenderKeyMismatch):
-                log.Printf("tx_options: sender_key mismatch acct_hash=%s", webauthn.HashID(acctCBOR))
+                if reqID, ok := mid.FromContext(r.Context()); ok {
+                    slog.Info("tx_options",
+                        slog.String("correlation_id", reqID),
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "sender_key_mismatch"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                } else {
+                    slog.Info("tx_options",
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "sender_key_mismatch"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                }
                 errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrNonceNotMonotonic), errors.Is(err, ErrNoCredentials):
-                if errors.Is(err, ErrNonceNotMonotonic) {
-                    log.Printf("tx_options: conflict (nonce not monotonic) acct_hash=%s", webauthn.HashID(acctCBOR))
+                if reqID, ok := mid.FromContext(r.Context()); ok {
+                    reason := "no_credentials"
+                    if errors.Is(err, ErrNonceNotMonotonic) { reason = "nonce_not_monotonic" }
+                    slog.Info("tx_options",
+                        slog.String("correlation_id", reqID),
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", reason),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
                 } else {
-                    log.Printf("tx_options: conflict (no credentials) acct_hash=%s", webauthn.HashID(acctCBOR))
+                    reason := "no_credentials"
+                    if errors.Is(err, ErrNonceNotMonotonic) { reason = "nonce_not_monotonic" }
+                    slog.Info("tx_options",
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", reason),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
                 }
                 errx.WriteReq(w, r, http.StatusConflict, errx.CodeConflict, "conflict")
                 return
             default:
-                log.Printf("tx_options: internal error acct_hash=%s err=%v", webauthn.HashID(acctCBOR), err)
+                if reqID, ok := mid.FromContext(r.Context()); ok {
+                    slog.Info("tx_options",
+                        slog.String("correlation_id", reqID),
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "internal_error"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                } else {
+                    slog.Info("tx_options",
+                        slog.String("outcome", "failure"),
+                        slog.String("reason", "internal_error"),
+                        slog.String("account_hash", webauthn.HashID(acctCBOR)),
+                    )
+                }
                 errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
                 return
             }
+        }
+        // Structured success log
+        if reqID, ok := mid.FromContext(r.Context()); ok {
+            slog.Info("tx_options",
+                slog.String("correlation_id", reqID),
+                slog.String("outcome", "success"),
+                slog.String("tx_id_hex", resp.TxIDHex),
+                slog.Int("allow_count", len(resp.Options.AllowCredentials)),
+            )
+        } else {
+            slog.Info("tx_options",
+                slog.String("outcome", "success"),
+                slog.String("tx_id_hex", resp.TxIDHex),
+                slog.Int("allow_count", len(resp.Options.AllowCredentials)),
+            )
         }
         w.Header().Set("Content-Type", "application/json")
         _ = json.NewEncoder(w).Encode(resp)

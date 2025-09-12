@@ -21,6 +21,8 @@ import (
     httpctx "github.com/neutral/passkey-demo/internal/http"
     repos "github.com/neutral/passkey-demo/internal/repos"
     errx "github.com/neutral/passkey-demo/internal/httpx/errors"
+    "log/slog"
+    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 // Inbound payload for /tx/signing/finish.
@@ -151,6 +153,22 @@ func BuildTxFinish(ctx context.Context, cfg *cfgpkg.Config, txStore *TxSessionSt
     // Verify assertion signature with strict low-S; accept high-S by normalization for compatibility
     if err := webauthn.VerifyAssertion(pub, adRaw, cdjRaw, sigRaw); err != nil {
         if !errors.Is(err, webauthn.ErrHighS) || webauthn.VerifyAssertionAllowHighS(pub, adRaw, cdjRaw, sigRaw) != nil {
+            // Structured verify failure log (no raw materials)
+            _, kind := webauthn.MapVerifyError(err)
+            v := webauthn.VerifyLog{
+                Outcome:          "failure",
+                ErrorKind:        kind,
+                RP_ID:            cfg.RP_ID,
+                Origin:           cfg.Origin,
+                UV:               webauthn.HasUV(ad.Flags),
+                UP:               webauthn.HasUP(ad.Flags),
+                SignCount:        ad.SignCount,
+                CredentialIDHash: webauthn.HashID(credID),
+            }
+            if reqID, ok := mid.FromContext(ctx); ok {
+                v.TraceID = reqID
+            }
+            webauthn.LogAssertion(slog.Default(), v)
             return TxFinishResponse{}, err
         }
         // accepted high-S after normalization; continue
@@ -183,7 +201,19 @@ func BuildTxFinish(ctx context.Context, cfg *cfgpkg.Config, txStore *TxSessionSt
     }
     // Single-use: delete tx session
     txStore.Delete(in.TxSessionID)
-
+    // Structured success log
+    if reqID, ok := mid.FromContext(ctx); ok {
+        slog.Info("tx_finish",
+            slog.String("correlation_id", reqID),
+            slog.String("tx_id_hex", hex.EncodeToString(txID[:])),
+            slog.Bool("stored", true),
+        )
+    } else {
+        slog.Info("tx_finish",
+            slog.String("tx_id_hex", hex.EncodeToString(txID[:])),
+            slog.Bool("stored", true),
+        )
+    }
     return TxFinishResponse{TxIDHex: hex.EncodeToString(txID[:]), Stored: true}, nil
 }
 
@@ -272,6 +302,22 @@ func BuildTxFinishWithAcct(ctx context.Context, cfg *cfgpkg.Config, txStore *TxS
     // Verify assertion signature with strict low-S; accept high-S by normalization for compatibility
     if err := webauthn.VerifyAssertion(pub, adRaw, cdjRaw, sigRaw); err != nil {
         if !errors.Is(err, webauthn.ErrHighS) || webauthn.VerifyAssertionAllowHighS(pub, adRaw, cdjRaw, sigRaw) != nil {
+            // Structured verify failure log (no raw materials)
+            _, kind := webauthn.MapVerifyError(err)
+            v := webauthn.VerifyLog{
+                Outcome:          "failure",
+                ErrorKind:        kind,
+                RP_ID:            cfg.RP_ID,
+                Origin:           cfg.Origin,
+                UV:               webauthn.HasUV(ad.Flags),
+                UP:               webauthn.HasUP(ad.Flags),
+                SignCount:        ad.SignCount,
+                CredentialIDHash: webauthn.HashID(credID),
+            }
+            if reqID, ok := mid.FromContext(ctx); ok {
+                v.TraceID = reqID
+            }
+            webauthn.LogAssertion(slog.Default(), v)
             return TxFinishResponse{}, err
         }
         // accepted high-S after normalization; continue

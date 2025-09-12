@@ -1,5 +1,5 @@
 Title: Request IDs and Structured Logging
-Status: Accepted (Request IDs); Planned (slog JSON)
+Status: Accepted (Request IDs); Accepted (slog JSON)
 Date: 2025-09-11
 
 Context:
@@ -11,7 +11,7 @@ Decision:
    - Accepts `X-Request-ID` or generates a base64url id.
    - Stores id in request context; mirrors it on `X-Request-ID` response header.
 2) Error envelope uses `WriteReq` to include `correlation_id` when present.
-3) Defer full slog JSON logging rollout to a follow-up step.
+3) Adopt slog JSON logging across handlers (Step 40) with event-style messages and typed attributes; include `correlation_id` when present.
 
 Consequences:
 - Immediate correlation across logs and API responses; unlocks better triage.
@@ -23,5 +23,4 @@ Alternatives:
 References:
 - Implementation: `server/internal/httpx/middleware/request_id.go`; usage in `server/internal/app/router.go`.
 
-Refs: requirement R-ERR; goal simple-ui-and-storage; decision http-error-envelope
-
+Refs: requirement R-ERR; goal simple-ui-and-storage; decision http-error-envelope; decision structured-logging-with-slog-guidelines

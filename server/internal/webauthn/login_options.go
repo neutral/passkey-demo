@@ -10,6 +10,8 @@ import (
     types "github.com/neutral/passkey-demo/internal/types"
     randutil "github.com/neutral/passkey-demo/internal/util/randutil"
     ttl "github.com/neutral/passkey-demo/internal/util/ttlstore"
+    "log/slog"
+    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 // LoginSession holds server-side state for a pending login/assertion.
@@ -90,6 +92,21 @@ func LoginOptionsHandler(cfg *cfgpkg.Config, store *LoginSessionStore) http.Hand
         if err != nil {
             http.Error(w, "internal error", http.StatusInternalServerError)
             return
+        }
+        // Structured success log
+        if reqID, ok := mid.FromContext(r.Context()); ok {
+            slog.Info("login_options",
+                slog.String("correlation_id", reqID),
+                slog.String("rp_id", cfg.RP_ID),
+                slog.String("origin", cfg.Origin),
+                slog.Int64("expires_at", resp.ExpiresAt),
+            )
+        } else {
+            slog.Info("login_options",
+                slog.String("rp_id", cfg.RP_ID),
+                slog.String("origin", cfg.Origin),
+                slog.Int64("expires_at", resp.ExpiresAt),
+            )
         }
         w.Header().Set("Content-Type", "application/json")
         _ = json.NewEncoder(w).Encode(resp)

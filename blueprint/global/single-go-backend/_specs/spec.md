@@ -81,7 +81,11 @@
 ```
 
 ## Security / Privacy
-- Origin/rpId validation; session binding for options; binary treated opaque; minimal logs.
+- Origin/rpId validation; session binding for options; binary treated opaque.
+- Structured logging via `log/slog` with event-style entries and JSON output; privacy guardrails:
+  - Do not log raw binary materials (CBOR, signatures, raw credential IDs) or secrets.
+  - Use hashed identifiers where correlation is needed (e.g., `credential_id_hash`, `account_thumb_hex`).
+  - Include `correlation_id` in logs and error envelopes when Request ID middleware is present.
 - Auth: session middleware reads `sid` cookie (HttpOnly, SameSite=Lax, Secure where applicable) and provides account context to protected handlers. Handlers never read cookies directly.
 
 ## WebAuthn Verification Details
@@ -92,6 +96,7 @@
 ## Errors / Observability
 - Use 400/401/403/409/413/429/5xx appropriately; structured error envelope `{code,error,correlation_id?}`.
 - Request ID middleware attaches `X-Request-ID`; envelope includes `correlation_id` when present.
+- Emit structured log events for major flows: `reg_options`, `reg_finish`, `login_options`, `login_finish`, `tx_options`, `tx_finish`; verification failures emit `webauthn_assert_verify` with `error_kind`.
 
 ## Testing Strategy
 - Local E2E with platform authenticator; unit checks for verification helpers.
@@ -99,4 +104,4 @@
 ## Open Questions
 - TLS/offload for non-dev deployments (out of scope for demo).
 
-Refs: decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails; decision router-builder-wiring; decision http-error-envelope; decision request-id-and-slog-json; requirement R-PLAT-2
+Refs: decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails; decision router-builder-wiring; decision http-error-envelope; decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines; requirement R-PLAT-2

@@ -6,6 +6,7 @@ Issue WebAuthn registration options and a fresh challenge, and store a short-liv
 - `type RegSessionStore` — backed by generic `ttlstore` (capacity-bounded, 5m TTL with GC).
 - `BuildRegistrationOptions(cfg, store, now)` — creates a session and returns JSON-friendly response.
 - `RegistrationOptionsHandler(cfg, store)` — `POST /authn/passkey/registration/options` handler.
+ - `RegistrationOptionsHandler(cfg, store)` — `POST /authn/passkey/registration/options` handler; emits a structured success log `reg_options` with `correlation_id` (when present), `rp_id`, `origin`, `expires_at`, and `session_id_len`.
 
 # Behavior
 - Session ID: 24 random bytes (base64url), Challenge: 32 random bytes (base64url) via `randutil`.

@@ -3,6 +3,7 @@ Central router builder that wires the HTTP server routes and applies group-level
 
 # Relations
 - Outermost wrapper is `internal/httpx/middleware.RequestID`, then `internal/http.CORSMiddleware`, then `internal/http.SessionMiddleware` (configured with refresh enabled and TTL = 1 hour).
+ - Outermost wrapper is `internal/httpx/middleware.RequestID`, enabling correlation across structured slog logs and error envelopes; then `internal/http.CORSMiddleware`, then `internal/http.SessionMiddleware` (configured with refresh enabled and TTL = 1 hour).
 - Group middlewares (`BodyLimitMiddleware`, `RateLimitMiddleware`) applied around `/authn/*` and `/tx/*` handlers.
 - Depends on `internal/config` for runtime settings; injects in-memory session stores and prepared-statement repositories through `Deps`.
 - Uses handlers from `internal/webauthn`, `internal/tx`, and `internal/me`.
@@ -12,4 +13,4 @@ Central router builder that wires the HTTP server routes and applies group-level
 - `type Deps` contains typed in-memory stores and repos for registration, login, and tx signing flows.
 
 # Refs
-Refs: goal simple-ui-and-storage; requirement R-ERR; decision router-builder-wiring
+Refs: goal simple-ui-and-storage; requirement R-ERR; decision router-builder-wiring; decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines

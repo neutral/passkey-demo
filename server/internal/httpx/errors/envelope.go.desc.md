@@ -9,8 +9,8 @@ Provide a standard JSON error envelope for API responses, including a stable `co
 - Includes `ERR_RATE_LIMIT` (429) and `ERR_PAYLOAD_TOO_LARGE` (413) for middleware responses.
 
 # Interactions
-- Used initially by `/tx/signing/options`; other handlers can adopt it incrementally.
-- Future: may include `correlation_id` sourced from request ID middleware.
+- Used across handlers (`/authn/*`, `/tx/*`) for consistent error responses.
+- Includes `correlation_id` sourced from Request ID middleware when present.
 
 # Refs
-Refs: requirement R-ERR; decision http-error-envelope; decision encoding-and-ceremony-guardrails
+Refs: requirement R-ERR; decision http-error-envelope; decision encoding-and-ceremony-guardrails; decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines

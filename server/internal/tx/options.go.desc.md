@@ -9,9 +9,9 @@ Serve `POST /tx/signing/options` for authenticated users: validate the client-pr
 - Response: JSON `{ tx_session_id, challenge, options{rp_id, origin, uv_required, allow_credentials}, tx_id_hex, expires_at }`.
 
 # Observability
-- Emits lightweight logs for 401/409 cases to aid triage without exposing raw materials:
-  - missing/expired session vs sender_key mismatch vs nonce conflict vs no credentials.
-  - Includes `acct_hash=hex(SHA-256(acct_cbor))` or `sid_hash` for correlation.
+- Emits structured logs `tx_options`:
+  - Success: `outcome=success`, `tx_id_hex`, `allow_count`, and `correlation_id` when present.
+  - Failures: `outcome=failure` with `reason` in {`invalid_bundle`,`bundle_limits`,`sender_key_mismatch`,`nonce_not_monotonic`,`no_credentials`,`internal_error`} and `account_hash=hex(SHA-256(acct_cbor))`; includes `correlation_id` when present.
 
 - Depends on `internal/tx/bundle.go` for bundle validation and anchors.
 - Error mapping: returns JSON error envelope `{code,error,correlation_id?}` with statuses:
@@ -22,4 +22,4 @@ Serve `POST /tx/signing/options` for authenticated users: validate the client-pr
 - Consumed by the frontend to initiate `navigator.credentials.get(...)` using returned options.
 
 # Refs
-Refs: goal server-derived-challenge-and-txid; goal transaction-content-signing; requirement R-FLOW-SIGN; requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations
+Refs: goal server-derived-challenge-and-txid; goal transaction-content-signing; requirement R-FLOW-SIGN; requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations; decision structured-logging-with-slog-guidelines; decision request-id-and-slog-json; decision http-error-envelope

@@ -5,7 +5,6 @@ import (
     "database/sql"
     "encoding/hex"
     "encoding/json"
-    "log"
     "net/http"
     "strings"
     "time"
@@ -15,6 +14,8 @@ import (
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
     cryptoutil "github.com/neutral/passkey-demo/internal/crypto"
     errx "github.com/neutral/passkey-demo/internal/httpx/errors"
+    "log/slog"
+    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 type regFinishInbound struct {
@@ -110,7 +111,15 @@ func RegistrationFinishHandler(cfg *cfgpkg.Config, store *RegSessionStore, db *s
         // Validate COSE EC2 key to Go ecdsa.PublicKey
         if _, err := cryptoutil.ToECDSA(&cose); err != nil {
             // Debug-only metadata to triage failures without printing raw key material
-            log.Printf("reg_finish: ToECDSA failed: %v; cose{kty=%d alg=%d crv=%d xlen=%d ylen=%d}", err, cose.Kty, cose.Alg, cose.Crv, len(cose.X), len(cose.Y))
+            slog.Info("reg_finish_debug",
+                slog.String("event", "reg_finish_debug"),
+                slog.String("detail", "ToECDSA failed"),
+                slog.Int("kty", cose.Kty),
+                slog.Int("alg", cose.Alg),
+                slog.Int("crv", cose.Crv),
+                slog.Int("x_len", len(cose.X)),
+                slog.Int("y_len", len(cose.Y)),
+            )
             errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
@@ -141,6 +150,21 @@ func RegistrationFinishHandler(cfg *cfgpkg.Config, store *RegSessionStore, db *s
         // Success: delete session (single-use)
         store.Delete(in.RegSessionID)
 
+        // Structured success log
+        if reqID, ok := mid.FromContext(r.Context()); ok {
+            slog.Info("reg_finish",
+                slog.String("correlation_id", reqID),
+                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
+                slog.String("credential_id_hash", HashID(credID)),
+                slog.Uint64("sign_count", uint64(ad.SignCount)),
+            )
+        } else {
+            slog.Info("reg_finish",
+                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
+                slog.String("credential_id_hash", HashID(credID)),
+                slog.Uint64("sign_count", uint64(ad.SignCount)),
+            )
+        }
         resp := regFinishResponse{AccountThumbHex: hex.EncodeToString(thumb), CredentialIDB64: b64.Encode(credID)}
         w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(http.StatusCreated)

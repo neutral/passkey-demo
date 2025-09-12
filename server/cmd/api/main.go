@@ -1,27 +1,45 @@
 package main
 
 import (
-    "log"
-    "net/http"
     "context"
+    "log/slog"
+    "net/http"
+    "os"
+    "strings"
 
-    cfgpkg "github.com/neutral/passkey-demo/internal/config"
-    storepkg "github.com/neutral/passkey-demo/internal/storage"
     app "github.com/neutral/passkey-demo/internal/app"
+    cfgpkg "github.com/neutral/passkey-demo/internal/config"
     repos "github.com/neutral/passkey-demo/internal/repos"
-    webauthn "github.com/neutral/passkey-demo/internal/webauthn"
+    storepkg "github.com/neutral/passkey-demo/internal/storage"
     tx "github.com/neutral/passkey-demo/internal/tx"
+    webauthn "github.com/neutral/passkey-demo/internal/webauthn"
+    logx "github.com/neutral/passkey-demo/internal/logging"
 )
 
 func main() {
+    // Initialize slog default logger from env
+    var lv slog.LevelVar
+    lv.Set(logx.GetLevelFromEnv())
+    // Add source only in dev when LOG_FORMAT=text or when explicitly requested via DEV_ADD_SOURCE=1
+    addSource := strings.ToLower(os.Getenv("DEV_ADD_SOURCE")) == "1"
+    logger := logx.NewWithLevelVar(&lv, os.Getenv("LOG_FORMAT"), addSource)
+    slog.SetDefault(logger)
+
     cfg, err := cfgpkg.Load()
     if err != nil {
-        log.Fatalf("config error: %v", err)
+        slog.Error("config_error", slog.Any("error", err))
+        os.Exit(1)
     }
     // DB
     db, err := storepkg.Open(cfg)
-    if err != nil { log.Fatalf("db open: %v", err) }
-    if err := storepkg.Migrate(db); err != nil { log.Fatalf("db migrate: %v", err) }
+    if err != nil {
+        slog.Error("db_open_error", slog.Any("error", err))
+        os.Exit(1)
+    }
+    if err := storepkg.Migrate(db); err != nil {
+        slog.Error("db_migrate_error", slog.Any("error", err))
+        os.Exit(1)
+    }
     // In-memory stores
     regStore := webauthn.NewRegSessionStore(10000)
     loginStore := webauthn.NewLoginSessionStore(10000)
@@ -29,15 +47,28 @@ func main() {
 
     // Prepare read-only repositories (prepared statements)
     credsRepo, err := repos.NewCredentials(context.Background(), db)
-    if err != nil { log.Fatalf("repos credentials: %v", err) }
+    if err != nil {
+        slog.Error("repos_credentials_error", slog.Any("error", err))
+        os.Exit(1)
+    }
     txRepo, err := repos.NewTransactions(context.Background(), db)
-    if err != nil { log.Fatalf("repos transactions: %v", err) }
+    if err != nil {
+        slog.Error("repos_transactions_error", slog.Any("error", err))
+        os.Exit(1)
+    }
     deps := app.Deps{RegStore: regStore, LoginStore: loginStore, TxStore: txStore, CredsRepo: credsRepo, TxRepo: txRepo}
 
     // Build router with group middlewares and global wrappers
     handler := app.BuildRouter(cfg, db, deps)
 
-    log.Printf("rp_id=%s origin=%s port=%s db=%s", cfg.RP_ID, cfg.Origin, cfg.Port, cfg.DBPath)
-    log.Printf("server listening on :%s", cfg.Port)
-    log.Fatal(http.ListenAndServe(":"+cfg.Port, handler))
+    slog.Info("server_start",
+        slog.String("rp_id", cfg.RP_ID),
+        slog.String("origin", cfg.Origin),
+        slog.String("port", cfg.Port),
+        slog.String("db_path", cfg.DBPath),
+    )
+    if err := http.ListenAndServe(":"+cfg.Port, handler); err != nil {
+        slog.Error("server_error", slog.Any("error", err))
+        os.Exit(1)
+    }
 }

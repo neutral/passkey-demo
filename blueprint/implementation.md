@@ -47,6 +47,7 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 37c — Router Builder, Session‑Only Auth, Error Envelope, TTL Stores, Repos, API Client](blueprint/done/phase-i-step-37c-fixes.md)
 - [Step 37d — Robust Nonce Handling, High‑S Acceptance, Auto‑Filled Nonce UX](blueprint/done/phase-i-step-37d-fixes.md)
 - [Step 39 — Session security](blueprint/done/phase-j-step-39-session-security.md)
+- [Step 40 — Logging](blueprint/done/phase-j-step-40-logging.md)
 
 ## Next
 
@@ -54,14 +55,6 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 
 ---
 
----
-
-40. **Logging**
-
-    - Structured logs with event names: `reg_options`, `reg_finish`, `login_options`, `login_finish`, `tx_options`, `tx_finish`.
-    - _Verify_: logs show account thumb and tx_id (hex).
-
----
 
 41. **Build scripts**
 

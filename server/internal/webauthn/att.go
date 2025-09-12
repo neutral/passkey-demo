@@ -4,7 +4,7 @@ import (
     "bytes"
     "encoding/binary"
     "errors"
-    "log"
+    "log/slog"
 
     cbor "github.com/fxamacker/cbor/v2"
     enc "github.com/neutral/passkey-demo/internal/encoding"
@@ -170,35 +170,35 @@ func ParseCOSEKeyEC2(b []byte) (types.CoseEC2, error) {
 func ExtractRegistrationData(attObjB []byte) (ad AuthData, aaguid [16]byte, credID []byte, cose types.CoseEC2, err error) {
     ao, err := ParseAttestationObject(attObjB)
     if err != nil {
-        log.Printf("reg_finish: attestation CBOR decode failed: %v", err)
+        slog.Info("reg_finish_debug", slog.String("detail", "attestation_cbor_decode_failed"))
         return ad, aaguid, nil, cose, err
     }
     // Demo-grade: accept attestation fmt "none" and "packed" without trust evaluation.
     // We only rely on the attested credential data (AAGUID, credential ID, COSE key).
     if ao.Fmt != "none" && ao.Fmt != "packed" {
-        log.Printf("reg_finish: unsupported attestation fmt=%s", ao.Fmt)
+        slog.Info("reg_finish_debug", slog.String("detail", "unsupported_attestation_fmt"), slog.String("fmt", ao.Fmt))
         return ad, aaguid, nil, cose, ErrAttestationFormat
     }
     // Parse AD header
     ad, remainder, err := ParseAuthData(ao.AuthData)
     if err != nil {
-        log.Printf("reg_finish: parse authData failed: %v (len=%d)", err, len(ao.AuthData))
+        slog.Info("reg_finish_debug", slog.String("detail", "parse_authdata_failed"), slog.Int("authdata_len", len(ao.AuthData)))
         return ad, aaguid, nil, cose, err
     }
     if (ad.Flags & FlagAT) == 0 {
-        log.Printf("reg_finish: AT flag not set (flags=0x%02x)", ad.Flags)
+        slog.Info("reg_finish_debug", slog.String("detail", "at_flag_not_set"), slog.Int("flags", int(ad.Flags)))
         return ad, aaguid, nil, cose, ErrAttestedDataMissing
     }
     // Parse attested cred data
     aaguid, credID, coseRaw, _, err := ParseAttestedCredentialData(remainder)
     if err != nil {
-        log.Printf("reg_finish: parse attested credential data failed: %v (rem_len=%d)", err, len(remainder))
+        slog.Info("reg_finish_debug", slog.String("detail", "parse_attested_data_failed"), slog.Int("rem_len", len(remainder)))
         return ad, aaguid, nil, cose, err
     }
     // Decode COSE EC2
     cose, err = ParseCOSEKeyEC2(coseRaw)
     if err != nil {
-        log.Printf("reg_finish: parse COSE key failed: %v (cose_len=%d)", err, len(coseRaw))
+        slog.Info("reg_finish_debug", slog.String("detail", "parse_cose_key_failed"), slog.Int("cose_len", len(coseRaw)))
         return ad, aaguid, nil, cose, err
     }
     return ad, aaguid, credID, cose, nil

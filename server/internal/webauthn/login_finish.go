@@ -5,7 +5,6 @@ import (
     "encoding/hex"
     "encoding/json"
     "errors"
-    "log"
     "net/http"
     "net/url"
     "strings"
@@ -18,6 +17,8 @@ import (
     types "github.com/neutral/passkey-demo/internal/types"
     randutil "github.com/neutral/passkey-demo/internal/util/randutil"
     errx "github.com/neutral/passkey-demo/internal/httpx/errors"
+    "log/slog"
+    mid "github.com/neutral/passkey-demo/internal/httpx/middleware"
 )
 
 // loginFinishInbound mirrors the shape sent by the browser for login finish.
@@ -147,9 +148,21 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
             // If the only failure is high-S, try the relaxed verifier (normalize S)
             if !errors.Is(err, ErrHighS) || VerifyAssertionAllowHighS(pub, adRaw, cdjRaw, sigRaw) != nil {
                 status, kind := MapVerifyError(err)
-                // Emit a structured debug log for triage (dev-friendly; no raw material)
-                log.Printf("login_finish verify: kind=%s status=%d rp_id=%s origin=%s uv=%t up=%t sc=%d cred_hash=%s",
-                    kind, status, cfg.RP_ID, cfg.Origin, HasUV(ad.Flags), HasUP(ad.Flags), ad.SignCount, HashID(credID))
+                // Emit a single structured verification log (no raw materials)
+                v := VerifyLog{
+                    Outcome:          "failure",
+                    ErrorKind:        kind,
+                    RP_ID:            cfg.RP_ID,
+                    Origin:           cfg.Origin,
+                    UV:               HasUV(ad.Flags),
+                    UP:               HasUP(ad.Flags),
+                    SignCount:        ad.SignCount,
+                    CredentialIDHash: HashID(credID),
+                }
+                if reqID, ok := mid.FromContext(r.Context()); ok {
+                    v.TraceID = reqID
+                }
+                LogAssertion(slog.Default(), v)
                 code := errx.CodeUnauthorized
                 if status == http.StatusBadRequest { code = errx.CodeBadRequest }
                 errx.WriteReq(w, r, status, code, "verification failed")
@@ -192,8 +205,22 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
         // Single-use: delete login session after success
         store.Delete(in.LoginSessionID)
 
-        // Success response
+        // Success log and response
         thumb := acctThumb(acctCBOR)
+        if reqID, ok := mid.FromContext(r.Context()); ok {
+            slog.Info("login_finish",
+                slog.String("correlation_id", reqID),
+                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
+                slog.String("credential_id_hash", HashID(credID)),
+                slog.Uint64("sign_count", uint64(ad.SignCount)),
+            )
+        } else {
+            slog.Info("login_finish",
+                slog.String("account_thumb_hex", hex.EncodeToString(thumb)),
+                slog.String("credential_id_hash", HashID(credID)),
+                slog.Uint64("sign_count", uint64(ad.SignCount)),
+            )
+        }
         resp := loginFinishResponse{AccountThumbHex: hex.EncodeToString(thumb), CredentialIDB64: b64.Encode(credID)}
         w.Header().Set("Content-Type", "application/json")
         _ = json.NewEncoder(w).Encode(resp)

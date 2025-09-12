@@ -10,5 +10,11 @@ Backend service written in Go that implements WebAuthn registration/login and tr
 - Models: account (COSE EC2 public key in canonical CBOR as identity), credential (maps to account; tracks signCount, optional AAGUID), session, transaction (tx_id, bundle CBOR, AD, CDJ, signature).
 - Policies: UV required; canonical CBOR for bundle; low-S signatures; monotonic signCount and per-account nonce.
 
+# Observability
+- Structured logging via `log/slog` with JSON handler and event-style messages:
+  - Events: `server_start`, `reg_options`, `reg_finish`, `login_options`, `login_finish`, `tx_options`, `tx_finish`, and `webauthn_assert_verify` (failures).
+  - Attributes: correlation id (`X-Request-ID`), `rp_id`, `origin`, hashed identifiers (e.g., `credential_id_hash`, `account_thumb_hex`), and stable `error_kind`.
+- Standard JSON error envelopes `{code,error,correlation_id?}`; router wraps RequestID middleware so both logs and error bodies correlate.
+
 # Refs
-Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails
+Refs: goal simple-ui-and-storage; requirement R-PLAT-2; requirement R-PLAT-3; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails; decision structured-logging-with-slog-guidelines; decision request-id-and-slog-json; decision http-error-envelope
