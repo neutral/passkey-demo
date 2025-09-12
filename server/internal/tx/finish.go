@@ -147,9 +147,12 @@ func BuildTxFinish(ctx context.Context, cfg *cfgpkg.Config, txStore *TxSessionSt
     if err != nil {
         return TxFinishResponse{}, ErrBadJSON
     }
-    // Verify assertion signature
+    // Verify assertion signature with strict low-S; accept high-S by normalization for compatibility
     if err := webauthn.VerifyAssertion(pub, adRaw, cdjRaw, sigRaw); err != nil {
-        return TxFinishResponse{}, err
+        if !errors.Is(err, webauthn.ErrHighS) || webauthn.VerifyAssertionAllowHighS(pub, adRaw, cdjRaw, sigRaw) != nil {
+            return TxFinishResponse{}, err
+        }
+        // accepted high-S after normalization; continue
     }
     // Enforce signCount policy
     // If the authenticator reports 0, treat as counter-not-supported and do not enforce monotonicity or update stored count.
@@ -265,9 +268,12 @@ func BuildTxFinishWithAcct(ctx context.Context, cfg *cfgpkg.Config, txStore *TxS
     if err != nil {
         return TxFinishResponse{}, ErrBadJSON
     }
-    // Verify assertion signature
+    // Verify assertion signature with strict low-S; accept high-S by normalization for compatibility
     if err := webauthn.VerifyAssertion(pub, adRaw, cdjRaw, sigRaw); err != nil {
-        return TxFinishResponse{}, err
+        if !errors.Is(err, webauthn.ErrHighS) || webauthn.VerifyAssertionAllowHighS(pub, adRaw, cdjRaw, sigRaw) != nil {
+            return TxFinishResponse{}, err
+        }
+        // accepted high-S after normalization; continue
     }
     // Enforce signCount policy
     if ad.SignCount == 0 {

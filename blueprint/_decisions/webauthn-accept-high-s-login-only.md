@@ -1,5 +1,5 @@
 Title: Accept High‑S ECDSA Signatures for Login Only
-Status: Accepted
+Status: Superseded by "Accept High‑S ECDSA Signatures for Transaction Signing"
 Date: 2025-09-10
 
 Context:
@@ -25,4 +25,3 @@ Alternatives:
 
 References:
 - Refs: goal passkey-registration-login-uv; requirement R-FLOW-LOGIN; requirement R-FLOW-SIGN; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails
-

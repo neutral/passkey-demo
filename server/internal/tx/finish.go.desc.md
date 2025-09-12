@@ -7,7 +7,7 @@ Complete the transaction signing ceremony: validate CDJ/AD against the tx sessio
 - Validate: parse `clientDataJSON` and `authenticatorData`; enforce `type=get`, `challenge` equality, origin policy, `rpIdHash` match, and UV.
 - Credential: ensure presented `credential_id` exists (via `CredentialsRepo`), belongs to `acct_cbor`, and appears in the tx-session allowlist.
 - SignCount policy: if `ad.SignCount == 0`, treat as counter‑not‑supported and do not enforce monotonicity or update stored count; otherwise require strictly increasing.
-- Verify: use `VerifyAssertion` (low‑S, strict DER) and advance `sign_count` (strictly increasing).
+- Verify: use `VerifyAssertion` (strict DER). If the only failure is high‑S, normalize S and accept (compatibility with some authenticators). Advance `sign_count` when increasing.
 - Persist: compute `tx_id = SHA-256("TXIDv1" || B)`; decode `B` to extract `nonce`/`message`; insert into `transactions`.
 
 # Interactions
