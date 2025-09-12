@@ -55,12 +55,11 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 45 — README](blueprint/done/phase-k-step-45-readme.md)
 - [Step 44 — Env sample](blueprint/done/phase-k-step-44-env-sample.md)
  - [Step 46 — IDNA (punycode) normalization](blueprint/done/phase-k-step-46-idna-normalization.md)
+ - [Step 47 — Acceptance checks review](blueprint/done/phase-k-step-47-acceptance-checks-review.md)
 
 ## Next
 
 None.
-
----
 
 ## Future
 
@@ -68,14 +67,7 @@ None.
 
 ## Acceptance Checks
 
-- **Build**: `go build ./server/...` and `npm run build` in `/web` both succeed.
-- **Register/Login**: Using macOS with Touch ID, both ceremonies prompt for fingerprint; login sets cookie.
-- **Sign**: Create 2 messages with nonces 1 and 2; both appear in `/tx/list` and DB.
-- **Ephemeral TTLs**: Registration/login/tx option sessions expire after 5 minutes; expired attempts return 409.
-- **Replay/Nonce**: Re-submit nonce 2 → **409** conflict.
-- **UV check**: If browser returns an assertion without UV (simulate by forcing options incorrectly) → **403** forbidden.
-- **Origin/RP guard**: Change `origin` in request body → **403**.
-- **Low‑S enforced**: Hand-craft a signature with high‑S (unit test) → **400**.
+Moved to: [Step 47 — Acceptance checks review](blueprint/done/phase-k-step-47-acceptance-checks-review.md)
 
 ## Coverage & Refs (Traceability)
 
