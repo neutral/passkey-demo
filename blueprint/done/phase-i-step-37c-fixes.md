@@ -1,4 +1,4 @@
-# Phase I — Step 37c — Integration Fixes and Standardizations
+# Phase I — Step 37c — Router Builder, Session‑Only Auth, Error Envelope, TTL Stores, Repos, API Client
 
 ## Purpose
 Capture the set of integration fixes and standardizations applied after the 37b refactoring plan to stabilize the system and remove drift across layers.

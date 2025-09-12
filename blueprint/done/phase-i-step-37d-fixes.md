@@ -1,4 +1,4 @@
-# Phase I — Step 37d — Fixes and UX Improvements
+# Phase I — Step 37d — Robust Nonce Handling, High‑S Acceptance, Auto‑Filled Nonce UX
 
 ## Purpose
 Address observed issues after the 37b refactor rollout: intermittent 401 on `/tx/signing/finish`, incorrect nonce recorded as 0, and reduce user error by auto-filling the next nonce in the UI.

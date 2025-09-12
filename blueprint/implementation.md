@@ -44,6 +44,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 36 — Golden Vectors](blueprint/done/phase-i-step-36-golden-vectors.md)
 - [Step 37 — Manual E2E](blueprint/done/phase-i-step-37-manual-e2e.md)
 - [Step 37 — Refactoring](blueprint/done/phase-i-step-37b-refactoring-plan.md)
+- [Step 37c — Router Builder, Session‑Only Auth, Error Envelope, TTL Stores, Repos, API Client](blueprint/done/phase-i-step-37c-fixes.md)
+- [Step 37d — Robust Nonce Handling, High‑S Acceptance, Auto‑Filled Nonce UX](blueprint/done/phase-i-step-37d-fixes.md)
 
 ## Next
 
