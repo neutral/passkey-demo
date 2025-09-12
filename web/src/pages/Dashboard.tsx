@@ -25,6 +25,12 @@ export default function Dashboard({ onBack }: Props) {
   const [signing, setSigning] = useState(false)
   const [senderCoseObj, setSenderCoseObj] = useState<any>(null)
 
+  function nextNonceFrom(items: TxItem[]): string {
+    if (!Array.isArray(items) || items.length === 0) return '1'
+    const max = items.reduce((m, it) => (it.nonce > m ? it.nonce : m), 0)
+    return String(max + 1)
+  }
+
   function toUint8(v: any): Uint8Array {
     if (v instanceof Uint8Array) return v
     if (Array.isArray(v)) return new Uint8Array(v)
@@ -74,7 +80,9 @@ export default function Dashboard({ onBack }: Props) {
         return
       }
       const data = (await r.json()) as { items?: TxItem[] }
-      setItems(Array.isArray(data.items) ? data.items : [])
+      const arr = Array.isArray(data.items) ? data.items : []
+      setItems(arr)
+      setNonce(nextNonceFrom(arr))
     } catch (e: any) {
       const ne = normalizeError(e)
       setError(ne.detail)
@@ -182,9 +190,8 @@ export default function Dashboard({ onBack }: Props) {
         body: JSON.stringify(payload),
       })
       if (!rf.ok) throw new Error(`finish: HTTP ${rf.status}`)
-      // Success: clear inputs and refresh list
+      // Success: clear message and bundle; refresh list (which auto-advances nonce)
       setMsg('')
-      setNonce('')
       setBundleB64('')
       setBundleHex('')
       await loadList()
@@ -267,7 +274,10 @@ export default function Dashboard({ onBack }: Props) {
         <h2>Sign a Message</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 520 }}>
           <input placeholder="Message" value={msg} onChange={(e) => setMsg(e.target.value)} />
-          <input placeholder="Nonce" value={nonce} onChange={(e) => setNonce(e.target.value)} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input placeholder="Nonce" value={nonce} readOnly />
+            <small style={{ opacity: 0.8 }}>(auto-filled)</small>
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="button" onClick={buildBundlePreview} disabled={unauthorized || loading}>Build</button>
             {!senderKey && !unauthorized && (
