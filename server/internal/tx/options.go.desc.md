@@ -14,6 +14,10 @@ Serve `POST /tx/signing/options` for authenticated users: validate the client-pr
   - Includes `acct_hash=hex(SHA-256(acct_cbor))` or `sid_hash` for correlation.
 
 - Depends on `internal/tx/bundle.go` for bundle validation and anchors.
+- Error mapping: returns JSON error envelope `{code,error,correlation_id?}` with statuses:
+  - 400 for invalid bundle/base64/CBOR and bundle limits (`ErrMessageTooLong`, `ErrNonceOutOfRange`).
+  - 401 for `ErrSenderKeyMismatch`.
+  - 409 for `ErrNonceNotMonotonic` and `ErrNoCredentials`.
 - Reads `credentials` in SQLite; writes to in-memory `TxSessionStore`.
 - Consumed by the frontend to initiate `navigator.credentials.get(...)` using returned options.
 

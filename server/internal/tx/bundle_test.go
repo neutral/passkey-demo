@@ -39,6 +39,7 @@ func openTestDB(t *testing.T) *sql.DB {
 }
 
 func TestValidateAndAnchorBundle_Happy(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx bundle tests in -short mode") }
     db := openTestDB(t)
     defer db.Close()
     // Account COSE key
@@ -64,6 +65,7 @@ func TestValidateAndAnchorBundle_Happy(t *testing.T) {
 }
 
 func TestValidateAndAnchorBundle_Errors(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx bundle tests in -short mode") }
     db := openTestDB(t)
     defer db.Close()
     k, acctCBOR := mkCoseEC2(t)

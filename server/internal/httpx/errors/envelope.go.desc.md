@@ -6,6 +6,7 @@ Provide a standard JSON error envelope for API responses, including a stable `co
 - `Write(w,status,code,message)` sets `Content-Type` JSON, status code, and serializes the envelope.
 - `WriteReq(w,r,status,code,message)` additionally includes `correlation_id` from request context when present.
 - Predefines canonical error codes (e.g., `ERR_UNAUTHORIZED`, `ERR_BAD_REQUEST`, `ERR_CONFLICT`).
+- Includes `ERR_RATE_LIMIT` (429) and `ERR_PAYLOAD_TOO_LARGE` (413) for middleware responses.
 
 # Interactions
 - Used initially by `/tx/signing/options`; other handlers can adopt it incrementally.

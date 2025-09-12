@@ -20,6 +20,7 @@ import (
     webauthn "github.com/neutral/passkey-demo/internal/webauthn"
     httpctx "github.com/neutral/passkey-demo/internal/http"
     repos "github.com/neutral/passkey-demo/internal/repos"
+    errx "github.com/neutral/passkey-demo/internal/httpx/errors"
 )
 
 // Inbound payload for /tx/signing/finish.
@@ -306,57 +307,63 @@ func BuildTxFinishWithAcct(ctx context.Context, cfg *cfgpkg.Config, txStore *TxS
 func TxFinishHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, db *sql.DB, creds *repos.CredentialsRepo) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
-            http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+            errx.WriteReq(w, r, http.StatusMethodNotAllowed, errx.CodeMethodNotAllowed, "method not allowed")
             return
         }
         s, ok := httpctx.FromSession(r.Context())
         if !ok {
-            http.Error(w, "unauthorized", http.StatusUnauthorized)
+            errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
             return
         }
         var in TxFinishInbound
         if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-            http.Error(w, "bad json", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         resp, err := BuildTxFinishWithAcct(r.Context(), cfg, txStore, db, creds, s.AcctCBOR, in, time.Now)
         if err != nil {
             switch {
             case errors.Is(err, ErrAuthSession):
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrTxSession):
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrCredUnknown):
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrCredMismatch):
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrAllowlist):
-                http.Error(w, "unauthorized", http.StatusUnauthorized)
+                errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrBadJSON), errors.Is(err, ErrBadBase64), errors.Is(err, ErrTypeMismatch):
-                http.Error(w, "bad request", http.StatusBadRequest)
+                errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
                 return
             case errors.Is(err, ErrChallenge):
-                http.Error(w, "challenge mismatch", http.StatusUnauthorized)
+                errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
                 return
             case errors.Is(err, ErrSignCount):
-                http.Error(w, "conflict", http.StatusConflict)
+                errx.WriteReq(w, r, http.StatusConflict, errx.CodeConflict, "conflict")
                 return
             default:
                 // Map policy and verify errors if applicable
                 if status, _ := webauthn.MapPolicyError(err); status != http.StatusOK && status != http.StatusInternalServerError {
-                    http.Error(w, "forbidden", status)
+                    // Map policy errors to 403 (or 400 when returned by mapper) using envelope
+                    code := errx.CodeForbidden
+                    if status == http.StatusBadRequest { code = errx.CodeBadRequest }
+                    errx.WriteReq(w, r, status, code, "policy violation")
                     return
                 }
                 if status, _ := webauthn.MapVerifyError(err); status != http.StatusOK && status != http.StatusInternalServerError {
-                    http.Error(w, "verification failed", status)
+                    // Map verify errors to 400 or 401 depending on mapper
+                    code := errx.CodeUnauthorized
+                    if status == http.StatusBadRequest { code = errx.CodeBadRequest }
+                    errx.WriteReq(w, r, status, code, "verification failed")
                     return
                 }
-                http.Error(w, "internal error", http.StatusInternalServerError)
+                errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
                 return
             }
         }

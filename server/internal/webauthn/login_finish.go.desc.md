@@ -1,17 +1,18 @@
 # Purpose
-Verify WebAuthn assertion (login) and establish an application session via a secure cookie. Validates session, ClientDataJSON, authenticatorData (UV, rpIdHash), and signature, enforces monotonic signCount, updates DB, and issues a cookie.
+Handle `POST /authn/passkey/login/finish`: verify a WebAuthn assertion for login, enforce UV and policy checks, and establish a session.
 
 # Key Logic
-- Load `login_session_id` from `LoginSessionStore`; require not expired; single‑use after success.
-- Parse `clientDataJSON` (`type=webauthn.get`, challenge match, origin allowlist with dev localhost exception).
-- Parse `authenticatorData` header; require `rpIdHash` match and UV flag set; read `signCount`.
-- Identify account by `rawId` (credential ID) → credentials row → account COSE key; convert to ECDSA and verify signature over `ad || SHA256(cdj)`.
-- Verification policy: strict verifier first (P‑256, strict DER, low‑S). If the only failure is high‑S, accept by normalizing S (login only) using `VerifyAssertionAllowHighS`.
-- Enforce signCount policy: if the authenticator reports `signCount == 0`, treat it as "counter not supported" and do not enforce monotonicity; otherwise require strictly increasing and update the stored count. Create server session (1h) and set `sid` cookie (HttpOnly, SameSite=Lax, Secure for https origin).
+- Accepts `login_session_id` and WebAuthn assertion fields; decodes base64url inputs.
+- Validates CDJ (`type=get`, challenge equality, origin policy) and AD (rpIdHash, UV flag).
+- Looks up credential → account, converts account COSE to EC key, and verifies ES256 signature (low‑S enforced; high‑S normalized for compatibility).
+- Enforces `signCount` strictly increasing when non-zero; updates stored counter.
+- On success: creates a server session row and sets `sid` cookie (HttpOnly, SameSite=Lax, Secure when `origin` is https).
+- Errors: uses JSON error envelope `{code,error,correlation_id?}` mapped to 400/401/403/409/5xx.
 
 # Interactions
-- Uses `internal/encoding` for base64url and canonical CBOR; `internal/crypto` for COSE→ECDSA; `internal/storage` tables `accounts`, `credentials`, `sessions`.
-- Error mapping via `MapVerifyError` and `MapPolicyError` for consistent HTTP statuses.
+- Reads/writes SQLite `credentials` and `sessions` tables; consumes `internal/encoding` and `internal/crypto`.
+- Uses `internal/webauthn` helpers for parsing, policy, and verification; uses `internal/httpx/errors` for envelopes.
 
 # Refs
-Refs: goal passkey-registration-login-uv; requirement R-FLOW-LOGIN; spec R-FLOW-LOGIN; decision webauthn-corrections-and-standardizations; decision webauthn-signcount-zero-counter-policy; decision webauthn-accept-high-s-login-only; spec session-cookies-usage-explainer
+Refs: requirement R-FLOW-LOGIN; requirement R-SEC-UV; requirement R-ERR; decision http-error-envelope; decision webauthn-corrections-and-standardizations
+

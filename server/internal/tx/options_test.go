@@ -68,6 +68,7 @@ func encodeCanonical(t *testing.T, v any) []byte {
 }
 
 func TestTxOptionsHandler_Happy(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx options tests in -short mode") }
     db := openTxTestDB(t)
     defer db.Close()
     store := NewTxSessionStore(0)
@@ -128,6 +129,7 @@ func TestTxOptionsHandler_Happy(t *testing.T) {
 }
 
 func TestTxOptionsHandler_Negatives(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx options tests in -short mode") }
     db := openTxTestDB(t)
     defer db.Close()
     store := NewTxSessionStore(0)

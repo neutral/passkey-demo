@@ -12,6 +12,9 @@ import (
 
 // Test name includes "Golden" so it can be selected with -run Golden.
 func TestGoldenVectors_MatchCommittedGolden(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping golden vector test in -short mode")
+    }
     // Recompute vectors programmatically
     have, err := vec.Generate()
     if err != nil {

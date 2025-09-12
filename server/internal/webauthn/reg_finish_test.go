@@ -57,6 +57,9 @@ func mkRegFinishPayload(t *testing.T, cfg *cfgpkg.Config, regSessionID string, c
 }
 
 func TestRegistrationFinish_Happy(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow registration finish test in -short mode")
+    }
     // Config for localhost dev
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     // DB
@@ -141,6 +144,9 @@ func mkFinishBody(t *testing.T, cfg *cfgpkg.Config, regSessionID string, challen
 }
 
 func TestRegistrationFinish_ExpiredSession(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow registration finish expired session in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, _ := storepkg.Open(cfg); _ = storepkg.Migrate(db)
     store := NewRegSessionStore(0)
@@ -158,6 +164,9 @@ func TestRegistrationFinish_ExpiredSession(t *testing.T) {
 }
 
 func TestRegistrationFinish_WrongChallenge(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow registration finish wrong challenge in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, _ := storepkg.Open(cfg); _ = storepkg.Migrate(db)
     store := NewRegSessionStore(0)
@@ -191,6 +200,9 @@ func TestRegistrationFinish_WrongChallenge(t *testing.T) {
 }
 
 func TestRegistrationFinish_BadOrigin(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow registration finish bad origin in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, _ := storepkg.Open(cfg); _ = storepkg.Migrate(db)
     store := NewRegSessionStore(0)
@@ -223,6 +235,9 @@ func TestRegistrationFinish_BadOrigin(t *testing.T) {
 }
 
 func TestRegistrationFinish_RpIdMismatch_NoUV_Duplicate(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow registration finish variants in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, _ := storepkg.Open(cfg); _ = storepkg.Migrate(db)
     store := NewRegSessionStore(0)
@@ -286,6 +301,9 @@ func TestRegistrationFinish_RpIdMismatch_NoUV_Duplicate(t *testing.T) {
 }
 
 func TestRegistrationFinish_UnsupportedFmt_BadAttestation(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow registration finish bad attestation in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, _ := storepkg.Open(cfg); _ = storepkg.Migrate(db)
     store := NewRegSessionStore(0)

@@ -48,6 +48,9 @@ func highSify(curve elliptic.Curve, der []byte) []byte {
 }
 
 func TestVerifyAssertion_HappyPath(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping crypto-heavy verify tests in -short mode")
+    }
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil { t.Fatalf("gen key: %v", err) }
     ad := []byte("authData-bytes-123")
@@ -62,6 +65,7 @@ func TestVerifyAssertion_HappyPath(t *testing.T) {
 }
 
 func TestVerifyAssertion_HighSRejected(t *testing.T) {
+    if testing.Short() { t.Skip("skipping crypto-heavy verify tests in -short mode") }
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil { t.Fatalf("gen key: %v", err) }
     ad := []byte("A")
@@ -76,6 +80,7 @@ func TestVerifyAssertion_HighSRejected(t *testing.T) {
 }
 
 func TestVerifyAssertion_TamperAD(t *testing.T) {
+    if testing.Short() { t.Skip("skipping crypto-heavy verify tests in -short mode") }
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil { t.Fatalf("gen key: %v", err) }
     ad := []byte("authData-bytes-123")
@@ -91,6 +96,7 @@ func TestVerifyAssertion_TamperAD(t *testing.T) {
 }
 
 func TestVerifyAssertion_TamperCDJ(t *testing.T) {
+    if testing.Short() { t.Skip("skipping crypto-heavy verify tests in -short mode") }
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil { t.Fatalf("gen key: %v", err) }
     ad := []byte("authData-bytes-123")
@@ -106,6 +112,7 @@ func TestVerifyAssertion_TamperCDJ(t *testing.T) {
 }
 
 func TestVerifyAssertion_MalformedDER(t *testing.T) {
+    if testing.Short() { t.Skip("skipping crypto-heavy verify tests in -short mode") }
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil { t.Fatalf("gen key: %v", err) }
     ad := []byte("authData")
@@ -118,6 +125,7 @@ func TestVerifyAssertion_MalformedDER(t *testing.T) {
 }
 
 func TestVerifyAssertion_TrailingBytesDER(t *testing.T) {
+    if testing.Short() { t.Skip("skipping crypto-heavy verify tests in -short mode") }
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil { t.Fatalf("gen key: %v", err) }
     ad := []byte("authData")
@@ -133,6 +141,7 @@ func TestVerifyAssertion_TrailingBytesDER(t *testing.T) {
 }
 
 func TestVerifyAssertion_WrongCurveAndNil(t *testing.T) {
+    if testing.Short() { t.Skip("skipping crypto-heavy verify tests in -short mode") }
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil { t.Fatalf("gen key: %v", err) }
     ad := []byte("authData")

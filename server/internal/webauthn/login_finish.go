@@ -17,6 +17,7 @@ import (
     cryptoutil "github.com/neutral/passkey-demo/internal/crypto"
     types "github.com/neutral/passkey-demo/internal/types"
     randutil "github.com/neutral/passkey-demo/internal/util/randutil"
+    errx "github.com/neutral/passkey-demo/internal/httpx/errors"
 )
 
 // loginFinishInbound mirrors the shape sent by the browser for login finish.
@@ -43,49 +44,51 @@ type loginFinishResponse struct {
 func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
-            http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+            errx.WriteReq(w, r, http.StatusMethodNotAllowed, errx.CodeMethodNotAllowed, "method not allowed")
             return
         }
         var in loginFinishInbound
         if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-            http.Error(w, "bad json", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         // Lookup and validate session (single-use on success/expiry)
         sess, ok := store.Get(in.LoginSessionID)
         if !ok || time.Now().After(sess.ExpiresAt) {
             if ok { store.Delete(in.LoginSessionID) }
-            http.Error(w, "session expired or not found", http.StatusUnauthorized)
+            errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
             return
         }
 
         // Decode clientDataJSON and validate ceremony type and challenge
         cdjRaw, err := b64.Decode(in.Response.ClientDataJSON)
         if err != nil {
-            http.Error(w, "bad clientData", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         cdj, err := ParseClientDataJSON(cdjRaw)
         if err != nil || !IsGet(cdj) {
-            http.Error(w, "invalid clientData", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         if string(cdj.Challenge) != string(sess.Challenge) {
-            http.Error(w, "challenge mismatch", http.StatusUnauthorized)
+            errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
             return
         }
         // Origin policy: allow dev localhost exception when configured origin is localhost
         devLocal := strings.HasPrefix(cfg.Origin, "http://localhost")
         if err := CheckOrigin(cdj.Origin, cfg.Origin, cfg.OriginAllowlist, devLocal); err != nil {
             status, _ := MapPolicyError(err)
-            http.Error(w, "origin not allowed", status)
+            code := errx.CodeForbidden
+            if status == http.StatusBadRequest { code = errx.CodeBadRequest }
+            errx.WriteReq(w, r, status, code, "policy violation")
             return
         }
 
         // Decode authenticatorData and signature
         adRaw, err := b64.Decode(in.Response.AuthenticatorData)
         if err != nil {
-            http.Error(w, "bad authenticatorData", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         sigRaw, err := b64.Decode(in.Response.Signature)
@@ -101,19 +104,21 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
         // rpIdHash must match configured RP ID or allowlist
         if err := CheckRpIdHashAllowed(ad.RpIDHash, cfg.RP_ID, cfg.RPAllowlist); err != nil {
             status, _ := MapPolicyError(err)
-            http.Error(w, "rpId not allowed", status)
+            code := errx.CodeForbidden
+            if status == http.StatusBadRequest { code = errx.CodeBadRequest }
+            errx.WriteReq(w, r, status, code, "policy violation")
             return
         }
         // Require User Verification (UV)
         if !HasUV(ad.Flags) {
-            http.Error(w, "user verification required", http.StatusForbidden)
+            errx.WriteReq(w, r, http.StatusForbidden, errx.CodeForbidden, "forbidden")
             return
         }
 
         // Identify account by credential ID
         credID, err := b64.Decode(in.RawID)
         if err != nil || len(credID) == 0 {
-            http.Error(w, "bad credential id", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         // Query credential -> account
@@ -122,18 +127,18 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
         row := db.QueryRow(`SELECT acct_cbor_fk, sign_count FROM credentials WHERE credential_id = ?`, credID)
         if err := row.Scan(&acctCBOR, &storedCount); err != nil {
             // 401 to avoid credential enumeration
-            http.Error(w, "credential not recognized", http.StatusUnauthorized)
+            errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
             return
         }
         // Load account COSE key and convert to ecdsa.PublicKey
         var cose types.CoseEC2
         if err := enc.DecodeCanonical(acctCBOR, &cose); err != nil {
-            http.Error(w, "invalid account key", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         pub, err := cryptoutil.ToECDSA(&cose)
         if err != nil {
-            http.Error(w, "invalid public key", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
 
@@ -145,7 +150,9 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
                 // Emit a structured debug log for triage (dev-friendly; no raw material)
                 log.Printf("login_finish verify: kind=%s status=%d rp_id=%s origin=%s uv=%t up=%t sc=%d cred_hash=%s",
                     kind, status, cfg.RP_ID, cfg.Origin, HasUV(ad.Flags), HasUP(ad.Flags), ad.SignCount, HashID(credID))
-                http.Error(w, "assertion verification failed", status)
+                code := errx.CodeUnauthorized
+                if status == http.StatusBadRequest { code = errx.CodeBadRequest }
+                errx.WriteReq(w, r, status, code, "verification failed")
                 return
             }
             // else: accepted high-S after normalization; continue
@@ -158,11 +165,11 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
             // Leave stored count as-is
         } else {
             if int64(ad.SignCount) <= storedCount {
-                http.Error(w, "signCount not increasing", http.StatusConflict)
+                errx.WriteReq(w, r, http.StatusConflict, errx.CodeConflict, "conflict")
                 return
             }
             if _, err := db.Exec(`UPDATE credentials SET sign_count = ? WHERE credential_id = ?`, int64(ad.SignCount), credID); err != nil {
-                http.Error(w, "db error", http.StatusInternalServerError)
+                errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
                 return
             }
         }
@@ -177,7 +184,7 @@ func LoginFinishHandler(cfg *cfgpkg.Config, store *LoginSessionStore, db *sql.DB
         now := time.Now().Unix()
         exp := time.Now().Add(1 * time.Hour).Unix()
         if _, err := db.Exec(`INSERT INTO sessions (session_id, acct_cbor, expires_at, created_at) VALUES (?, ?, ?, ?)`, sid, acctCBOR, exp, now); err != nil {
-            http.Error(w, "db error", http.StatusInternalServerError)
+            errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
             return
         }
         setSessionCookie(w, cfg, sid)

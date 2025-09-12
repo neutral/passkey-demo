@@ -20,6 +20,9 @@ func pad32(b []byte) []byte {
 }
 
 func TestToECDSA_ValidP256(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping crypto-heavy ToECDSA test in -short mode")
+    }
     // Generate a valid P-256 keypair and convert the public part to COSE EC2
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil {
@@ -48,6 +51,9 @@ func TestToECDSA_ValidP256(t *testing.T) {
 }
 
 func TestToECDSA_InvalidParams(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping crypto-heavy ToECDSA invalid params in -short mode")
+    }
     // Start from a valid point
     priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
     if err != nil {

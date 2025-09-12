@@ -26,6 +26,7 @@ func mkDeterministicCose(t *testing.T) types.CoseEC2 {
 }
 
 func TestAnchors_ComputedMatchFormula(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx anchor test in -short mode") }
     // Open ephemeral DB for nonce check inside ValidateAndAnchorBundle
     db, err := sql.Open("sqlite3", "file::memory:?_busy_timeout=5000&_foreign_keys=on")
     if err != nil { t.Fatalf("db open: %v", err) }
@@ -57,6 +58,7 @@ func TestAnchors_ComputedMatchFormula(t *testing.T) {
 }
 
 func TestAnchors_BChangeFlipsAnchors(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx anchor test in -short mode") }
     k := mkDeterministicCose(t)
     bun1 := types.Bundle{SenderKey: k, Nonce: 1, Message: "hello"}
     bun2 := types.Bundle{SenderKey: k, Nonce: 2, Message: "hello"}

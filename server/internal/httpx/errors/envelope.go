@@ -23,6 +23,7 @@ const (
     CodeBadRequest       = "ERR_BAD_REQUEST"
     CodeConflict         = "ERR_CONFLICT"
     CodeRateLimit        = "ERR_RATE_LIMIT"
+    CodeTooLarge         = "ERR_PAYLOAD_TOO_LARGE"
     CodeInternal         = "ERR_INTERNAL"
 )
 

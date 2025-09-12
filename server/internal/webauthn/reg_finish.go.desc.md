@@ -1,31 +1,18 @@
 # Purpose
-Complete registration by validating clientDataJSON and attestationObject against a stored registration session, enforcing RP/Origin and UV policies, and persisting the new account and credential.
+Handle `POST /authn/passkey/registration/finish`: validate attestation, enforce origin/rpId/UV policies, and persist the account + credential.
 
-# API
-- HTTP: `POST /authn/passkey/registration/finish` → 201 `{ account_thumb_hex, credential_id_b64 }` on success.
-- Handler: `RegistrationFinishHandler(cfg, regStore, db)`.
+# Key Logic
+- Accepts `reg_session_id` and attestation fields; decodes base64url inputs.
+- Validates CDJ (`type=create`, challenge equality, origin policy) and parses `attestationObject` to extract AD, AAGUID, credential id, and COSE EC2 key.
+- Enforces `rpIdHash` match and requires UV; validates COSE → EC public key conversion.
+- Persists account (idempotent on `acct_cbor`) and credential (conflicts produce 409).
+- Deletes the registration session after success (single-use).
+- Errors: uses JSON error envelope `{code,error,correlation_id?}` mapped to 400/401/403/409/5xx.
 
-# Steps
-1. Load `reg_session_id`; reject if expired/missing; single-use.
-2. Parse `clientDataJSON`; require `type=create`; match challenge and check origin (Step 14 policy).
-3. Extract `authenticatorData` and attested credential data from `attestationObject` (`fmt: none`): AAGUID, credential ID, COSE EC2.
-4. Check `rpIdHash` (Step 14), require UV flag.
-5. Validate COSE EC2 → ECDSA P-256 public key.
-6. Persist rows: `accounts` (acct_cbor, acct_thumb), `credentials` (credential_id, acct_cbor_fk, sign_count, aaguid).
-7. Return 201 with identifiers.
-
-# Errors
-- 401: session missing/expired; challenge mismatch.
-- 403: origin/RP policy failures (mapped via `MapPolicyError`).
-- 400: malformed JSON/base64/CBOR; unsupported attestation format; invalid public key.
-- 409: duplicate credential id.
-- 500: storage/internal errors.
-
-# Notes
-- Account thumb: `SHA256("ACCTK1" || acct_cbor)`; client receives hex.
-- Dev localhost origin allowed when configured origin is `http://localhost:*`.
-- Single-use semantics: session deleted after terminal outcome.
+# Interactions
+- Writes `accounts` and `credentials` tables; uses `internal/encoding` and `internal/crypto`.
+- Uses `internal/webauthn` helpers for parsing and policy; uses `internal/httpx/errors` for envelopes.
 
 # Refs
-Refs: Step 14 policy checks; Step 16 attestation parsing; specs/explainer-registration-finish.md; storage schema.
+Refs: requirement R-FLOW-REG; requirement R-SEC-UV; requirement R-ERR; decision http-error-envelope; decision webauthn-corrections-and-standardizations
 

@@ -5,6 +5,7 @@ import (
     "net/http"
     "sync"
     "time"
+    errx "github.com/neutral/passkey-demo/internal/httpx/errors"
 )
 
 // TokenBucket implements a simple token bucket for a single key (e.g., an IP).
@@ -76,11 +77,10 @@ func RateLimitMiddleware(rl *RateLimiter, ipfn func(*http.Request) string) func(
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
             key := ipfn(r)
             if !rl.Allow(key, time.Now()) {
-                http.Error(w, "too many requests", http.StatusTooManyRequests)
+                errx.WriteReq(w, r, http.StatusTooManyRequests, errx.CodeRateLimit, "too many requests")
                 return
             }
             next.ServeHTTP(w, r)
         })
     }
 }
-

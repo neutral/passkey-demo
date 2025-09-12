@@ -179,6 +179,10 @@ func TxOptionsHandler(cfg *cfgpkg.Config, txStore *TxSessionStore, creds *repos.
                 log.Printf("tx_options: invalid bundle acct_hash=%s", webauthn.HashID(acctCBOR))
                 errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "invalid bundle")
                 return
+            case errors.Is(err, ErrMessageTooLong), errors.Is(err, ErrNonceOutOfRange):
+                log.Printf("tx_options: bundle limits acct_hash=%s", webauthn.HashID(acctCBOR))
+                errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "invalid bundle")
+                return
             case errors.Is(err, ErrSenderKeyMismatch):
                 log.Printf("tx_options: sender_key mismatch acct_hash=%s", webauthn.HashID(acctCBOR))
                 errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")

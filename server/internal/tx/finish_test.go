@@ -60,6 +60,9 @@ func insertSessionRow(t *testing.T, db *sql.DB, sid string, acctCBOR []byte, exp
 }
 
 func TestTxFinish_Happy(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow TxFinish test in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "db")}
     db := openFinishDB(t)
     defer db.Close()

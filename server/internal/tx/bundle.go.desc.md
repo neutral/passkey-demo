@@ -9,6 +9,9 @@ Validate a client-provided Bundle (base64url CBOR), recompute canonical CBOR byt
   - `tx_id = SHA-256("TXIDv1" || B)`
 - Account binding: compare logical COSE fields (`kty`, `alg`, `crv`, `x`, `y`) of `sender_key` against `acct_cbor` from the logged-in session (tolerates encoder differences while preserving identity binding).
 - Nonce policy: `bundle.nonce` must be strictly greater than `MAX(nonce)` in `transactions` for the account.
+- Limits & invariants:
+  - `nonce` must be within [1, 2^53-1] to align with JS safe integer range; `ErrNonceOutOfRange` when exceeded.
+  - `message` length ≤ 1024 bytes; reject longer with `ErrMessageTooLong`.
 - Sentinel errors for mapping by the HTTP layer: `ErrBundleBase64`, `ErrBundleCBOR`, `ErrSenderKeyMismatch`, `ErrNonceNotMonotonic`.
 
 # Interactions

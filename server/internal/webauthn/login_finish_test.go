@@ -32,6 +32,9 @@ func mkADHdr(rpHash [32]byte, flags byte, signCount uint32) []byte {
 func pad32(b []byte) []byte { p := make([]byte, 32); copy(p[32-len(b):], b); return p }
 
 func TestLoginFinish_Happy(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow login finish test in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, err := storepkg.Open(cfg)
     if err != nil { t.Fatalf("db open: %v", err) }
@@ -140,6 +143,9 @@ func TestSetSessionCookie_SecureToggle(t *testing.T) {
 }
 
 func TestLoginFinish_Negatives(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow login finish negatives in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, _ := storepkg.Open(cfg); _ = storepkg.Migrate(db)
 
@@ -310,6 +316,9 @@ func TestLoginFinish_Negatives(t *testing.T) {
 }
 
 func TestLoginFinish_ZeroSignCountAllowed(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping slow login finish zero signcount in -short mode")
+    }
     cfg := &cfgpkg.Config{RP_ID: "example.com", Origin: "http://localhost:5173", DBPath: filepath.Join(t.TempDir(), "test.db")}
     db, err := storepkg.Open(cfg)
     if err != nil { t.Fatalf("db open: %v", err) }

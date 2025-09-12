@@ -14,6 +14,7 @@ import (
     enc "github.com/neutral/passkey-demo/internal/encoding"
     cfgpkg "github.com/neutral/passkey-demo/internal/config"
     cryptoutil "github.com/neutral/passkey-demo/internal/crypto"
+    errx "github.com/neutral/passkey-demo/internal/httpx/errors"
 )
 
 type regFinishInbound struct {
@@ -41,78 +42,82 @@ func acctThumb(acctCBOR []byte) []byte {
 func RegistrationFinishHandler(cfg *cfgpkg.Config, store *RegSessionStore, db *sql.DB) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
-            http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+            errx.WriteReq(w, r, http.StatusMethodNotAllowed, errx.CodeMethodNotAllowed, "method not allowed")
             return
         }
         var in regFinishInbound
         if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-            http.Error(w, "bad json", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         sess, ok := store.Get(in.RegSessionID)
         if !ok || time.Now().After(sess.ExpiresAt) {
             // single-use: remove if present
             if ok { store.Delete(in.RegSessionID) }
-            http.Error(w, "session expired or not found", http.StatusUnauthorized)
+            errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
             return
         }
         // Parse CDJ
         cdjRaw, err := b64.Decode(in.Response.ClientDataJSON)
         if err != nil {
-            http.Error(w, "bad clientData", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         cdj, err := ParseClientDataJSON(cdjRaw)
         if err != nil || !IsCreate(cdj) {
-            http.Error(w, "invalid clientData", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         // Challenge match
         if string(cdj.Challenge) != string(sess.Challenge) {
-            http.Error(w, "challenge mismatch", http.StatusUnauthorized)
+            errx.WriteReq(w, r, http.StatusUnauthorized, errx.CodeUnauthorized, "unauthorized")
             return
         }
         // Origin check (allow dev localhost if configured origin is localhost)
         devLocal := strings.HasPrefix(cfg.Origin, "http://localhost")
         if err := CheckOrigin(cdj.Origin, cfg.Origin, cfg.OriginAllowlist, devLocal); err != nil {
             status, _ := MapPolicyError(err)
-            http.Error(w, "origin not allowed", status)
+            code := errx.CodeForbidden
+            if status == http.StatusBadRequest { code = errx.CodeBadRequest }
+            errx.WriteReq(w, r, status, code, "policy violation")
             return
         }
         // Parse attestation object
         attB, err := b64.Decode(in.Response.AttestationObject)
         if err != nil {
-            http.Error(w, "bad attestationObject", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         ad, aaguid, credID, cose, err := ExtractRegistrationData(attB)
         if err != nil {
             // Map expected errors to 400
-            http.Error(w, "invalid attestation", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         // RP ID hash
         if err := CheckRpIdHashAllowed(ad.RpIDHash, cfg.RP_ID, cfg.RPAllowlist); err != nil {
             status, _ := MapPolicyError(err)
-            http.Error(w, "rpId not allowed", status)
+            code := errx.CodeForbidden
+            if status == http.StatusBadRequest { code = errx.CodeBadRequest }
+            errx.WriteReq(w, r, status, code, "policy violation")
             return
         }
         // UV required
         if !HasUV(ad.Flags) {
-            http.Error(w, "user verification required", http.StatusForbidden)
+            errx.WriteReq(w, r, http.StatusForbidden, errx.CodeForbidden, "forbidden")
             return
         }
         // Validate COSE EC2 key to Go ecdsa.PublicKey
         if _, err := cryptoutil.ToECDSA(&cose); err != nil {
             // Debug-only metadata to triage failures without printing raw key material
             log.Printf("reg_finish: ToECDSA failed: %v; cose{kty=%d alg=%d crv=%d xlen=%d ylen=%d}", err, cose.Kty, cose.Alg, cose.Crv, len(cose.X), len(cose.Y))
-            http.Error(w, "invalid public key", http.StatusBadRequest)
+            errx.WriteReq(w, r, http.StatusBadRequest, errx.CodeBadRequest, "bad request")
             return
         }
         // Persist account and credential
         acctCBOR, err := enc.EncodeCanonical(cose)
         if err != nil {
-            http.Error(w, "internal error", http.StatusInternalServerError)
+            errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
             return
         }
         thumb := acctThumb(acctCBOR)
@@ -127,10 +132,10 @@ func RegistrationFinishHandler(cfg *cfgpkg.Config, store *RegSessionStore, db *s
         if err != nil {
             // naive unique detection
             if strings.Contains(strings.ToLower(err.Error()), "unique") {
-                http.Error(w, "credential exists", http.StatusConflict)
+                errx.WriteReq(w, r, http.StatusConflict, errx.CodeConflict, "conflict")
                 return
             }
-            http.Error(w, "db error", http.StatusInternalServerError)
+            errx.WriteReq(w, r, http.StatusInternalServerError, errx.CodeInternal, "internal error")
             return
         }
         // Success: delete session (single-use)

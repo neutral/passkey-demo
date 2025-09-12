@@ -182,14 +182,7 @@ export default function Dashboard({ onBack }: Props) {
       if (!cred) throw new Error('get() returned null')
       // 2) Finish
       const payload = buildTxFinish(cred, data.tx_session_id)
-      const rf = await fetch(apiUrl('/tx/signing/finish'), {
-        method: 'POST',
-        mode: 'cors',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!rf.ok) throw new Error(`finish: HTTP ${rf.status}`)
+      await postJson<any>(apiUrl('/tx/signing/finish'), payload)
       // Success: clear message and bundle; refresh list (which auto-advances nonce)
       setMsg('')
       setBundleB64('')

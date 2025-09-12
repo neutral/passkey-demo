@@ -30,6 +30,8 @@ var (
     ErrBundleCBOR        = errors.New("invalid bundle CBOR")
     ErrSenderKeyMismatch = errors.New("sender_key does not match account key")
     ErrNonceNotMonotonic = errors.New("nonce must be strictly increasing")
+    ErrMessageTooLong    = errors.New("message too long")
+    ErrNonceOutOfRange   = errors.New("nonce out of range")
 )
 
 const (
@@ -216,6 +218,15 @@ func ValidateAndAnchorBundle(ctx context.Context, db *sql.DB, acctCBOR []byte, b
     // Reject zero nonce (must be positive integer)
     if bun.Nonce == 0 {
         return nil, ErrBundleCBOR
+    }
+    // Enforce nonce upper bound: <= 2^53 - 1 (safe JS integer range)
+    const maxSafeJSInt = uint64(9007199254740991) // 2^53 - 1
+    if bun.Nonce > maxSafeJSInt {
+        return nil, ErrNonceOutOfRange
+    }
+    // Enforce message length ≤ 1024 bytes
+    if len(bun.Message) > 1024 {
+        return nil, ErrMessageTooLong
     }
     // Canonical re-encode → B
     B, err := enc.EncodeCanonical(bun)

@@ -49,6 +49,7 @@ func insertTx(t *testing.T, db *sql.DB, acct []byte, txID []byte, nonce int64, m
 }
 
 func TestTxList_HappyAndIsolation(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx list tests in -short mode") }
     db := openListDB(t)
     defer db.Close()
 
@@ -102,6 +103,7 @@ func TestTxList_HappyAndIsolation(t *testing.T) {
 }
 
 func TestTxList_Negatives(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx list tests in -short mode") }
     db := openListDB(t)
     defer db.Close()
     txRepo, err := repos.NewTransactions(context.Background(), db)

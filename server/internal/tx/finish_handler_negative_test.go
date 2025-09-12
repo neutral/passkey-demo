@@ -50,7 +50,16 @@ func insertAuthSession(t *testing.T, db *sql.DB, sid string, acctCBOR []byte, ex
     }
 }
 
+func insertAccountNeg(t *testing.T, db *sql.DB, acctCBOR []byte) {
+    t.Helper()
+    thumb := sha256.Sum256(append([]byte("ACCTK1"), acctCBOR...))
+    if _, err := db.Exec(`INSERT INTO accounts (acct_cbor, acct_thumb, created_at) VALUES (?, ?, 0)`, acctCBOR, thumb[:]); err != nil {
+        t.Fatalf("ins acct: %v", err)
+    }
+}
+
 func TestTxFinishHandler_ErrorMappings(t *testing.T) {
+    if testing.Short() { t.Skip("skipping tx finish handler mapping tests in -short mode") }
     db := openDBFinishNeg(t)
     defer db.Close()
     store := NewTxSessionStore(0)
@@ -67,6 +76,7 @@ func TestTxFinishHandler_ErrorMappings(t *testing.T) {
 
     // Prepare account + auth session
     _, acct := mkAcctDeterministic(t)
+    insertAccountNeg(t, db, acct)
     sid := b64.Encode([]byte("sid-fin-neg-1234567890123456789012"))
     insertAuthSession(t, db, sid, acct, time.Now().Add(time.Hour))
 

@@ -9,10 +9,12 @@ Complete the transaction signing ceremony: validate CDJ/AD against the tx sessio
 - SignCount policy: if `ad.SignCount == 0`, treat as counter‑not‑supported and do not enforce monotonicity or update stored count; otherwise require strictly increasing.
 - Verify: use `VerifyAssertion` (strict DER). If the only failure is high‑S, normalize S and accept (compatibility with some authenticators). Advance `sign_count` when increasing.
 - Persist: compute `tx_id = SHA-256("TXIDv1" || B)`; decode `B` to extract `nonce`/`message`; insert into `transactions`.
+- Errors: writes standardized JSON error envelopes with statuses 400/401/403/409/5xx; maps policy (`MapPolicyError`) and verify (`MapVerifyError`) errors accordingly.
 
 # Interactions
 - Called by `POST /tx/signing/finish`; depends on `TxSessionStore` and the account session established by login.
 - Uses `internal/webauthn` for CDJ/AD parsing, policy checks, and signature verification.
+- Uses `internal/httpx/errors` for error envelopes; includes `correlation_id` when request id middleware is present.
 
 # Refs
 Refs: goal server-derived-challenge-and-txid; goal transaction-content-signing; requirement R-FLOW-SIGN; requirement R-SCHEMA-LITE; decision encoding-and-ceremony-guardrails; decision webauthn-corrections-and-standardizations
