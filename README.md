@@ -184,13 +184,33 @@ Build outputs:
 
 ---
 
-## Make Targets
+## Quickstart
 
 ```bash
-make server   # run API
-make web      # run UI (Vite dev)
-make build    # build API + UI
-make clean    # remove db + dist
+# 1) Copy environment sample (optional; defaults are fine for local dev)
+cp -n .env.example .env || true
+
+# 2) Run both API and UI together (Ctrl-C to stop both)
+set -a; source .env 2>/dev/null || true; set +a
+make run
+```
+
+API: http://localhost:${PORT:-8080} (health: /health)
+UI: http://localhost:5173
+
+### Make Targets
+
+```bash
+make run       # start API + UI together (with trap)
+make server    # run API
+make web       # run UI (Vite dev)
+make build     # build API + UI
+make clean     # remove db + dist
+
+# Go tests (short suite by default)
+make test                  # short tests across all packages
+make test PKG=./internal/webauthn RUN=LoginFinish   # filtered
+make test-all              # full suite
 ```
 
 ---
@@ -198,6 +218,27 @@ make clean    # remove db + dist
 
 - `blueprint/goals.md`: project goals and design tenets.
 - `blueprint/_decisions/`: ADRs (architecture decisions).
+ - `blueprint/implementation.md`: implementation plan; Done links to completed steps.
+
+---
+
+## API Examples & Tools
+
+- Copy/paste curls: `docs/api-examples.md`.
+- Postman collection: `docs/postman/passkey-demo.postman_collection.json` (env: `docs/postman/local.postman_environment.json`).
+- VS Code REST Client: `docs/rest-client/api.http`.
+
+---
+
+## WebAuthn Notes (Dev)
+
+- Browser prompts (e.g., Touch ID) appear during register/login.
+- RP and Origin must match: `RP_ID=localhost` and `ORIGIN=http://localhost:5173` are the defaults for local dev.
+- The server logs structured JSON (slog). For readable dev logs:
+
+```bash
+export LOG_FORMAT=text LOG_LEVEL=debug
+```
 - `blueprint/global/` and `blueprint/features/`: NFRs/FRs + specs.
 - `blueprint/_user-flows/`: canonical user flows.
 - `blueprint/implementation.md`: Source of truth for implementation tasks.
