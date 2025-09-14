@@ -54,8 +54,8 @@ Completed steps are stored as individual files under `blueprint/done/`, with pha
 - [Step 44 — Env sample](blueprint/done/phase-k-step-44-env-sample.md)
 - [Step 45 — README](blueprint/done/phase-k-step-45-readme.md)
 - [Step 44 — Env sample](blueprint/done/phase-k-step-44-env-sample.md)
- - [Step 46 — IDNA (punycode) normalization](blueprint/done/phase-k-step-46-idna-normalization.md)
- - [Step 47 — Acceptance checks review](blueprint/done/phase-k-step-47-acceptance-checks-review.md)
+- [Step 46 — IDNA (punycode) normalization](blueprint/done/phase-k-step-46-idna-normalization.md)
+- [Step 47 — Acceptance checks review](blueprint/done/phase-k-step-47-acceptance-checks-review.md)
 
 ## Next
 
@@ -64,10 +64,6 @@ None.
 ## Future
 
 None.
-
-## Acceptance Checks
-
-Moved to: [Step 47 — Acceptance checks review](blueprint/done/phase-k-step-47-acceptance-checks-review.md)
 
 ## Coverage & Refs (Traceability)
 
