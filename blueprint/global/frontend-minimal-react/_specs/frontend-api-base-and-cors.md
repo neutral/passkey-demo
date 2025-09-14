@@ -13,6 +13,7 @@
 - CORS allowed origin is `http://localhost:5173`; fetch with `mode: 'cors'` and set `credentials: 'include'` when cookies are required.
 - Cookies: `HttpOnly; SameSite=Lax; Secure=false` on `http://localhost` (Secure=true for https origins).
  - Error envelope: backend returns `{code,error,correlation_id?}` on non‑2xx; frontend should parse and surface concise messages.
+ - WebAuthn client: use `@simplewebauthn/browser` with `PublicKeyCredential*OptionsJSON` and submit `RegistrationResponseJSON`/`AuthenticationResponseJSON`; adapters may be used to bridge server shapes.
 
 ## What to Avoid
 - Do not use a Vite dev proxy. Do not set `VITE_API_BASE` to a relative path like `/api` (breaks `new URL(path, API_BASE)`).
@@ -22,7 +23,7 @@
 - Centralize API base in `web/src/config.ts`; avoid scattering base URLs.
 - Use a small API client wrapper (`web/src/lib/api.ts`) that always sets `credentials: 'include'` and decodes the error envelope into a typed `ApiError`.
 - Keep ports stable (`strictPort: true` in `vite.config.ts`).
-- Prefer small helpers for base64url/UTF‑8 conversions and WebAuthn builders; avoid heavy deps.
+ - Prefer small helpers for base64url/UTF‑8 conversions; use `@simplewebauthn/browser` for WebAuthn flows to avoid manual ArrayBuffer transforms.
 - In tests, start both Vite and the Go backend using Playwright `webServer` entries.
 
 ## Expectations by Environment

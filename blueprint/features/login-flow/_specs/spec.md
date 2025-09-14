@@ -9,8 +9,8 @@
 - Server-supplied assertion options; client performs WebAuthn get; server verifies UV, rpIdHash, origin, and `signCount` strictly increases.
 
 ## Interfaces
-- POST /authn/passkey/login/options
-- POST /authn/passkey/login/finish
+- POST /authn/passkey/login/options → `PublicKeyCredentialRequestOptionsJSON` (consumed by `@simplewebauthn/browser`)
+- POST /authn/passkey/login/finish → submit `AuthenticationResponseJSON` (fetch with `credentials: 'include'` to accept cookie)
 
 ## Data / Models
 - credentials (`credential_id`, `acct_cbor_fk`, `sign_count`), accounts.
@@ -19,6 +19,7 @@
 - Challenge issuance and session binding; `allowCredentials` may be empty for discoverable credentials.
 - Verify assertion over `authenticatorData || SHA-256(clientDataJSON)` with account key; enforce low‑S; update `sign_count`.
 - Accept optional `userHandle` in finish request; ignore for identity (Model 2).
+ - Client uses `@simplewebauthn/browser` via adapters that map server shapes to `*OptionsJSON` and returns `AuthenticationResponseJSON`.
 
 ## Security / Privacy
 - UV required; origin allowlist; rpIdHash check; secure session cookie.
@@ -27,7 +28,7 @@
 - 400/401 on verification failures; 409 on session/nonce conflicts (if any); log thumbprint + credential id length.
 
 ## Testing Strategy
-- E2E login with platform authenticator; simulate sign_count progression.
+- E2E login with platform authenticator using `@simplewebauthn/browser`; simulate sign_count progression; page tests validate posted `AuthenticationResponseJSON` + `login_session_id` and cookie handling.
 
 ## Open Questions
 - None for demo scope.

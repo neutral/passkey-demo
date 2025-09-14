@@ -9,8 +9,8 @@
 - Server-supplied options for WebAuthn registration; client calls `navigator.credentials.create` and submits result for verification and storage.
 
 ## Interfaces
-- POST /authn/passkey/registration/options → `PublicKeyCredentialCreationOptions`
-- POST /authn/passkey/registration/finish → verifies and creates account+credential
+- POST /authn/passkey/registration/options → `PublicKeyCredentialCreationOptionsJSON` (consumed by `@simplewebauthn/browser`)
+- POST /authn/passkey/registration/finish → submit `RegistrationResponseJSON`; server verifies and creates account+credential
 
 ## Data / Models
 - accounts, credentials tables as per DB schema.
@@ -25,7 +25,7 @@
 - Clear 400/401/409 on invalid inputs, origin/rpId mismatch, dup accounts; log minimal details.
 
 ## Testing Strategy
-- E2E create passkey on platform authenticator; validate DB rows and sign_count initialization.
+- E2E create passkey on platform authenticator via `@simplewebauthn/browser`; validate DB rows and sign_count initialization; page tests validate posted `RegistrationResponseJSON` + `reg_session_id`.
 
 ## Open Questions
 - None for demo scope.

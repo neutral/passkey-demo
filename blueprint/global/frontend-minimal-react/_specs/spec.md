@@ -6,7 +6,7 @@
 - Owners: passkey-demo maintainers
 
 ## Overview
-- Minimal React SPA implementing register, login, and post-login transaction signing. No external state management; use React hooks and backend session. Binary exchanges use base64url. Client constructs canonical CBOR bundle for signing; server supplies WebAuthn options for all ceremonies.
+- Minimal React SPA implementing register, login, and post-login transaction signing. No external state management; use React hooks and backend session. Binary exchanges use base64url. Client constructs canonical CBOR bundle for signing; server supplies WebAuthn options for all ceremonies. WebAuthn flows use `@simplewebauthn/browser` with `PublicKeyCredential*OptionsJSON` and submit `*ResponseJSON`.
 
 ## Interfaces
 - Web UI: SPA with primary actions Register and Login; dashboard shows signed messages list and input box to add a signed message.
@@ -25,8 +25,8 @@
 - Binary fields are base64url in JSON requests/responses.
 
 ## Algorithms / Client Logic
-- Registration: fetch server options → navigator.credentials.create → submit finish.
-- Login: fetch server options → navigator.credentials.get → submit finish.
+- Registration: fetch server options (map to `PublicKeyCredentialCreationOptionsJSON`) → `startRegistration()` (library) → submit `RegistrationResponseJSON`.
+- Login: fetch server options (map to `PublicKeyCredentialRequestOptionsJSON`) → `startAuthentication()` (library) → submit `AuthenticationResponseJSON` with `credentials: 'include'`.
 - Signing: build canonical CBOR bundle (B) → POST /tx/signing/options (server derives challenge = SHA-256("CHALv1" || B)) → navigator.credentials.get → POST /tx/signing/finish.
 
 ## Security / Privacy
