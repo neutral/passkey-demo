@@ -5,6 +5,7 @@
 - Maintain traceability to blueprint artifacts; require description files to be updated for any modified sources.
 - Require a complete unit-test plan that includes a happy path and negative cases.
 - Important: Only expand the step in `blueprint/implementation.md`. Do not implement code or create files.
+ - Plan updates to Blueprint artifacts (requirements/specs/ADRs/user-flows) so functional and non-functional requirements remain consistent with the step.
 
 ## Inputs
 - `blueprint/implementation.md` (to locate and edit the current step).
@@ -20,6 +21,7 @@
   - Scope
   - Source to add/modify (files + short purpose)
   - Description files (to create and to update for modified sources)
+  - Blueprint updates (requirements/specs/ADRs/user-flows to add/update)
   - Request/response shape (if applicable)
   - Algorithm (validation and processing logic)
   - Database interactions (queries/updates, if applicable)
@@ -40,6 +42,12 @@
 - Source to add/modify: enumerate exact files to add/modify/delete with paths and short purposes. Include example commands when helpful.
 - Description files: list the `<folder>.desc.md` or `<file>.<ext>.desc.md` to create AND explicitly note updates for any modified sources (e.g., `server/cmd/api/main.go.desc.md` when adding routes). Include one‑line purposes and the Refs you’ll include.
 - Blueprint refs: include a “Refs:” line mapping to related goals/requirements/specs/decisions. Only mark a task In‑Progress when linked to Approved artifacts.
+ - Blueprint updates: describe which Blueprint artifacts must change (or be created) because of this step, covering both functional requirements (FRs) and non‑functional requirements (NFRs):
+   - Requirements: `blueprint/features/<feature>/requirement.md` (FR) or `blueprint/global/<topic>/requirement.md` (NFR). Specify fields to add/update (type, description, depends_on, scope, acceptance criteria, flows, interfaces, risks, date, owners). If a new requirement is needed, propose it (Draft) with a brief rationale.
+   - Specs: `.../_specs/spec.md` and any related explainers to update/add (interfaces, data/models, algorithms, security/privacy, errors/observability, testing strategy, open questions). Align to interface/model changes planned for the step.
+   - ADRs: `blueprint/_decisions/<decision-name>.md` to introduce or revise architectural decisions; state status (Draft/Approved) and consequences.
+   - User flows: `blueprint/_user-flows/<kebab-name>.md` to update if UX/API sequencing changes.
+   - Refs hygiene: ensure all updated artifacts include current `Refs:` pointing to goals/requirements/specs/decisions touched by this step.
 - Request/response shape: specify minimal JSON fields (names, types) and binary encodings (e.g., base64url) when relevant.
 - Algorithm: lay out validation, policy checks, and processing steps in order, including cryptographic digests, comparisons, and invariants.
 - Database interactions: list exact queries/updates (tables/columns) with conditions and side effects.
@@ -58,6 +66,7 @@
 - Confirm the expansion is self‑contained so an implementer can perform it later without ambiguity.
 - Ensure the unit test plan is complete and runnable (commands included), includes a REQUIRED happy path, and asserts key invariants.
 - Confirm the Verification section explicitly includes re‑running tests after fixes and an “all tests pass” exit criterion.
+ - Confirm a concrete Blueprint updates section exists, listing exact requirement/spec/ADR/user‑flow files to update or create, with clear change intent. If any new requirements/specs/ADRs are proposed, ensure their key fields and Refs are specified as Draft.
 
 5) Trace & Close
 - Do not mark the step Done or change states based on analysis alone.
@@ -72,6 +81,7 @@
 - Scope
 - Source to add/modify
 - Description files (to create AND updates for modified sources)
+ - Blueprint updates (requirements/specs/ADRs/user-flows to update/add with exact paths)
 - Request/response shape (if applicable)
 - Algorithm
 - Database interactions (if applicable)
@@ -89,6 +99,7 @@ Step: 1 — Initialize repo
 - Structure: verify `server/`, `web/`, `blueprint/` exist; root `.gitignore` present.
 - Source to add: `.editorconfig` (UTF‑8, LF, trim, final newline; 2 spaces for TS/MD/JSON; tabs for Go).
 - Description files to add: `server/server.desc.md` (Refs: R-PLAT-2,R-PLAT-3,R-SEC-UV); `web/web.desc.md` (Refs: R-PLAT-1,R-UI-2BTN).
+ - Blueprint updates: none in this step; future steps will add FR/NFRs and specs when interfaces or policies change.
 - Blueprint updates: add Refs under step; do not mark other steps In‑Progress.
 - Verification: `git status` shows only the three new files; `test -f .editorconfig`; `ls server server/internal web/src` exit 0.
 - Notes: no code changes in this pass; actual file creation occurs during implementation.
