@@ -3,9 +3,10 @@ Validates Dashboard signing error handling when the backend returns failures. En
 
 # Key Logic
 - Stubs `navigator.credentials.get` to avoid platform prompts.
-- Mocks `GET /me/account_key` and `GET /tx/list` to keep the UI reachable.
+- Mocks `GET /tx/list` to keep the UI reachable. Uses dashboard default next-nonce (input is read-only).
+- For the 401 case, overrides `GET /me/account_key` to return 401 so the UI shows the unauthorized prompt; other cases keep a 200 response.
 - Cases covered:
-  - Options 401 → unauthorized prompt shown.
+  - Options 401 → unauthorized prompt shown (account key probe returns 401).
   - Options 409 → conflict error banner.
   - Options 400 → invalid bundle error.
   - Finish 409/400 → finish HTTP error surfaced.
@@ -15,4 +16,3 @@ Validates Dashboard signing error handling when the backend returns failures. En
 
 # Refs
 Refs: requirement R-FLOW-SIGN; global/error-responses-and-limits; decision webauthn-corrections-and-standardizations
-

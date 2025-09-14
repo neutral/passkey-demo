@@ -80,7 +80,7 @@ test('signing flow (mocked): options → get → finish and refresh', async ({ p
 
   // Enter inputs, load key, build bundle, then sign
   await page.getByPlaceholder('Message').fill('hello world')
-  await page.getByPlaceholder('Nonce').fill('123')
+  // Nonce is pre-filled based on list; keep default
   await page.getByRole('button', { name: 'Load Key' }).click()
   await page.getByRole('button', { name: 'Build' }).click()
   // Ensure preview appears

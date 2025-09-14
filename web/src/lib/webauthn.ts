@@ -1,4 +1,8 @@
 import { base64urlToBytes, bytesToBase64url } from './encoding'
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+} from '@simplewebauthn/types'
 
 export type RegistrationOptionsResponse = {
   reg_session_id: string
@@ -10,51 +14,6 @@ export type RegistrationOptionsResponse = {
     attestation: 'none'
   }
   expires_at: number
-}
-
-export function toCreationOptions(resp: RegistrationOptionsResponse): PublicKeyCredentialCreationOptions {
-  const challenge = base64urlToBytes(resp.challenge)
-  const userId = new Uint8Array(32)
-  crypto.getRandomValues(userId)
-
-  return {
-    rp: {
-      id: resp.options.rp_id,
-      name: 'Passkey Demo',
-    },
-    user: {
-      id: userId,
-      name: 'demo',
-      displayName: 'Demo',
-    },
-    challenge,
-    pubKeyCredParams: [
-      { type: 'public-key', alg: -7 }, // ES256
-    ],
-    authenticatorSelection: {
-      residentKey: 'required',
-      userVerification: 'required',
-    },
-    attestation: resp.options.attestation,
-  }
-}
-
-export function buildRegFinish(cred: PublicKeyCredential, regSessionId: string) {
-  const att = cred.response as AuthenticatorAttestationResponse
-  const rawId = bytesToBase64url(new Uint8Array(cred.rawId as ArrayBuffer))
-  const attObj = bytesToBase64url(new Uint8Array(att.attestationObject))
-  const cdj = bytesToBase64url(new Uint8Array(att.clientDataJSON))
-
-  return {
-    reg_session_id: regSessionId,
-    id: cred.id,
-    rawId,
-    type: cred.type,
-    response: {
-      attestationObject: attObj,
-      clientDataJSON: cdj,
-    },
-  }
 }
 
 export type LoginOptionsResponse = {
@@ -69,12 +28,43 @@ export type LoginOptionsResponse = {
   expires_at: number
 }
 
+// Adapters: Convert current Go server option shapes to @simplewebauthn/browser JSON shapes
+export function toCreationOptionsJSON(
+  resp: RegistrationOptionsResponse,
+): PublicKeyCredentialCreationOptionsJSON {
+  // Random 32-byte user id, encoded as base64url (lib expects string fields)
+  const u8 = new Uint8Array(32)
+  crypto.getRandomValues(u8)
+  const userId = bytesToBase64url(u8)
+  return {
+    rp: { id: resp.options.rp_id, name: 'Passkey Demo' },
+    user: { id: userId, name: 'demo', displayName: 'Demo' },
+    challenge: resp.challenge,
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+    authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
+    attestation: resp.options.attestation,
+  }
+}
+
+export function toRequestOptionsJSON(
+  resp: LoginOptionsResponse,
+): PublicKeyCredentialRequestOptionsJSON {
+  const ids = (resp.options.allow_credentials || []).filter((s) => !!s && s.length > 0)
+  const out: PublicKeyCredentialRequestOptionsJSON = {
+    challenge: resp.challenge,
+    userVerification: 'required',
+  }
+  if (resp.options.rp_id) (out as any).rpId = resp.options.rp_id
+  if (ids.length > 0) (out as any).allowCredentials = ids.map((id) => ({ type: 'public-key', id }))
+  return out
+}
+
+// Back-compat for Dashboard signing flow which still uses native WebAuthn in this step
 export function toRequestOptions(resp: LoginOptionsResponse): PublicKeyCredentialRequestOptions {
   const challenge = base64urlToBytes(resp.challenge)
   const ids = (resp.options.allow_credentials || [])
     .map((b64) => ({ type: 'public-key', id: base64urlToBytes(b64) }))
     .filter((d) => d.id.byteLength > 0)
-
   const out: PublicKeyCredentialRequestOptions = {
     challenge,
     userVerification: 'required',
@@ -84,26 +74,14 @@ export function toRequestOptions(resp: LoginOptionsResponse): PublicKeyCredentia
   return out
 }
 
-export function buildLoginFinish(cred: PublicKeyCredential, loginSessionId: string) {
-  const asr = cred.response as AuthenticatorAssertionResponse
-  const rawId = bytesToBase64url(new Uint8Array(cred.rawId as ArrayBuffer))
-  const authenticatorData = bytesToBase64url(new Uint8Array(asr.authenticatorData))
-  const clientDataJSON = bytesToBase64url(new Uint8Array(asr.clientDataJSON))
-  const signature = bytesToBase64url(new Uint8Array(asr.signature))
-  const userHandle = asr.userHandle ? bytesToBase64url(new Uint8Array(asr.userHandle)) : ''
-
-  return {
-    login_session_id: loginSessionId,
-    id: cred.id,
-    rawId,
-    type: cred.type,
-    response: {
-      authenticatorData,
-      clientDataJSON,
-      signature,
-      userHandle,
-    },
+// Error mapping helper: present DOMException/NotAllowed consistently via normalizeError caller
+export function mapDomException(e: unknown): { title: string; detail: string } {
+  if (e && typeof e === 'object' && (e as any).name && (e as any).message) {
+    const name = String((e as any).name)
+    const msg = String((e as any).message)
+    return { title: name, detail: msg }
   }
+  return { title: 'Error', detail: String(e) }
 }
 
 export function buildTxFinish(cred: PublicKeyCredential, txSessionId: string) {

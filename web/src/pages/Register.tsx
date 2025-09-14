@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { apiUrl } from '../config'
-import { toCreationOptions, buildRegFinish, type RegistrationOptionsResponse } from '../lib/webauthn'
+import {
+  toCreationOptionsJSON,
+  type RegistrationOptionsResponse,
+  mapDomException,
+} from '../lib/webauthn'
+import { startRegistration as swuStartRegistration } from '@simplewebauthn/browser'
 import ErrorToast from '../components/ErrorToast'
 import { parseHttpError, normalizeError } from '../lib/http'
 
@@ -16,6 +21,7 @@ export default function Register({ onBack }: Props) {
     setThumb(null)
     setLoading(true)
     try {
+      console.debug('[Register] fetch options')
       // 1) Fetch options from backend
       const r = await fetch(apiUrl('/authn/passkey/registration/options'), {
         method: 'POST',
@@ -29,15 +35,26 @@ export default function Register({ onBack }: Props) {
       }
       const data = (await r.json()) as RegistrationOptionsResponse
 
-      // 2) Build WebAuthn creation options
-      const publicKey = toCreationOptions(data)
+      // 2) Build options JSON for @simplewebauthn/browser
+      const optionsJSON = toCreationOptionsJSON(data)
 
-      // 3) Invoke WebAuthn
-      const cred = (await navigator.credentials.create({ publicKey })) as PublicKeyCredential
-      if (!cred) throw new Error('create() returned null')
+      // 3) Invoke library to perform navigator.credentials.create and return JSON response
+      console.debug('[Register] startRegistration')
+      const att = await swuStartRegistration(optionsJSON)
+      console.debug('[Register] attestation result received')
 
-      // 4) Build finish payload and POST
-      const payload = buildRegFinish(cred, data.reg_session_id)
+      // 4) Compose finish payload (server expects reg_session_id)
+      const payload = {
+        reg_session_id: data.reg_session_id,
+        id: att.id,
+        rawId: att.rawId,
+        type: att.type,
+        response: {
+          attestationObject: att.response.attestationObject,
+          clientDataJSON: att.response.clientDataJSON,
+        },
+      }
+      console.debug('[Register] POST finish')
       const r2 = await fetch(apiUrl('/authn/passkey/registration/finish'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,7 +69,8 @@ export default function Register({ onBack }: Props) {
       const out = (await r2.json()) as { account_thumb_hex: string; credential_id_b64: string }
       setThumb(out.account_thumb_hex)
     } catch (e: any) {
-      const ne = normalizeError(e)
+      console.debug('[Register] error', e)
+      const ne = normalizeError(mapDomException(e))
       setError(ne.detail)
     } finally {
       setLoading(false)

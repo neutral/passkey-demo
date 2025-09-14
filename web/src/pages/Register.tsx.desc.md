@@ -1,8 +1,8 @@
 # Purpose
-Register page implements the WebAuthn create() flow end‑to‑end: fetch options, call `navigator.credentials.create`, and POST finish to the backend.
+Register page implements the WebAuthn create() flow end‑to‑end using `@simplewebauthn/browser`: fetch options, convert to `PublicKeyCredentialCreationOptionsJSON` via adapter, call `startRegistration`, and POST the returned JSON to the backend.
 
 # Key Logic
-- Fetch `POST /authn/passkey/registration/options`, build `PublicKeyCredentialCreationOptions` using `toCreationOptions`, call `navigator.credentials.create`, then `buildRegFinish` and `POST /authn/passkey/registration/finish`.
+- Fetch `POST /authn/passkey/registration/options`, build `PublicKeyCredentialCreationOptionsJSON` via `toCreationOptionsJSON`, call `startRegistration`, then POST `{ ...attestationJSON, reg_session_id }` to `/authn/passkey/registration/finish`.
 - Errors: parses non‑OK responses via `parseHttpError` and normalizes thrown errors via `normalizeError`; renders via `ErrorToast` (dismissible) instead of inline paragraphs.
 - Success: displays `account_thumb_hex` (thumb) and offers a “Go to Login” button that navigates via `location.hash`.
 

@@ -3,6 +3,11 @@ import { test, expect } from '@playwright/test'
 test('Register finish 400 shows toast with JSON error', async ({ page }) => {
   // Stub create()
   await page.addInitScript(() => {
+    // Ensure library sees WebAuthn environment
+    // @ts-ignore
+    window.PublicKeyCredential = (function () {}) as any
+    // @ts-ignore
+    window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = async () => true
     // @ts-ignore
     navigator.credentials = navigator.credentials || {}
     // @ts-ignore
@@ -10,6 +15,7 @@ test('Register finish 400 shows toast with JSON error', async ({ page }) => {
       id: 'cred-id',
       type: 'public-key',
       rawId: new Uint8Array([1]).buffer,
+      getClientExtensionResults: () => ({}),
       response: { attestationObject: new Uint8Array([2]).buffer, clientDataJSON: new TextEncoder().encode('{"type":"webauthn.create"}').buffer },
     })
   })
@@ -35,6 +41,11 @@ test('Register finish 400 shows toast with JSON error', async ({ page }) => {
 test('Login finish 401 shows HTTP 401 in toast', async ({ page }) => {
   // Stub get()
   await page.addInitScript(() => {
+    // Ensure library sees WebAuthn environment (even though Login.tsx uses library + finish JSON)
+    // @ts-ignore
+    window.PublicKeyCredential = (function () {}) as any
+    // @ts-ignore
+    window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = async () => true
     // @ts-ignore
     navigator.credentials = navigator.credentials || {}
     // @ts-ignore
@@ -42,6 +53,7 @@ test('Login finish 401 shows HTTP 401 in toast', async ({ page }) => {
       id: 'cred-id',
       type: 'public-key',
       rawId: new Uint8Array([1]).buffer,
+      getClientExtensionResults: () => ({}),
       response: { authenticatorData: new Uint8Array([2]).buffer, clientDataJSON: new TextEncoder().encode('{"type":"webauthn.get"}').buffer, signature: new Uint8Array([3]).buffer, userHandle: new Uint8Array([4]).buffer },
     })
   })
@@ -113,7 +125,6 @@ test('Dashboard Sign: options 413 shows HTTP 413; options 429 JSON shows message
   await page.goto('/')
   await page.evaluate(() => { window.location.hash = '#/dashboard' })
   await page.getByPlaceholder('Message').fill('m')
-  await page.getByPlaceholder('Nonce').fill('1')
   await page.getByRole('button', { name: 'Load Key' }).click()
   await page.getByRole('button', { name: 'Build' }).click()
   await page.getByRole('button', { name: 'Sign' }).click()
@@ -130,4 +141,3 @@ test('Dashboard Sign: options 413 shows HTTP 413; options 429 JSON shows message
   await expect(page.getByRole('alert')).toContainText('rate limited')
   await expect(page.getByRole('alert')).toContainText('RATE_LIMIT')
 })
-

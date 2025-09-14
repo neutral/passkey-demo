@@ -11,6 +11,7 @@
     "test:ui": "playwright test"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^10.0.0",
     "cbor-x": "^1.6.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

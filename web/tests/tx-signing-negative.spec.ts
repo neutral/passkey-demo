@@ -46,13 +46,17 @@ test('options 401 → unauthorized prompt shown', async ({ page }) => {
   await page.route('**/tx/signing/options', async (route) => {
     await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
   })
+  // Override account_key to return 401 so UI shows unauthorized prompt
+  await page.unroute('**/me/account_key')
+  await page.route('**/me/account_key', async (route) => {
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+  })
 
   await page.goto('/')
   await page.evaluate(() => { window.location.hash = '#/dashboard' })
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
   await page.getByPlaceholder('Message').fill('hello')
-  await page.getByPlaceholder('Nonce').fill('1')
   await page.getByRole('button', { name: 'Load Key' }).click()
   await page.getByRole('button', { name: 'Build' }).click()
   await expect(page.getByText('bundle_cbor_b64')).toBeVisible({ timeout: 5000 })
@@ -72,7 +76,6 @@ test('options 409 → conflict error surfaced', async ({ page }) => {
   await page.evaluate(() => { window.location.hash = '#/dashboard' })
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   await page.getByPlaceholder('Message').fill('hello')
-  await page.getByPlaceholder('Nonce').fill('2')
   await page.getByRole('button', { name: 'Load Key' }).click()
   await page.getByRole('button', { name: 'Build' }).click()
   await page.getByRole('button', { name: 'Sign' }).click()
@@ -90,7 +93,6 @@ test('options 400 → invalid bundle error surfaced', async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => { window.location.hash = '#/dashboard' })
   await page.getByPlaceholder('Message').fill('hello')
-  await page.getByPlaceholder('Nonce').fill('3')
   await page.getByRole('button', { name: 'Load Key' }).click()
   await page.getByRole('button', { name: 'Build' }).click()
   await page.getByRole('button', { name: 'Sign' }).click()
@@ -122,7 +124,6 @@ test('finish 409 → finish HTTP error surfaced', async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => { window.location.hash = '#/dashboard' })
   await page.getByPlaceholder('Message').fill('hello')
-  await page.getByPlaceholder('Nonce').fill('4')
   await page.getByRole('button', { name: 'Load Key' }).click()
   await page.getByRole('button', { name: 'Build' }).click()
   await page.getByRole('button', { name: 'Sign' }).click()
@@ -154,11 +155,9 @@ test('finish 400 → finish HTTP error surfaced', async ({ page }) => {
   await page.goto('/')
   await page.evaluate(() => { window.location.hash = '#/dashboard' })
   await page.getByPlaceholder('Message').fill('hello')
-  await page.getByPlaceholder('Nonce').fill('5')
   await page.getByRole('button', { name: 'Load Key' }).click()
   await page.getByRole('button', { name: 'Build' }).click()
   await page.getByRole('button', { name: 'Sign' }).click()
 
   await expect(page.getByText('Error: finish: HTTP 400')).toBeVisible()
 })
-

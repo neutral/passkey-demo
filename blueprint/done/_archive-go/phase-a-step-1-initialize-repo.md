@@ -27,4 +27,3 @@
   - `test -f .editorconfig && echo ok` returns `ok`.
   - `ls server server/internal web/src >/dev/null` exits 0.
   - Editor/formatter recognizes `.editorconfig` (spot‑check by saving a TS file and a Go file).
-

@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { apiUrl } from '../config'
-import { toRequestOptions, buildLoginFinish, type LoginOptionsResponse } from '../lib/webauthn'
+import {
+  toRequestOptionsJSON,
+  type LoginOptionsResponse,
+  mapDomException,
+} from '../lib/webauthn'
+import { startAuthentication } from '@simplewebauthn/browser'
 import ErrorToast from '../components/ErrorToast'
 import { parseHttpError, normalizeError } from '../lib/http'
 
@@ -16,6 +21,7 @@ export default function Login({ onBack }: Props) {
     setThumb(null)
     setLoading(true)
     try {
+      console.debug('[Login] fetch options')
       const r = await fetch(apiUrl('/authn/passkey/login/options'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -27,10 +33,23 @@ export default function Login({ onBack }: Props) {
         return
       }
       const data = (await r.json()) as LoginOptionsResponse
-      const publicKey = toRequestOptions(data)
-      const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
-      if (!cred) throw new Error('get() returned null')
-      const payload = buildLoginFinish(cred, data.login_session_id)
+      const optionsJSON = toRequestOptionsJSON(data)
+      console.debug('[Login] startAuthentication')
+      const asg = await startAuthentication(optionsJSON)
+      console.debug('[Login] assertion result received')
+      const payload = {
+        login_session_id: data.login_session_id,
+        id: asg.id,
+        rawId: asg.rawId,
+        type: asg.type,
+        response: {
+          authenticatorData: asg.response.authenticatorData,
+          clientDataJSON: asg.response.clientDataJSON,
+          signature: asg.response.signature,
+          userHandle: (asg.response as any).userHandle || '',
+        },
+      }
+      console.debug('[Login] POST finish')
       const r2 = await fetch(apiUrl('/authn/passkey/login/finish'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,7 +66,8 @@ export default function Login({ onBack }: Props) {
       setThumb(out.account_thumb_hex)
       window.location.hash = '#/dashboard'
     } catch (e: any) {
-      const ne = normalizeError(e)
+      console.debug('[Login] error', e)
+      const ne = normalizeError(mapDomException(e))
       setError(ne.detail)
     } finally {
       setLoading(false)
