@@ -4,6 +4,8 @@ import { loadConfig } from './config.js'
 import { logger, httpLogger, logServerStart } from './logger.js'
 import requestId from './reqid.js'
 import openDB, { applyMigrations } from './db.js'
+import corsMiddleware from './cors.js'
+import sessionMiddleware from './session.js'
 import path from 'node:path'
 
 export function createApp(config, db) {
@@ -12,6 +14,8 @@ export function createApp(config, db) {
   app.use(requestId)
   app.use(httpLogger)
   app.use(express.json({ limit: '1mb' }))
+  app.use(corsMiddleware(config))
+  app.use(sessionMiddleware(db))
 
   app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json')
