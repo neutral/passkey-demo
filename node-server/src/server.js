@@ -9,6 +9,7 @@ import sessionMiddleware from './session.js'
 import path from 'node:path'
 import { createRegistrationRoutes } from './webauthn/reg.js'
 import { createLoginRoutes } from './webauthn/login.js'
+import { createMeRoutes } from './me.js'
 
 export function createApp(config, db) {
   const app = express()
@@ -26,6 +27,10 @@ export function createApp(config, db) {
   const login = createLoginRoutes(config, { db })
   app.locals.login = login
   app.use('/authn/passkey/login', login.router)
+
+  const me = createMeRoutes(config, { db })
+  app.locals.me = me
+  app.use('/me', me.router)
 
   app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json')
