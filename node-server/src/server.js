@@ -23,7 +23,7 @@ export function createApp(config, db) {
   app.locals.registration = registration
   app.use('/authn/passkey/registration', registration.router)
 
-  const login = createLoginRoutes(config)
+  const login = createLoginRoutes(config, { db })
   app.locals.login = login
   app.use('/authn/passkey/login', login.router)
 

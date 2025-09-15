@@ -1,8 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import express from 'express'
+import Database from 'better-sqlite3'
+import { fileURLToPath } from 'node:url'
 
 import { createLoginRoutes, LoginSessionStore, LOGIN_SESSION_TTL_SECONDS } from '../src/webauthn/login.js'
+import { applyMigrations } from '../src/db.js'
 
 const TEST_TIMEOUT_MS = 3000
 const FETCH_TIMEOUT_MS = 2500
@@ -13,19 +16,22 @@ const CONFIG = {
   RP_ID_ALLOWLIST: [],
   ORIGIN_ALLOWLIST: [],
 }
+const MIGRATIONS_PATH = fileURLToPath(new URL('../src/migrations.sql', import.meta.url))
 
 function buildApp(options = {}) {
   const app = express()
+  const db = new Database(':memory:')
+  applyMigrations(db, MIGRATIONS_PATH)
   app.use(express.json())
   app.use((req, res, next) => {
     req.id = options.correlationId || 'test-correlation-id'
     next()
   })
   const deps = options.deps || {}
-  const routes = createLoginRoutes(CONFIG, deps)
+  const routes = createLoginRoutes(CONFIG, { ...deps, db })
   app.use('/authn/passkey/login', routes.router)
   const server = app.listen(0)
-  return { server, routes }
+  return { server, routes, db }
 }
 
 function postOptions(port) {
@@ -54,7 +60,7 @@ test('login options returns policy-compliant JSON and stores session', { timeout
       allowCredentials: [],
     }),
   }
-  const { server, routes } = buildApp({ deps })
+  const { server, routes, db } = buildApp({ deps })
   try {
     const { port } = server.address()
 
@@ -77,6 +83,8 @@ test('login options returns policy-compliant JSON and stores session', { timeout
     })
   } finally {
     await closeServer(server)
+    routes.store?.pruneExpired(Number.MAX_SAFE_INTEGER)
+    db.close()
   }
 })
 
@@ -105,7 +113,7 @@ test('generator failure yields internal_error envelope', { timeout: TEST_TIMEOUT
       throw new Error('boom')
     },
   }
-  const { server } = buildApp({ deps, correlationId: 'corr-id' })
+  const { server, db } = buildApp({ deps, correlationId: 'corr-id' })
   try {
     const { port } = server.address()
     const res = await postOptions(port)
@@ -115,6 +123,7 @@ test('generator failure yields internal_error envelope', { timeout: TEST_TIMEOUT
     assert.equal(body.correlation_id, 'corr-id')
   } finally {
     await closeServer(server)
+    db.close()
   }
 })
 
@@ -135,7 +144,7 @@ test('handler retries session id on collision', { timeout: TEST_TIMEOUT_MS }, as
       allowCredentials: [],
     }),
   }
-  const { server, routes } = buildApp({ deps })
+  const { server, routes, db } = buildApp({ deps })
   try {
     const { port } = server.address()
     const res = await postOptions(port)
@@ -146,6 +155,7 @@ test('handler retries session id on collision', { timeout: TEST_TIMEOUT_MS }, as
     assert.equal(stored.challenge, 'new-challenge')
   } finally {
     await closeServer(server)
+    db.close()
   }
 })
 
@@ -164,7 +174,7 @@ test('session id exhaustion returns 500', { timeout: TEST_TIMEOUT_MS }, async ()
       allowCredentials: [],
     }),
   }
-  const { server } = buildApp({ deps })
+  const { server, db } = buildApp({ deps })
   try {
     const { port } = server.address()
     const res = await postOptions(port)
@@ -173,5 +183,6 @@ test('session id exhaustion returns 500', { timeout: TEST_TIMEOUT_MS }, async ()
     assert.equal(body.code, 'internal_error')
   } finally {
     await closeServer(server)
+    db.close()
   }
 })
