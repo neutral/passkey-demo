@@ -18,42 +18,10 @@
 - Step 2 — Node: scaffold `node-server/` (Express + SQLite + Pino) — see `blueprint/done/step-2-node-scaffold-express-sqlite-pino.md`
 - Step 3 — Node: DB schema and config parity — see `blueprint/done/step-3-node-db-schema-and-config-parity.md`
 - Step 4 — Node: CORS, cookies, and session middleware — see `blueprint/done/step-4-node-cors-cookies-and-session-middleware.md`
+- Step 5 — Node: Registration options (`/authn/passkey/registration/options`) — see `blueprint/done/step-5-node-registration-options.md`
 
 ---
 
-
-### Step 5 — Node: Registration options (`/authn/passkey/registration/options`)
-
-Scope
-
-- Use `generateRegistrationOptions` from `@simplewebauthn/server` to issue options JSON with `residentKey: 'required'`, `userVerification: 'required'`, and `attestation: 'none'`.
-- Store a short-lived registration session `{challenge, rpID, origin, expires_at}`; TTL 5 minutes.
-
-Source to add
-
-- `node-server/src/webauthn/reg.js`: routes and store (in-memory map with TTL) for registration sessions.
-
-Request/response
-
-- Request: POST with empty body.
-- Response: `PublicKeyCredentialCreationOptionsJSON` plus `reg_session_id` and `expires_at` if we keep session id parity for diagnostics; alternatively, the session id can be implicit (keyed by challenge), but we will retain explicit `reg_session_id` for parity.
-
-Algorithm
-
-- Build options with `rpID = RP_ID`, `rpName = 'Passkey Demo'` (display), ephemeral user id/name.
-- Generate challenge; store session keyed by random id; return options JSON and session id.
-
-Verification
-
-- Returns JSON shape accepted by `@simplewebauthn/browser`.
-
-Acceptance criteria
-
-- Options encode correct policy flags; session TTL and logging occur; structure matches browser lib expectations.
-
-Refs: requirement R-FLOW-REG; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations
-
----
 
 ### Step 6 — Node: Registration finish (`/authn/passkey/registration/finish`)
 

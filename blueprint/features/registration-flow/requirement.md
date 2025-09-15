@@ -22,6 +22,7 @@
 
 ## Acceptance Criteria
 - `POST /authn/passkey/registration/options` returns valid `PublicKeyCredentialCreationOptions` with required flags.
+- Options response exposes `reg_session_id` (>=128-bit entropy) and `expires_at` with a 5-minute TTL; server rejects or prunes expired registration sessions.
 - `POST /authn/passkey/registration/finish` verifies attestation, extracts COSE key, stores account and credential, persists `sign_count` and optional `aaguid`.
 - UV required is enforced server-side.
 

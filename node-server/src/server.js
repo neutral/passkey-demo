@@ -7,6 +7,7 @@ import openDB, { applyMigrations } from './db.js'
 import corsMiddleware from './cors.js'
 import sessionMiddleware from './session.js'
 import path from 'node:path'
+import { createRegistrationRoutes } from './webauthn/reg.js'
 
 export function createApp(config, db) {
   const app = express()
@@ -16,6 +17,10 @@ export function createApp(config, db) {
   app.use(express.json({ limit: '1mb' }))
   app.use(corsMiddleware(config))
   app.use(sessionMiddleware(db))
+
+  const registration = createRegistrationRoutes(config)
+  app.locals.registration = registration
+  app.use('/authn/passkey/registration', registration.router)
 
   app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json')

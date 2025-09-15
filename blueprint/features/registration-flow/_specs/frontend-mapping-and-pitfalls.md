@@ -15,6 +15,7 @@
 - `attestation='none'`.
 - `pubKeyCredParams=[{ type: 'public-key', alg: -7 }]` (ES256 only to match server).
 - `user`: ephemeral (32 random bytes) encoded base64url in `user.id` with `name/displayName` placeholders. Identity is server-side (passkey-first via COSE key).
+- Node server also returns `reg_session_id` (24-char base64url) and `expires_at` (epoch seconds); the frontend stores both and posts them back in the finish request alongside `RegistrationResponseJSON`.
 
 ## Pitfalls & Gotchas
 - Binary conversions must be exact for any remaining helpers (base64url no padding, URL-safe alphabet); prefer centralized helpers. Using the library avoids most manual ArrayBuffer transforms.
