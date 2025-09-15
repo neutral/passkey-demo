@@ -23,6 +23,7 @@
 - On registration finish, server extracts COSE EC2 public key and stores canonical CBOR in `accounts.acct_cbor`; computes and stores `acct_thumb`.
 - Credentials reference accounts via `acct_cbor_fk`; server does not duplicate the public key in `credentials`.
 - Login and signing verifications use the account’s COSE key; flows complete end-to-end.
+- Authenticated APIs (Node `/me/account_key`, Go parity) surface the canonical account key (`acct_cbor_b64`, sender key coordinates, thumb hex, created_at) only when a valid `sid` session cookie is present; missing/expired sessions yield 401 envelopes.
 
 ## Flows
 - Registration: blueprint/_user-flows/registration.md
