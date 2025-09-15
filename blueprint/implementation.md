@@ -14,6 +14,7 @@
 
 ## Done
 
+- Step 9 — Node: GET `/me/account_key` (authenticated) — see `blueprint/done/step-9-node-get-me-account-key.md`
 - Step 8 — Node: Login finish (`/authn/passkey/login/finish`) — see `blueprint/done/step-8-node-login-finish.md`
 - Step 1 — Web: adopt `@simplewebauthn/browser` for Register/Login — see `blueprint/done/step-1-web-adopt-simplewebauthn-browser.md`
 - Step 2 — Node: scaffold `node-server/` (Express + SQLite + Pino) — see `blueprint/done/step-2-node-scaffold-express-sqlite-pino.md`
@@ -22,28 +23,6 @@
 - Step 5 — Node: Registration options (`/authn/passkey/registration/options`) — see `blueprint/done/step-5-node-registration-options.md`
 - Step 6 — Node: Registration finish (`/authn/passkey/registration/finish`) — see `blueprint/done/step-6-node-registration-finish.md`
 - Step 7 — Node: Login options (`/authn/passkey/login/options`) — see `blueprint/done/step-7-node-login-options.md`
-
----
-
-### Step 9 — Node: GET `/me/account_key` (authenticated)
-
-Scope
-
-- Return the logged-in account’s COSE EC2 public key in JSON and base64url CBOR.
-
-Source to add
-
-- `node-server/src/me.js`: route using session context; CBOR decode to extract x/y for convenience, plus `acct_cbor_b64`.
-
-Verification
-
-- With valid `sid`, returns 200 and expected JSON; without `sid`, 401.
-
-Acceptance criteria
-
-- Shape matches current web expectations for bundle building.
-
-Refs: requirement R-UI-2BTN; requirement R-SCHEMA-LITE; spec bundle-shape-and-client-production-explainer
 
 ---
 
