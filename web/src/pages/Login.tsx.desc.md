@@ -1,8 +1,8 @@
 # Purpose
-Login page implements the WebAuthn get() flow using `@simplewebauthn/browser`: fetch options, convert to `PublicKeyCredentialRequestOptionsJSON` via adapter, call `startAuthentication`, and POST the returned JSON with `credentials: 'include'` to establish a session (cookie).
+Login page implements the WebAuthn get() flow using `@simplewebauthn/browser`: fetch options, pass through the Node server’s SimpleWebAuthn JSON via adapter, call `startAuthentication`, and POST the returned JSON with `credentials: 'include'` to establish a session (cookie).
 
 # Key Logic
-- Fetch `POST /authn/passkey/login/options`, build `PublicKeyCredentialRequestOptionsJSON` via `toRequestOptionsJSON`, call `startAuthentication`, then POST `{ ...assertionJSON, login_session_id }` to `/authn/passkey/login/finish` with `credentials: 'include'`.
+- Fetch `POST /authn/passkey/login/options`, strip metadata via `toRequestOptionsJSON`, call `startAuthentication` with the server-provided JSON, then POST `{ ...assertionJSON, login_session_id }` to `/authn/passkey/login/finish` with `credentials: 'include'`.
 - Errors: parses non‑OK responses via `parseHttpError` (shows status like `HTTP 401`) and normalizes thrown errors via `normalizeError`; renders via `ErrorToast` (dismissible) instead of inline paragraphs.
 - Success: displays `account_thumb_hex` and routes to Dashboard.
 

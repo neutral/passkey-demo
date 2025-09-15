@@ -1,9 +1,9 @@
 # Purpose
-Adapters and helpers for WebAuthn flows using `@simplewebauthn/browser`. Converts the Go server’s option shapes into the library’s `*OptionsJSON` and normalizes browser errors for UI toasts. Also retains `buildTxFinish` for Dashboard signing until the Node server emits library JSON directly.
+Adapters and helpers for WebAuthn flows using `@simplewebauthn/browser`. Converts server option shapes into the library’s `*OptionsJSON` and normalizes browser errors for UI toasts. Registration/login now pass through the Node server’s SimpleWebAuthn-native JSON while keeping `buildTxFinish` for Dashboard signing until the API is migrated.
 
 # Key Logic
-- `toCreationOptionsJSON` maps server fields into `PublicKeyCredentialCreationOptionsJSON` (challenge stays base64url string), sets `attestation: 'none'`, `residentKey: 'required'`, `userVerification: 'required'`, and `pubKeyCredParams=[{ type:'public-key', alg:-7 }]`. Generates a random 32‑byte base64url `user.id`.
-- `toRequestOptionsJSON` maps into `PublicKeyCredentialRequestOptionsJSON` with `userVerification: 'required'`, optional `rpId`, and `allowCredentials[]` only when non‑empty (discoverable credentials otherwise).
+- `toCreationOptionsJSON` accepts the Node server’s SimpleWebAuthn JSON, only generating a random fallback `user.id` when the payload omits one.
+- `toRequestOptionsJSON` strips metadata (`login_session_id`, `expires_at`) and forwards the remaining SimpleWebAuthn login options verbatim; `toRequestOptions` converts the JSON into native browser types (base64url→ArrayBuffer) for legacy callers.
 - `mapDomException` converts thrown `DOMException` (e.g., `NotAllowedError`) into a simple `{title,detail}` for `normalizeError`.
 - `buildTxFinish` mirrors login finish but includes `tx_session_id` instead; encodes the same binary fields in base64url.
 

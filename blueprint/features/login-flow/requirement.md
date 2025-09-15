@@ -18,7 +18,7 @@
 - Out-of-scope: MFA, recovery flows.
 
 ## Acceptance Criteria
-- `/authn/passkey/login/options` returns valid `PublicKeyCredentialRequestOptions` with `userVerification: "required"`.
+- `/authn/passkey/login/options` returns SimpleWebAuthn-compatible JSON with `userVerification: "required"`, includes `login_session_id` (≥128-bit entropy) and `expires_at` (5 minute TTL), and logs the issuance.
 - `/authn/passkey/login/finish` verifies assertion, ensures UV flag and increasing `signCount`, and establishes session.
 
 ## Flows

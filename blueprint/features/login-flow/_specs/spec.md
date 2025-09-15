@@ -9,14 +9,15 @@
 - Server-supplied assertion options; client performs WebAuthn get; server verifies UV, rpIdHash, origin, and `signCount` strictly increases.
 
 ## Interfaces
-- POST /authn/passkey/login/options → `PublicKeyCredentialRequestOptionsJSON` (consumed by `@simplewebauthn/browser`)
+- POST /authn/passkey/login/options → `PublicKeyCredentialRequestOptionsJSON` plus metadata `{ login_session_id, expires_at }` (consumed by `@simplewebauthn/browser`)
 - POST /authn/passkey/login/finish → submit `AuthenticationResponseJSON` (fetch with `credentials: 'include'` to accept cookie)
 
 ## Data / Models
 - credentials (`credential_id`, `acct_cbor_fk`, `sign_count`), accounts.
 
 ## Algorithms
-- Challenge issuance and session binding; `allowCredentials` may be empty for discoverable credentials.
+- Challenge issuance and session binding; `allowCredentials` may be empty for discoverable credentials; session IDs are ≥128-bit entropy base64url strings, TTL 5 minutes.
+- Server now returns the SimpleWebAuthn JSON directly (no legacy wrapping), so the frontend forwards `challenge`, `rpId`, `allowCredentials`, etc., without reshaping.
 - Verify assertion over `authenticatorData || SHA-256(clientDataJSON)` with account key; enforce low‑S; update `sign_count`.
 - Accept optional `userHandle` in finish request; ignore for identity (Model 2).
  - Client uses `@simplewebauthn/browser` via adapters that map server shapes to `*OptionsJSON` and returns `AuthenticationResponseJSON`.

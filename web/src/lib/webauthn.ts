@@ -2,6 +2,7 @@ import { base64urlToBytes, bytesToBase64url } from './encoding'
 import type {
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
+  PublicKeyCredentialDescriptorJSON,
 } from '@simplewebauthn/types'
 
 export type RegistrationOptionsResponse = PublicKeyCredentialCreationOptionsJSON & {
@@ -9,15 +10,8 @@ export type RegistrationOptionsResponse = PublicKeyCredentialCreationOptionsJSON
   expires_at: number
 }
 
-export type LoginOptionsResponse = {
+export type LoginOptionsResponse = PublicKeyCredentialRequestOptionsJSON & {
   login_session_id: string
-  challenge: string
-  options: {
-    rp_id: string
-    origin: string
-    uv_required: boolean
-    allow_credentials: string[]
-  }
   expires_at: number
 }
 
@@ -45,28 +39,30 @@ export function toCreationOptionsJSON(
 export function toRequestOptionsJSON(
   resp: LoginOptionsResponse,
 ): PublicKeyCredentialRequestOptionsJSON {
-  const ids = (resp.options.allow_credentials || []).filter((s) => !!s && s.length > 0)
-  const out: PublicKeyCredentialRequestOptionsJSON = {
-    challenge: resp.challenge,
-    userVerification: 'required',
-  }
-  if (resp.options.rp_id) (out as any).rpId = resp.options.rp_id
-  if (ids.length > 0) (out as any).allowCredentials = ids.map((id) => ({ type: 'public-key', id }))
-  return out
+  const { login_session_id: _ignoreSession, expires_at: _ignoreExpiry, ...rest } = resp
+  return rest
 }
 
 // Back-compat for Dashboard signing flow which still uses native WebAuthn in this step
 export function toRequestOptions(resp: LoginOptionsResponse): PublicKeyCredentialRequestOptions {
-  const challenge = base64urlToBytes(resp.challenge)
-  const ids = (resp.options.allow_credentials || [])
-    .map((b64) => ({ type: 'public-key', id: base64urlToBytes(b64) }))
-    .filter((d) => d.id.byteLength > 0)
+  const challengeBytes = base64urlToBytes(resp.challenge)
   const out: PublicKeyCredentialRequestOptions = {
-    challenge,
-    userVerification: 'required',
+    challenge: challengeBytes,
+    userVerification: resp.userVerification || 'required',
   }
-  if (resp.options.rp_id) (out as any).rpId = resp.options.rp_id
-  if (ids.length > 0) (out as any).allowCredentials = ids
+  if ((resp as any).rpId) (out as any).rpId = (resp as any).rpId
+  if (typeof resp.timeout === 'number') out.timeout = resp.timeout
+  const allowCreds: PublicKeyCredentialDescriptorJSON[] = resp.allowCredentials || []
+  if (allowCreds.length > 0) {
+    const mapped = allowCreds
+      .map((cred) => ({
+        type: cred.type,
+        id: base64urlToBytes(cred.id),
+        transports: cred.transports,
+      }))
+      .filter((cred) => cred.id.byteLength > 0)
+    if (mapped.length > 0) (out as any).allowCredentials = mapped
+  }
   return out
 }
 

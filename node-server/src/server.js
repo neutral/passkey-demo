@@ -8,6 +8,7 @@ import corsMiddleware from './cors.js'
 import sessionMiddleware from './session.js'
 import path from 'node:path'
 import { createRegistrationRoutes } from './webauthn/reg.js'
+import { createLoginRoutes } from './webauthn/login.js'
 
 export function createApp(config, db) {
   const app = express()
@@ -21,6 +22,10 @@ export function createApp(config, db) {
   const registration = createRegistrationRoutes(config, { db })
   app.locals.registration = registration
   app.use('/authn/passkey/registration', registration.router)
+
+  const login = createLoginRoutes(config)
+  app.locals.login = login
+  app.use('/authn/passkey/login', login.router)
 
   app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json')
