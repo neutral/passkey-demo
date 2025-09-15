@@ -1,8 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import express from 'express'
+import Database from 'better-sqlite3'
 
 import { createRegistrationRoutes, RegistrationSessionStore, REGISTRATION_SESSION_TTL_SECONDS } from '../src/webauthn/reg.js'
+import { applyMigrations } from '../src/db.js'
+import { fileURLToPath } from 'node:url'
 
 const TEST_TIMEOUT_MS = 3000
 const FETCH_TIMEOUT_MS = 2500
@@ -10,18 +13,25 @@ const FETCH_TIMEOUT_MS = 2500
 const CONFIG = {
   RP_ID: 'localhost',
   ORIGIN: 'http://localhost:5173',
+  RP_ID_ALLOWLIST: [],
+  ORIGIN_ALLOWLIST: [],
 }
+const MIGRATIONS_PATH = fileURLToPath(new URL('../src/migrations.sql', import.meta.url))
 
 function buildApp(options = {}) {
   const app = express()
+  const db = new Database(':memory:')
+  applyMigrations(db, MIGRATIONS_PATH)
+  app.use(express.json())
   app.use((req, res, next) => {
     req.id = options.correlationId || 'test-correlation-id'
     next()
   })
-  const routes = createRegistrationRoutes(CONFIG, options.deps || {})
+  const deps = options.deps || {}
+  const routes = createRegistrationRoutes(CONFIG, { ...deps, db })
   app.use('/authn/passkey/registration', routes.router)
   const server = app.listen(0)
-  return { server, routes }
+  return { server, routes, db }
 }
 
 function postOptions(port) {
@@ -52,7 +62,7 @@ test('registration options returns policy-compliant JSON and stores session', { 
       timeout: 60000,
     }),
   }
-  const { server, routes } = buildApp({ deps })
+  const { server, routes, db } = buildApp({ deps })
   try {
     const { port } = server.address()
 
@@ -77,6 +87,8 @@ test('registration options returns policy-compliant JSON and stores session', { 
     })
   } finally {
     await closeServer(server)
+    routes.store?.pruneExpired(Number.MAX_SAFE_INTEGER)
+    db.close()
   }
 })
 
@@ -100,7 +112,7 @@ test('handler returns internal_error envelope when option generation fails', { t
       throw new Error('boom')
     },
   }
-  const { server } = buildApp({ deps, correlationId: 'corr-id' })
+  const { server, db } = buildApp({ deps, correlationId: 'corr-id' })
   try {
     const { port } = server.address()
 
@@ -111,6 +123,7 @@ test('handler returns internal_error envelope when option generation fails', { t
     assert.equal(body.correlation_id, 'corr-id')
   } finally {
     await closeServer(server)
+    db.close()
   }
 })
 
@@ -133,7 +146,7 @@ test('handler regenerates session id when collision occurs', { timeout: TEST_TIM
       timeout: 60000,
     }),
   }
-  const { server, routes } = buildApp({ deps })
+  const { server, routes, db } = buildApp({ deps })
   try {
     const { port } = server.address()
 
@@ -146,6 +159,7 @@ test('handler regenerates session id when collision occurs', { timeout: TEST_TIM
     assert.equal(stored.challenge, 'new-challenge')
   } finally {
     await closeServer(server)
+    db.close()
   }
 })
 
@@ -171,7 +185,7 @@ test('handler fails after exhausting session id attempts', { timeout: TEST_TIMEO
       timeout: 60000,
     }),
   }
-  const { server } = buildApp({ deps })
+  const { server, db } = buildApp({ deps })
   try {
     const { port } = server.address()
 
@@ -181,5 +195,6 @@ test('handler fails after exhausting session id attempts', { timeout: TEST_TIMEO
     assert.equal(body.code, 'internal_error')
   } finally {
     await closeServer(server)
+    db.close()
   }
 })

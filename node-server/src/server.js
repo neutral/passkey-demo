@@ -18,7 +18,7 @@ export function createApp(config, db) {
   app.use(corsMiddleware(config))
   app.use(sessionMiddleware(db))
 
-  const registration = createRegistrationRoutes(config)
+  const registration = createRegistrationRoutes(config, { db })
   app.locals.registration = registration
   app.use('/authn/passkey/registration', registration.router)
 

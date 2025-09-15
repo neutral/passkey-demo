@@ -4,15 +4,8 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/types'
 
-export type RegistrationOptionsResponse = {
+export type RegistrationOptionsResponse = PublicKeyCredentialCreationOptionsJSON & {
   reg_session_id: string
-  challenge: string
-  options: {
-    rp_id: string
-    origin: string
-    uv_required: boolean
-    attestation: 'none'
-  }
   expires_at: number
 }
 
@@ -32,17 +25,20 @@ export type LoginOptionsResponse = {
 export function toCreationOptionsJSON(
   resp: RegistrationOptionsResponse,
 ): PublicKeyCredentialCreationOptionsJSON {
-  // Random 32-byte user id, encoded as base64url (lib expects string fields)
-  const u8 = new Uint8Array(32)
-  crypto.getRandomValues(u8)
-  const userId = bytesToBase64url(u8)
+  const { reg_session_id: _ignoreSession, expires_at: _ignoreExpiry, user, ...rest } = resp
+  let resolvedUser = user
+  if (!resolvedUser || typeof resolvedUser.id !== 'string' || resolvedUser.id.length === 0) {
+    const u8 = new Uint8Array(32)
+    crypto.getRandomValues(u8)
+    resolvedUser = {
+      id: bytesToBase64url(u8),
+      name: user?.name || 'demo',
+      displayName: user?.displayName || 'Demo',
+    }
+  }
   return {
-    rp: { id: resp.options.rp_id, name: 'Passkey Demo' },
-    user: { id: userId, name: 'demo', displayName: 'Demo' },
-    challenge: resp.challenge,
-    pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
-    authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
-    attestation: resp.options.attestation,
+    ...rest,
+    user: resolvedUser,
   }
 }
 

@@ -2,11 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createApp } from '../src/server.js'
 import { loadConfig } from '../src/config.js'
-import openDB from '../src/db.js'
+import openDB, { applyMigrations } from '../src/db.js'
+import { fileURLToPath } from 'node:url'
+
+const MIGRATIONS_PATH = fileURLToPath(new URL('../src/migrations.sql', import.meta.url))
 
 test('GET /health returns 200 and status ok', async () => {
   const cfg = loadConfig({ PORT: 0, DB_PATH: ':memory:', RP_ID: 'localhost', ORIGIN: 'http://localhost:5173' })
   const db = openDB(cfg.DB_PATH)
+  applyMigrations(db, MIGRATIONS_PATH)
   const app = createApp(cfg, db)
   const server = app.listen(0)
   const { port } = server.address()
@@ -15,4 +19,5 @@ test('GET /health returns 200 and status ok', async () => {
   const body = await res.json()
   assert.equal(body.status, 'ok')
   server.close()
+  db.close()
 })

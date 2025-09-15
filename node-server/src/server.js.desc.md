@@ -1,8 +1,8 @@
 # Purpose
-Bootstrap the Express app, attach request-id and HTTP logging, mount WebAuthn registration routes, expose a basic `/health` endpoint, and start listening on the configured port while emitting structured startup logs.
+Bootstrap the Express app, attach request-id and HTTP logging, mount WebAuthn registration options/finish routes, expose a basic `/health` endpoint, and start listening on the configured port while emitting structured startup logs.
 
 # Key Logic
-- `createApp(config, db)`: sets up middlewares (request-id, logging, JSON parser, CORS, session loader), mounts `/authn/passkey/registration` using `createRegistrationRoutes`, and returns an Express instance with shared `app.locals.registration` state.
+- `createApp(config, db)`: sets up middlewares (request-id, logging, JSON parser, CORS, session loader), mounts `/authn/passkey/registration` using `createRegistrationRoutes` (sharing the session store via `app.locals`), and returns an Express instance.
 - `start()`: loads config, opens DB (PRAGMAs), applies migrations from `migrations.sql`, logs `db_init` (PRAGMAs), builds app, starts the server, and logs `server_start` plus `listening` events.
 
 # Interactions
