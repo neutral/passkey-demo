@@ -105,7 +105,7 @@ test('GET /me/account_key returns 401 when session missing', { timeout: TEST_TIM
     })
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
   } finally {
     await closeServer(server)
     db.close()
@@ -125,7 +125,7 @@ test('GET /me/account_key returns 401 when account row missing', { timeout: TEST
     })
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
   } finally {
     await closeServer(server)
     db.close()

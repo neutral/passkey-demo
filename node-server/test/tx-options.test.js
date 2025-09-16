@@ -124,7 +124,7 @@ test('returns 401 when session missing', { timeout: TEST_TIMEOUT_MS }, async () 
     const res = await postOptions(port, { bundle_cbor_b64: GOLDEN.bundle.bundle_cbor_b64 })
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
   } finally {
     await closeServer(server)
     db.close()
@@ -138,7 +138,7 @@ test('invalid payload yields 400', { timeout: TEST_TIMEOUT_MS }, async () => {
     const res = await postOptions(port, { bogus: true })
     assert.equal(res.status, 400)
     const body = await res.json()
-    assert.equal(body.code, 'bad_request')
+    assert.equal(body.code, 'ERR_BAD_REQUEST')
   } finally {
     await closeServer(server)
     db.close()
@@ -152,7 +152,7 @@ test('invalid bundle encoding maps to 400', { timeout: TEST_TIMEOUT_MS }, async 
     const res = await postOptions(port, { bundle_cbor_b64: '@@not-base64@@' })
     assert.equal(res.status, 400)
     const body = await res.json()
-    assert.equal(body.code, 'bad_request')
+    assert.equal(body.code, 'ERR_BAD_REQUEST')
   } finally {
     await closeServer(server)
     db.close()
@@ -170,7 +170,7 @@ test('nonce conflict returns 409', { timeout: TEST_TIMEOUT_MS }, async () => {
     const res = await postOptions(port, { bundle_cbor_b64: GOLDEN.bundle.bundle_cbor_b64 })
     assert.equal(res.status, 409)
     const body = await res.json()
-    assert.equal(body.code, 'conflict')
+    assert.equal(body.code, 'ERR_CONFLICT')
   } finally {
     await closeServer(server)
     db.close()
@@ -185,7 +185,7 @@ test('missing credentials returns 409', { timeout: TEST_TIMEOUT_MS }, async () =
     const res = await postOptions(port, { bundle_cbor_b64: GOLDEN.bundle.bundle_cbor_b64 })
     assert.equal(res.status, 409)
     const body = await res.json()
-    assert.equal(body.code, 'conflict')
+    assert.equal(body.code, 'ERR_CONFLICT')
   } finally {
     await closeServer(server)
     db.close()
@@ -207,7 +207,7 @@ test('session id collision exhaustion yields 500', { timeout: TEST_TIMEOUT_MS },
     const res = await postOptions(port, { bundle_cbor_b64: GOLDEN.bundle.bundle_cbor_b64 })
     assert.equal(res.status, 500)
     const body = await res.json()
-    assert.equal(body.code, 'internal_error')
+    assert.equal(body.code, 'ERR_INTERNAL')
   } finally {
     await closeServer(server)
     db.close()

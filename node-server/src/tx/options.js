@@ -2,7 +2,12 @@ import express from 'express'
 import { randomBytes, createHash } from 'node:crypto'
 
 import { logTxOptionsSuccess, logTxOptionsError } from '../logger.js'
-import writeError from '../error.js'
+import {
+  respondBadRequest,
+  respondUnauthorized,
+  respondConflict,
+  respondInternalError,
+} from '../error.js'
 import validateAndAnchorBundle, { ERROR_KINDS, BundleValidationError } from './bundle.js'
 
 const TX_SESSION_TTL_SECONDS = 300
@@ -74,11 +79,11 @@ export function createTxOptionsRoutes(config, deps = {}) {
     const correlationId = req.id
     try {
       if (!req.session || !req.session.acct_cbor) {
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
       const body = req.body
       if (!body || typeof body !== 'object' || typeof body.bundle_cbor_b64 !== 'string') {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
 
       const sessionAcct = Buffer.isBuffer(req.session.acct_cbor)
@@ -95,17 +100,17 @@ export function createTxOptionsRoutes(config, deps = {}) {
             case ERROR_KINDS.BUNDLE_CBOR:
             case ERROR_KINDS.MESSAGE_TOO_LONG:
             case ERROR_KINDS.NONCE_OUT_OF_RANGE:
-              return writeError(res, 400, 'bad_request', 'Invalid bundle', correlationId)
+              return respondBadRequest(res, correlationId, 'Invalid bundle')
             case ERROR_KINDS.SENDER_KEY_MISMATCH:
-              return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+              return respondUnauthorized(res, correlationId)
             case ERROR_KINDS.NONCE_NOT_MONOTONIC:
-              return writeError(res, 409, 'conflict', 'Nonce conflict', correlationId)
+              return respondConflict(res, correlationId, 'Nonce conflict')
             default:
-              return writeError(res, 400, 'bad_request', 'Invalid bundle', correlationId)
+              return respondBadRequest(res, correlationId, 'Invalid bundle')
           }
         }
         logTxOptionsError({ correlation_id: correlationId }, err, 'bundle validation failed')
-        return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+        return respondInternalError(res, correlationId)
       }
 
       let credentialIds
@@ -114,10 +119,10 @@ export function createTxOptionsRoutes(config, deps = {}) {
         credentialIds = rows.map((row) => Buffer.from(row.credential_id))
       } catch (err) {
         logTxOptionsError({ correlation_id: correlationId }, err, 'credential lookup failed')
-        return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+        return respondInternalError(res, correlationId)
       }
       if (credentialIds.length === 0) {
-        return writeError(res, 409, 'conflict', 'No credentials for account', correlationId)
+        return respondConflict(res, correlationId, 'No credentials for account')
       }
 
       const nowSeconds = now()
@@ -131,7 +136,7 @@ export function createTxOptionsRoutes(config, deps = {}) {
       }
       if (!txSessionId) {
         logTxOptionsError({ correlation_id: correlationId }, null, 'session id collision exhaustion')
-        return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+        return respondInternalError(res, correlationId)
       }
 
       const expiresAt = nowSeconds + TX_SESSION_TTL_SECONDS
@@ -179,7 +184,7 @@ export function createTxOptionsRoutes(config, deps = {}) {
       })
     } catch (err) {
       logTxOptionsError({ correlation_id: correlationId }, err, 'tx options failed')
-      writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+      respondInternalError(res, correlationId)
     }
   })
 

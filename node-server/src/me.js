@@ -2,7 +2,10 @@ import express from 'express'
 import { Decoder } from 'cbor-x'
 import { createHash } from 'node:crypto'
 import { logger } from './logger.js'
-import writeError from './error.js'
+import {
+  respondUnauthorized,
+  respondInternalError,
+} from './error.js'
 
 const coseDecoder = new Decoder({ useMaps: true })
 const ACCOUNT_THUMB_PREFIX = Buffer.from('ACCTK1')
@@ -71,7 +74,7 @@ export function createMeRoutes(config, deps = {}) {
     const session = req.session
     const sessionAcct = session ? toBuffer(session.acct_cbor) : Buffer.alloc(0)
     if (!session || sessionAcct.length === 0) {
-      return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+      return respondUnauthorized(res, correlationId)
     }
 
     let accountRow
@@ -79,17 +82,17 @@ export function createMeRoutes(config, deps = {}) {
       accountRow = selectAccount.get(sessionAcct)
     } catch (err) {
       logger.error({ event: 'me_account_key_error', correlation_id: correlationId, err }, 'failed to read account')
-      return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+      return respondInternalError(res, correlationId)
     }
 
     if (!accountRow) {
-      return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+      return respondUnauthorized(res, correlationId)
     }
 
     const acctCbor = toBuffer(accountRow.acct_cbor)
     if (acctCbor.length === 0) {
       logger.error({ event: 'me_account_key_error', correlation_id: correlationId }, 'account missing acct_cbor')
-      return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+      return respondInternalError(res, correlationId)
     }
 
     const thumbBufRaw = toBuffer(accountRow.acct_thumb)
@@ -101,12 +104,12 @@ export function createMeRoutes(config, deps = {}) {
       decoded = decodeAccountKey(acctCbor, decode)
     } catch (err) {
       logger.error({ event: 'me_account_key_error', correlation_id: correlationId, err }, 'failed to decode account key')
-      return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+      return respondInternalError(res, correlationId)
     }
 
     if (decoded.x.length === 0 || decoded.y.length === 0) {
       logger.error({ event: 'me_account_key_error', correlation_id: correlationId }, 'account key missing x or y coordinate')
-      return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+      return respondInternalError(res, correlationId)
     }
 
     const senderKey = {

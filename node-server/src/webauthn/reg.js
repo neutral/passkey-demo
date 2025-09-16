@@ -3,7 +3,13 @@ import { generateRegistrationOptions, verifyRegistrationResponse } from '@simple
 import { randomBytes, createHash } from 'node:crypto'
 import { customAlphabet } from 'nanoid'
 import { logger } from '../logger.js'
-import writeError from '../error.js'
+import {
+  respondBadRequest,
+  respondUnauthorized,
+  respondForbidden,
+  respondConflict,
+  respondInternalError,
+} from '../error.js'
 import { Encoder, Decoder } from 'cbor-x'
 
 const canonicalEncoder = new Encoder({ canonical: true, structuredClone: false, useRecords: false, mapsAsObjects: false })
@@ -180,7 +186,7 @@ export function createRegistrationRoutes(config, deps = {}) {
       res.status(200).json(responseBody)
     } catch (err) {
       logger.error({ event: 'reg_options_error', correlation_id: req.id, err }, 'registration options failed')
-      writeError(res, 500, 'internal_error', 'Internal server error', req.id)
+      respondInternalError(res, req.id)
     }
   })
 
@@ -189,23 +195,23 @@ export function createRegistrationRoutes(config, deps = {}) {
     try {
       const body = req.body
       if (!body || typeof body !== 'object') {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
       const { reg_session_id: regSessionId, ...responsePayload } = body
       if (typeof regSessionId !== 'string' || regSessionId.trim().length === 0) {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
       if (!responsePayload || typeof responsePayload !== 'object' || typeof responsePayload.response !== 'object') {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
       if (typeof responsePayload.id !== 'string' || typeof responsePayload.rawId !== 'string') {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
       const session = store.get(regSessionId)
       const nowSeconds = now()
       if (!session || typeof session.expiresAt !== 'number' || session.expiresAt <= nowSeconds) {
         if (session) store.delete(regSessionId)
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
 
       const expectedOrigins = uniqueStrings(config.ORIGIN, ...(config.ORIGIN_ALLOWLIST || []))
@@ -223,15 +229,15 @@ export function createRegistrationRoutes(config, deps = {}) {
       const info = verification.registrationInfo
       if (!verification.verified || !info) {
         store.delete(regSessionId)
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
       if (info.fmt && info.fmt !== 'none') {
         store.delete(regSessionId)
-        return writeError(res, 403, 'policy_violation', 'Policy violation', correlationId)
+        return respondForbidden(res, correlationId, 'Policy violation')
       }
       if (!info.userVerified) {
         store.delete(regSessionId)
-        return writeError(res, 403, 'policy_violation', 'Policy violation', correlationId)
+        return respondForbidden(res, correlationId, 'Policy violation')
       }
 
       const credentialId = Buffer.from(info.credentialID, 'base64url')
@@ -242,7 +248,7 @@ export function createRegistrationRoutes(config, deps = {}) {
       } catch (err) {
         logger.error({ event: 'reg_finish_error', correlation_id: correlationId, err }, 'failed to canonicalize COSE key')
         store.delete(regSessionId)
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
       const accountThumb = computeAccountThumb(canonicalCose)
       const aaguidBuf = parseAAGUID(info.aaguid)
@@ -255,10 +261,10 @@ export function createRegistrationRoutes(config, deps = {}) {
         const message = String(err?.message || '')
         if (message.toLowerCase().includes('unique')) {
           store.delete(regSessionId)
-          return writeError(res, 409, 'conflict', 'Conflict', correlationId)
+          return respondConflict(res, correlationId)
         }
         logger.error({ event: 'reg_finish_error', correlation_id: correlationId, err }, 'registration persistence failed')
-        return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+        return respondInternalError(res, correlationId)
       }
 
       store.delete(regSessionId)
@@ -281,7 +287,7 @@ export function createRegistrationRoutes(config, deps = {}) {
       })
     } catch (err) {
       logger.error({ event: 'reg_finish_error', correlation_id: req.id, err }, 'registration finish failed')
-      writeError(res, 500, 'internal_error', 'Internal server error', req.id)
+      respondInternalError(res, req.id)
     }
   })
 

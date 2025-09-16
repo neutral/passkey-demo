@@ -4,7 +4,7 @@ Transaction helper modules for the Node server. Hosts bundle validation/anchorin
 # Relations
 - Options handler validates bundles and seeds `TxSessionStore` entries consumed by the finish handler.
 - Finish handler verifies WebAuthn assertions using the stored session data, updates credential counters, and writes to the `transactions` table.
-- List handler reads `transactions` via SQLite for the logged-in account and serializes `{ tx_id_hex, nonce, message, created_at }` for the dashboard.
+- List handler reads `transactions` via SQLite for the logged-in account and serializes `{ tx_id_hex, nonce, message, created_at }` for the dashboard with `ERR_UNAUTHORIZED`/`ERR_INTERNAL` envelopes on session/DB failures.
 - Depends on SQLite for credential lookups/inserts and shared logging/error utilities for envelope mapping.
 
 # Interfaces & Models

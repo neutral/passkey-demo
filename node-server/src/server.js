@@ -13,38 +13,51 @@ import { createMeRoutes } from './me.js'
 import { createTxOptionsRoutes } from './tx/options.js'
 import { createTxFinishRoutes } from './tx/finish.js'
 import { createTxListRoutes } from './tx/list.js'
+import { buildBodyLimit, buildRateLimiter, DEFAULT_LIMITS } from './limits.js'
+import { buildExpressErrorHandler } from './error.js'
 
 export function createApp(config, db) {
   const app = express()
   app.disable('x-powered-by')
   app.use(requestId)
   app.use(httpLogger)
-  app.use(express.json({ limit: '1mb' }))
   app.use(corsMiddleware(config))
   app.use(sessionMiddleware(db))
 
   const registration = createRegistrationRoutes(config, { db })
-  app.locals.registration = registration
-  app.use('/authn/passkey/registration', registration.router)
-
   const login = createLoginRoutes(config, { db })
-  app.locals.login = login
-  app.use('/authn/passkey/login', login.router)
-
-  const me = createMeRoutes(config, { db })
-  app.locals.me = me
-  app.use('/me', me.router)
-
   const txOptions = createTxOptionsRoutes(config, { db })
   const txFinish = createTxFinishRoutes(config, { db, store: txOptions.store })
   const txList = createTxListRoutes(config, { db })
+
+  const authnLimiter = buildRateLimiter(DEFAULT_LIMITS.AUTHN_RATE)
+  const authnBody = buildBodyLimit({ bytes: DEFAULT_LIMITS.AUTHN_BODY_LIMIT_BYTES })
+  const authnGroup = express.Router()
+  authnGroup.use(authnLimiter)
+  authnGroup.use(authnBody)
+  authnGroup.use('/passkey/registration', registration.router)
+  authnGroup.use('/passkey/login', login.router)
+  app.locals.registration = registration
+  app.locals.login = login
+  app.use('/authn', authnGroup)
+
+  const txLimiter = buildRateLimiter(DEFAULT_LIMITS.TX_RATE)
+  const txBody = buildBodyLimit({ bytes: DEFAULT_LIMITS.TX_BODY_LIMIT_BYTES })
+  const txGroup = express.Router()
+  txGroup.use(txLimiter)
+  txGroup.use(txBody)
+  txGroup.use(txOptions.router)
+  txGroup.use(txFinish.router)
+  txGroup.use(txList.router)
   app.locals.txOptions = txOptions
   app.locals.txFinish = txFinish
   app.locals.txList = txList
   app.locals.tx = { options: txOptions, finish: txFinish, list: txList }
-  app.use('/tx', txOptions.router)
-  app.use('/tx', txFinish.router)
-  app.use('/tx', txList.router)
+  app.use('/tx', txGroup)
+
+  const me = createMeRoutes(config, { db })
+  app.locals.me = me
+  app.use('/me', me.router)
 
   app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json')
@@ -52,6 +65,8 @@ export function createApp(config, db) {
   })
 
   // Placeholder: future routers mounted here
+  app.use(buildExpressErrorHandler())
+
   return app
 }
 

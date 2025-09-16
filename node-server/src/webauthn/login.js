@@ -3,7 +3,13 @@ import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@si
 import { customAlphabet } from 'nanoid'
 import { randomBytes, createHash } from 'node:crypto'
 import { logger } from '../logger.js'
-import writeError from '../error.js'
+import {
+  respondBadRequest,
+  respondUnauthorized,
+  respondForbidden,
+  respondConflict,
+  respondInternalError,
+} from '../error.js'
 
 export const LOGIN_SESSION_TTL_SECONDS = 300
 export const SESSION_COOKIE_TTL_SECONDS = 3600
@@ -152,7 +158,7 @@ export function createLoginRoutes(config, deps = {}) {
       res.status(200).json(responseBody)
     } catch (err) {
       logger.error({ event: 'login_options_error', correlation_id: req.id, err }, 'login options failed')
-      writeError(res, 500, 'internal_error', 'Internal server error', req.id)
+      respondInternalError(res, req.id)
     }
   })
 
@@ -161,21 +167,21 @@ export function createLoginRoutes(config, deps = {}) {
     try {
       const body = req.body
       if (!body || typeof body !== 'object') {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
       const { login_session_id: loginSessionId, ...responsePayload } = body
       if (typeof loginSessionId !== 'string' || loginSessionId.trim().length === 0) {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
       if (!responsePayload || typeof responsePayload !== 'object' || typeof responsePayload.response !== 'object') {
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
 
       const nowSeconds = now()
       const session = store.get(loginSessionId)
       if (!session || typeof session.expiresAt !== 'number' || session.expiresAt <= nowSeconds) {
         if (session) store.delete(loginSessionId)
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
 
       let credentialIdBase64 = ''
@@ -192,18 +198,18 @@ export function createLoginRoutes(config, deps = {}) {
       }
       if (!credentialId || credentialId.length === 0) {
         store.delete(loginSessionId)
-        return writeError(res, 400, 'bad_request', 'Bad request', correlationId)
+        return respondBadRequest(res, correlationId)
       }
 
       const credentialRow = selectCredential.get(credentialId)
       if (!credentialRow) {
         store.delete(loginSessionId)
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
       const accountRow = selectAccount.get(credentialRow.acct_cbor)
       if (!accountRow) {
         store.delete(loginSessionId)
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
 
       const expectedOrigins = uniqueStrings(config.ORIGIN, session.origin, ...(config.ORIGIN_ALLOWLIST || []))
@@ -226,24 +232,24 @@ export function createLoginRoutes(config, deps = {}) {
       } catch (err) {
         logger.error({ event: 'login_finish_error', correlation_id: correlationId, err }, 'login verification failed')
         store.delete(loginSessionId)
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
 
       const info = verification?.authenticationInfo
       if (!verification?.verified || !info) {
         store.delete(loginSessionId)
-        return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+        return respondUnauthorized(res, correlationId)
       }
       if (!info.userVerified) {
         store.delete(loginSessionId)
-        return writeError(res, 403, 'policy_violation', 'Policy violation', correlationId)
+        return respondForbidden(res, correlationId, 'Policy violation')
       }
 
       const newCounter = typeof info.newCounter === 'number' ? info.newCounter : 0
       const storedCount = typeof credentialRow.sign_count === 'number' ? credentialRow.sign_count : 0
       if (newCounter > 0 && newCounter <= storedCount) {
         store.delete(loginSessionId)
-        return writeError(res, 409, 'conflict', 'Conflict', correlationId)
+        return respondConflict(res, correlationId)
       }
 
       try {
@@ -253,7 +259,7 @@ export function createLoginRoutes(config, deps = {}) {
       } catch (err) {
         logger.error({ event: 'login_finish_error', correlation_id: correlationId, err }, 'failed to update sign_count')
         store.delete(loginSessionId)
-        return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+        return respondInternalError(res, correlationId)
       }
 
       const sessionId = sessionIdFactory()
@@ -264,7 +270,7 @@ export function createLoginRoutes(config, deps = {}) {
       } catch (err) {
         logger.error({ event: 'login_finish_error', correlation_id: correlationId, err }, 'failed to persist session')
         store.delete(loginSessionId)
-        return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+        return respondInternalError(res, correlationId)
       }
 
       const secure = isSecureOrigin(config.ORIGIN)
@@ -300,7 +306,7 @@ export function createLoginRoutes(config, deps = {}) {
       })
     } catch (err) {
       logger.error({ event: 'login_finish_error', correlation_id: req.id, err }, 'login finish failed')
-      writeError(res, 500, 'internal_error', 'Internal server error', req.id)
+      respondInternalError(res, req.id)
     }
   })
 

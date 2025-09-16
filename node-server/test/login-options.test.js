@@ -119,7 +119,7 @@ test('generator failure yields internal_error envelope', { timeout: TEST_TIMEOUT
     const res = await postOptions(port)
     assert.equal(res.status, 500)
     const body = await res.json()
-    assert.equal(body.code, 'internal_error')
+    assert.equal(body.code, 'ERR_INTERNAL')
     assert.equal(body.correlation_id, 'corr-id')
   } finally {
     await closeServer(server)
@@ -180,7 +180,7 @@ test('session id exhaustion returns 500', { timeout: TEST_TIMEOUT_MS }, async ()
     const res = await postOptions(port)
     assert.equal(res.status, 500)
     const body = await res.json()
-    assert.equal(body.code, 'internal_error')
+    assert.equal(body.code, 'ERR_INTERNAL')
   } finally {
     await closeServer(server)
     db.close()

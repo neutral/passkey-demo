@@ -119,7 +119,7 @@ test('handler returns internal_error envelope when option generation fails', { t
     const res = await postOptions(port)
     assert.equal(res.status, 500)
     const body = await res.json()
-    assert.equal(body.code, 'internal_error')
+    assert.equal(body.code, 'ERR_INTERNAL')
     assert.equal(body.correlation_id, 'corr-id')
   } finally {
     await closeServer(server)
@@ -192,7 +192,7 @@ test('handler fails after exhausting session id attempts', { timeout: TEST_TIMEO
     const res = await postOptions(port)
     assert.equal(res.status, 500)
     const body = await res.json()
-    assert.equal(body.code, 'internal_error')
+    assert.equal(body.code, 'ERR_INTERNAL')
   } finally {
     await closeServer(server)
     db.close()

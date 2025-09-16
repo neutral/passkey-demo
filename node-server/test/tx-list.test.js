@@ -157,7 +157,7 @@ test('returns 401 when session missing', { timeout: TEST_TIMEOUT_MS }, async () 
     const res = await fetchList(port)
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
   } finally {
     await closeServer(server)
     db.close()
@@ -172,7 +172,7 @@ test('database failure returns 500', { timeout: TEST_TIMEOUT_MS }, async () => {
     const res = await fetchList(port)
     assert.equal(res.status, 500)
     const body = await res.json()
-    assert.equal(body.code, 'internal_error')
+    assert.equal(body.code, 'ERR_INTERNAL')
   } finally {
     await closeServer(server)
     db.close()

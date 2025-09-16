@@ -187,7 +187,7 @@ test('expired login session returns 401 and removes entry', { timeout: TEST_TIME
     })
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
     assert.equal(store.get(loginSessionId), null)
   } finally {
     await closeServer(server)
@@ -216,7 +216,7 @@ test('credential not found returns unauthorized', { timeout: TEST_TIMEOUT_MS }, 
     })
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
     assert.equal(store.get(loginSessionId), null)
   } finally {
     await closeServer(server)
@@ -271,7 +271,7 @@ test('missing user verification returns 403', { timeout: TEST_TIMEOUT_MS }, asyn
     })
     assert.equal(res.status, 403)
     const body = await res.json()
-    assert.equal(body.code, 'policy_violation')
+    assert.equal(body.code, 'ERR_FORBIDDEN')
     assert.equal(store.get(loginSessionId), null)
   } finally {
     await closeServer(server)
@@ -326,7 +326,7 @@ test('sign count regression returns conflict', { timeout: TEST_TIMEOUT_MS }, asy
     })
     assert.equal(res.status, 409)
     const body = await res.json()
-    assert.equal(body.code, 'conflict')
+    assert.equal(body.code, 'ERR_CONFLICT')
     assert.equal(store.get(loginSessionId), null)
     const credentialRow = db
       .prepare('SELECT sign_count FROM credentials WHERE credential_id = ?')
@@ -360,7 +360,7 @@ test('invalid payload returns 400 without invoking verifier', { timeout: TEST_TI
     })
     assert.equal(res.status, 400)
     const body = await res.json()
-    assert.equal(body.code, 'bad_request')
+    assert.equal(body.code, 'ERR_BAD_REQUEST')
     assert.equal(store.get(loginSessionId), null)
     assert.equal(verifyCalled, false)
   } finally {

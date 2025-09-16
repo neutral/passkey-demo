@@ -27,39 +27,9 @@
 - Step 11 — Node: Tx signing options (`/tx/signing/options`) — see `blueprint/done/step-11-node-tx-signing-options.md`
 - Step 12 — Node: Tx signing finish (`/tx/signing/finish`) — see `blueprint/done/step-12-node-tx-signing-finish.md`
 - Step 13 — Node: Tx list (`/tx/list`) — see `blueprint/done/step-13-node-tx-list.md`
+- Step 14 — Node: Error envelopes and limits — see `blueprint/done/step-14-node-error-envelopes-and-limits.md`
 
 ---
-
-### Step 14 — Node: Error envelopes and limits
-
-Scope
-
-- Standard JSON error envelope `{code,error,correlation_id?}`; consistent mapping:
-  - 400: `ERR_BAD_REQUEST` (malformed inputs/base64/JSON/DER)
-  - 401: `ERR_UNAUTHORIZED` (no/invalid session; unknown credential; signature mismatch)
-  - 403: `ERR_FORBIDDEN` (origin/rp policy; UV missing)
-  - 409: `ERR_CONFLICT` (signCount or nonce policy)
-  - 413: `ERR_PAYLOAD_TOO_LARGE`
-  - 429: `ERR_RATE_LIMIT`
-  - 500: `ERR_INTERNAL`
-- Apply body size caps and token-bucket rate limiting to `/authn/*` and `/tx/*` routers.
-
-Source to add/modify
-
-- `node-server/src/error.js`, `node-server/src/limits.js` (body limit + rate limit middleware); wrap routers in `server.js`.
-
-Verification
-
-- Curl negative cases return envelopes and statuses; rate limiting blocks over-burst.
-
-Acceptance criteria
-
-- Parity with Go backend mapping and behavior.
-
-Refs: requirement R-ERR; decision http-error-envelope; decision router-builder-wiring
-
----
-
 ### Step 15 — Node: Structured logging and correlation
 
 Scope

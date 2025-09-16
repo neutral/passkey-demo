@@ -156,7 +156,7 @@ test('expired registration session returns 401 and removes entry', { timeout: TE
     })
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
     assert.equal(routeStore.get(regSessionId), null)
     assert.equal(verifyCalled, false)
   } finally {
@@ -183,7 +183,7 @@ test('verification failure yields unauthorized', { timeout: TEST_TIMEOUT_MS }, a
     })
     assert.equal(res.status, 401)
     const body = await res.json()
-    assert.equal(body.code, 'unauthorized')
+    assert.equal(body.code, 'ERR_UNAUTHORIZED')
     assert.equal(store.get(regSessionId), null)
   } finally {
     await closeServer(server)
@@ -224,7 +224,7 @@ test('missing user verification returns 403', { timeout: TEST_TIMEOUT_MS }, asyn
     })
     assert.equal(res.status, 403)
     const body = await res.json()
-    assert.equal(body.code, 'policy_violation')
+    assert.equal(body.code, 'ERR_FORBIDDEN')
     assert.equal(store.get(regSessionId), null)
   } finally {
     await closeServer(server)
@@ -281,7 +281,7 @@ test('duplicate credential returns conflict and consumes session', { timeout: TE
     })
     assert.equal(res.status, 409)
     const body = await res.json()
-    assert.equal(body.code, 'conflict')
+    assert.equal(body.code, 'ERR_CONFLICT')
     assert.equal(routeStore.get(regSessionId), null)
   } finally {
     await closeServer(server)
@@ -307,7 +307,7 @@ test('invalid request body returns 400', { timeout: TEST_TIMEOUT_MS }, async () 
     })
     assert.equal(res.status, 400)
     const body = await res.json()
-    assert.equal(body.code, 'bad_request')
+    assert.equal(body.code, 'ERR_BAD_REQUEST')
     assert.equal(verifyCalled, false)
   } finally {
     await closeServer(server)

@@ -1,6 +1,6 @@
 import express from 'express'
 
-import writeError from '../error.js'
+import { respondUnauthorized, respondInternalError } from '../error.js'
 import { logger } from '../logger.js'
 
 function toBuffer(value) {
@@ -33,7 +33,7 @@ export function createTxListRoutes(config, deps = {}) {
     const acctBuffer = session ? toBuffer(session.acct_cbor) : Buffer.alloc(0)
 
     if (!session || acctBuffer.length === 0) {
-      return writeError(res, 401, 'unauthorized', 'Unauthorized', correlationId)
+      return respondUnauthorized(res, correlationId)
     }
 
     let rows
@@ -41,7 +41,7 @@ export function createTxListRoutes(config, deps = {}) {
       rows = selectTransactions.all(acctBuffer)
     } catch (err) {
       logger.error({ event: 'tx_list_error', correlation_id: correlationId, err }, 'failed to read transactions')
-      return writeError(res, 500, 'internal_error', 'Internal server error', correlationId)
+      return respondInternalError(res, correlationId)
     }
 
     const items = rows.map((row) => {
