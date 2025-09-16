@@ -1,18 +1,20 @@
-.PHONY: dev server node-server web build clean run test test-all
+
+.PHONY: dev server node-server web build clean run test test-ui test-all
 
 dev:
 	@echo "Open two terminals:"
 	@echo "  1) make server"
 	@echo "  2) make web"
 
-server node-server:
+server:
 	npm run dev --prefix node-server
+
+node-server: server
 
 web:
 	npm run dev --prefix web
 
 build:
-	npm run test --prefix node-server
 	npm run build --prefix web
 
 clean:
@@ -33,6 +35,9 @@ run:
 test:
 	npm run test --prefix node-server
 
-test-all:
-	npm run test --prefix node-server
+test-ui:
 	npm run test:ui --prefix web
+
+test-all:
+	$(MAKE) test
+	$(MAKE) test-ui
