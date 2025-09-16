@@ -1,4 +1,4 @@
--- SQLite schema for the Passkey Demo (Node parity with Go backend)
+-- SQLite schema for the Passkey Demo Node backend
 
 CREATE TABLE IF NOT EXISTS accounts (
   acct_cbor    BLOB PRIMARY KEY,
@@ -35,4 +35,3 @@ CREATE TABLE IF NOT EXISTS transactions (
   created_at  INTEGER NOT NULL,
   FOREIGN KEY(acct_cbor) REFERENCES accounts(acct_cbor) ON DELETE CASCADE
 );
-

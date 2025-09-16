@@ -51,7 +51,7 @@ Response (example):
 {
   "login_session_id": "<b64>",
   "challenge": "<b64>",
-  "options": {"rp_id":"localhost","origin":"http://localhost:5173","uv_required":true,"allow_credentials":[]},
+  "options": {"rpId":"localhost","origin":"http://localhost:5173","userVerification":"required","allowCredentials":[]},
   "expires_at": 1735689600
 }
 ```
@@ -107,7 +107,7 @@ Response (example):
 {
   "tx_session_id": "<b64>",
   "challenge": "<b64>",
-  "options": {"rp_id": "localhost", "origin": "http://localhost:5173", "uv_required": true, "allow_credentials": ["<b64>"]},
+  "options": {"rpId": "localhost", "origin": "http://localhost:5173", "userVerification": "required", "allowCredentials": ["<b64>"]},
   "tx_id_hex": "deadbeef...",
   "expires_at": 1735689600
 }
@@ -133,4 +133,3 @@ Example shape (not runnable):
 ## Notes
 - For ceremony endpoints (`*/finish`), the browser constructs these payloads via WebAuthn APIs.
 - Use a cookie jar (`-b cookies.txt -c cookies.txt`) to carry the `sid` cookie between calls requiring authentication.
-

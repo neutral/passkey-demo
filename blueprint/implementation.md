@@ -3,7 +3,7 @@
 ## Purpose
 
 - Migrate the Vite+React web app to use `@simplewebauthn/browser` for WebAuthn flows.
-- Add a new `node-server/` that reimplements the current Go backend using `@simplewebauthn/server`, matching functionality and policies from `blueprint/done`.
+- Add a new `node-server/` that replaces the original Go backend using `@simplewebauthn/server`, matching functionality and policies from `blueprint/done`.
 - Preserve data model, security policies (UV required), cookies/CORS, error envelopes, logging, and transaction signing semantics (bundle anchors: CHALv1/TXIDv1).
 
 ## Notes
@@ -13,6 +13,10 @@
 - Environment variables retain names from Go server: `RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`, `RP_ID_ALLOWLIST`, `ORIGIN_ALLOWLIST`.
 
 ## Done
+
+- Step 16 — Web: adapt to Node server option/finish shapes — see `blueprint/done/step-16-web-adapt-node-shapes.md`
+- Step Refactor-16 — Web: remove legacy Go backend compatibility — see `blueprint/done/step-refactor-16-web-remove-go-compat.md`
+- Step Refactor-17 — Repo: remove Go server artifacts — see `blueprint/done/step-refactor-17-remove-go-server.md`
 
 - Step 1 — Web: adopt `@simplewebauthn/browser` for Register/Login — see `blueprint/done/step-1-web-adopt-simplewebauthn-browser.md`
 - Step 2 — Node: scaffold `node-server/` (Express + SQLite + Pino) — see `blueprint/done/step-2-node-scaffold-express-sqlite-pino.md`
@@ -28,31 +32,6 @@
 - Step 12 — Node: Tx signing finish (`/tx/signing/finish`) — see `blueprint/done/step-12-node-tx-signing-finish.md`
 - Step 13 — Node: Tx list (`/tx/list`) — see `blueprint/done/step-13-node-tx-list.md`
 - Step 14 — Node: Error envelopes and limits — see `blueprint/done/step-14-node-error-envelopes-and-limits.md`
-
----
-
-### Step 16 — Web: adapt to Node server option/finish shapes
-
-Scope
-
-- Switch API base to `ORIGIN` for CORS; ensure fetches include credentials where needed.
-- If Node options include only lib JSON without extra `*_session_id`, add an adapter to include/extract session identifiers as needed (prefer explicit ids for parity).
-- Update Playwright config to boot Node server during E2E runs.
-
-Source to modify
-
-- `web/src/config.ts` (if present) or callers using `apiUrl()` to point to Node server.
-- `web/tests/*.spec.ts` to expect JSON lib shapes.
-
-Verification
-
-- E2E: register → login → dashboard sign → list update works against Node server.
-
-Acceptance criteria
-
-- Web app interoperates with Node API using `@simplewebauthn/browser` JSON.
-
-Refs: requirement R-PLAT-1; requirement R-OPS-DEV
 
 ---
 
@@ -111,7 +90,7 @@ npm -C web ci || npm -C web i
 npm -C node-server ci || npm -C node-server i
 
 # 2) Start Node server (dev)
-RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo-node.db \
+RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=node-server/demo.db \
   node node-server/src/server.js &
 API_PID=$!
 

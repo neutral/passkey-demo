@@ -1,5 +1,5 @@
 # Purpose
-Expose reusable middleware for enforcing JSON body size caps and per-origin token-bucket rate limiting consistent with the Go backend.
+Expose reusable middleware for enforcing JSON body size caps and per-origin token-bucket rate limiting shared across the Node backend.
 
 # Key Logic
 - `buildBodyLimit({bytes})` checks `Content-Length`, applies an `express.json` parser with the same limit, and calls `respondPayloadTooLarge` when exceeded (including `details.max_bytes`).

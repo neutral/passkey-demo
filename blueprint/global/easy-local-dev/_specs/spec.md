@@ -6,7 +6,7 @@
 - Owners: passkey-demo maintainers
 
 ## Overview
-- Local run with SPA dev server (e.g., Vite on :5173) and Go backend; rp.id "localhost"; origin must match exactly.
+- Local run with SPA dev server (Vite on :5173) and the Node backend (`node-server/src/server.js` on :8080); rp.id "localhost"; origin must match exactly.
 
 ## Interfaces
 - Backend origin allowlist; CORS (if used) aligned to dev origin.

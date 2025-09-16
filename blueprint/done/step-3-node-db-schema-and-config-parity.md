@@ -66,10 +66,10 @@ Verification
 
 ```bash
 npm -C node-server i
-RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo-node.db \
+RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=node-server/demo.db \
   node node-server/src/server.js &
 API_PID=$!
-node --input-type=module -e "import Database from 'better-sqlite3'; const db=new Database('server/demo-node.db'); console.log('foreign_keys=', db.pragma('foreign_keys', { simple: true })); console.log('tables=', db.prepare('select name from sqlite_master where type=\'table\' order by name').all().map(r=>r.name)); db.close();"
+node --input-type=module -e "import Database from 'better-sqlite3'; const db=new Database('node-server/demo.db'); console.log('foreign_keys=', db.pragma('foreign_keys', { simple: true })); console.log('tables=', db.prepare('select name from sqlite_master where type=\'table\' order by name').all().map(r=>r.name)); db.close();"
 kill $API_PID || true
 ```
 

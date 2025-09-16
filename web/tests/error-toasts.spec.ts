@@ -22,9 +22,25 @@ test('Register finish 400 shows toast with JSON error', async ({ page }) => {
 
   // Options ok
   await page.route('**/authn/passkey/registration/options', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      reg_session_id: 's1', challenge: 'AA', options: { rp_id: 'localhost', origin: 'http://localhost:5173', uv_required: true, attestation: 'none' }, expires_at: 0,
-    }) })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reg_session_id: 's1',
+        expires_at: 0,
+        challenge: 'AA',
+        rp: { id: 'localhost', name: 'Passkey Demo' },
+        user: { id: 'dGVzdHVzZXI', name: 'demo', displayName: 'Demo User' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+        authenticatorSelection: {
+          residentKey: 'required',
+          requireResidentKey: true,
+          userVerification: 'required',
+        },
+        attestation: 'none',
+        timeout: 60000,
+      }),
+    })
   })
   // Finish 400 with JSON error
   await page.route('**/authn/passkey/registration/finish', async (route) => {
@@ -60,9 +76,19 @@ test('Login finish 401 shows HTTP 401 in toast', async ({ page }) => {
 
   // Options ok
   await page.route('**/authn/passkey/login/options', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      login_session_id: 'ls1', challenge: 'AA', options: { rp_id: 'localhost', origin: 'http://localhost:5173', uv_required: true, allow_credentials: [] }, expires_at: 0,
-    }) })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        login_session_id: 'ls1',
+        expires_at: 0,
+        challenge: 'AA',
+        rpId: 'localhost',
+        userVerification: 'required',
+        allowCredentials: [],
+        timeout: 60000,
+      }),
+    })
   })
   // Finish 401
   await page.route('**/authn/passkey/login/finish', async (route) => {

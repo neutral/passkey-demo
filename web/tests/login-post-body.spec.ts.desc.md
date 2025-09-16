@@ -1,8 +1,8 @@
 # Purpose
-Page test to validate the login finish POST body when using `@simplewebauthn/browser`. Ensures the payload includes `login_session_id` and base64url string fields per the server contract.
+Page test that the login UI posts `{ login_session_id, ...AuthenticationResponseJSON }` while consuming the Node backend’s camelCase options JSON.
 
 # Key Logic
-- Stubs `navigator.credentials.get` and intercepts both options and finish endpoints.
+- Stubs `navigator.credentials.get`, serves Node-style options (top-level `rpId`, `userVerification`, `allowCredentials`), and intercepts both options/finish endpoints.
 - Asserts that the posted JSON contains expected fields and string encodings.
 
 # Interactions

@@ -3,10 +3,10 @@ import { apiUrl } from '../config'
 import { base64urlToBytes } from '../lib/encoding'
 import { buildBundle, bundleToB64Hex, encodeBundleCanonical, type CoseEC2 } from '../lib/bundle'
 import { decodeCBOR } from '../lib/cbor'
-import { toRequestOptions, buildTxFinish } from '../lib/webauthn'
+import { toRequestOptions, buildTxFinish, type TxOptionsResponse } from '../lib/webauthn'
 import ErrorToast from '../components/ErrorToast'
 import { parseHttpError, normalizeError } from '../lib/http'
-import { postJson, ApiError } from '../lib/api'
+import { postJson, ApiError, formatApiError } from '../lib/api'
 
 type Props = { onBack: () => void }
 
@@ -176,13 +176,16 @@ export default function Dashboard({ onBack }: Props) {
     setError(null)
     try {
       // 1) Options
-      const data = await postJson<any>(apiUrl('/tx/signing/options'), { bundle_cbor_b64: bundleB64 })
+      const data = await postJson<TxOptionsResponse>(
+        apiUrl('/tx/signing/options'),
+        { bundle_cbor_b64: bundleB64 },
+      )
       const publicKey = toRequestOptions(data)
       const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
       if (!cred) throw new Error('get() returned null')
       // 2) Finish
       const payload = buildTxFinish(cred, data.tx_session_id)
-      await postJson<any>(apiUrl('/tx/signing/finish'), payload)
+      await postJson<{ tx_id_hex: string }>(apiUrl('/tx/signing/finish'), payload)
       // Success: clear message and bundle; refresh list (which auto-advances nonce)
       setMsg('')
       setBundleB64('')
@@ -200,7 +203,7 @@ export default function Dashboard({ onBack }: Props) {
         return
       }
       if (e instanceof ApiError) {
-        setError(`HTTP ${e.status} — ${e.message}${e.code ? ` (${e.code})` : ''}`)
+        setError(formatApiError(e))
         return
       }
       setError(e?.message || String(e))

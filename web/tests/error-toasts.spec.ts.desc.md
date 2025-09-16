@@ -2,9 +2,9 @@
 End-to-end UI checks for error toasts across Register, Login, and Dashboard using Playwright with network stubs.
 
 # Key Logic
-- Stubs WebAuthn methods (`navigator.credentials.create/get`) and minimal WebAuthn globals (`window.PublicKeyCredential`, `getClientExtensionResults`) to interoperate with `@simplewebauthn/browser`.
-- Mocks backend routes to return specific error statuses and JSON payloads.
-- Asserts toast visibility (role="alert") and key texts (HTTP statuses, messages, codes).
+- Stubs WebAuthn globals so `@simplewebauthn/browser` works in the headless browser.
+- Serves Node-style options payloads and targeted error envelopes (`message`/`code`) to drive `formatApiError` output.
+- Validates toast rendering (`role="alert"`) and visible strings (status, message, codes) for register/login/signing flows.
 
 # Interactions
 - Exercises `ErrorToast`, `parseHttpError`, and page-level wiring in Register, Login, and Dashboard.

@@ -7,7 +7,8 @@ import {
 } from '../lib/webauthn'
 import { startRegistration as swuStartRegistration } from '@simplewebauthn/browser'
 import ErrorToast from '../components/ErrorToast'
-import { parseHttpError, normalizeError } from '../lib/http'
+import { normalizeError } from '../lib/http'
+import { postJson, ApiError, formatApiError } from '../lib/api'
 
 type Props = { onBack: () => void }
 
@@ -23,17 +24,10 @@ export default function Register({ onBack }: Props) {
     try {
       console.debug('[Register] fetch options')
       // 1) Fetch options from backend
-      const r = await fetch(apiUrl('/authn/passkey/registration/options'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors',
-      })
-      if (!r.ok) {
-        const pe = await parseHttpError(r)
-        setError(pe.detail || pe.title)
-        return
-      }
-      const data = (await r.json()) as RegistrationOptionsResponse
+      const data = await postJson<RegistrationOptionsResponse>(
+        apiUrl('/authn/passkey/registration/options'),
+        {},
+      )
 
       // 2) Build options JSON for @simplewebauthn/browser
       const optionsJSON = toCreationOptionsJSON(data)
@@ -55,23 +49,20 @@ export default function Register({ onBack }: Props) {
         },
       }
       console.debug('[Register] POST finish')
-      const r2 = await fetch(apiUrl('/authn/passkey/registration/finish'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors',
-        body: JSON.stringify(payload),
-      })
-      if (!r2.ok) {
-        const pe2 = await parseHttpError(r2)
-        setError(pe2.detail || pe2.title)
-        return
-      }
-      const out = (await r2.json()) as { account_thumb_hex: string; credential_id_b64: string }
+      const out = await postJson<{ account_thumb_hex: string; credential_id_b64: string }>(
+        apiUrl('/authn/passkey/registration/finish'),
+        payload,
+      )
       setThumb(out.account_thumb_hex)
     } catch (e: any) {
       console.debug('[Register] error', e)
-      const ne = normalizeError(mapDomException(e))
-      setError(ne.detail)
+      if (e instanceof ApiError) {
+        setError(formatApiError(e))
+        return
+      }
+      const mapped = mapDomException(e)
+      const ne = normalizeError(mapped)
+      setError(ne.detail || mapped.detail || mapped.title)
     } finally {
       setLoading(false)
     }

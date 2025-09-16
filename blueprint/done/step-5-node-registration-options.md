@@ -92,7 +92,7 @@ User verification commands
 npm -C node-server test
 
 # Manual curl against dev server
-RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo-node.db \
+RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=node-server/demo.db \
   node node-server/src/server.js &
 API_PID=$!
 sleep 1

@@ -1,8 +1,8 @@
 # Purpose
-Unit tests for `toCreationOptionsJSON` adapter: verifies correct mapping from Go server option shape to `PublicKeyCredentialCreationOptionsJSON` for `@simplewebauthn/browser`.
+Unit tests for `toCreationOptionsJSON`: ensure the adapter accepts the Node backend’s SimpleWebAuthn JSON and still enforces policy flags/ES256 expectations.
 
 # Key Logic
-- Asserts `rp.id`, `attestation: 'none'`, `residentKey: 'required'`, `userVerification: 'required'`, presence of ES256 in `pubKeyCredParams`, and that `challenge` remains a base64url string and `user.id` is a string.
+- Confirms camelCase payloads (`rp`, `authenticatorSelection`, `pubKeyCredParams`) survive normalization with `attestation: 'none'`, `residentKey: 'required'`, `userVerification: 'required'`, and base64url `challenge`/`user.id`.
 
 # Interactions
 - Runs in Playwright by importing the module from Vite dev server; no backend calls.

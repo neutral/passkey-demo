@@ -1,5 +1,5 @@
 # Purpose
-Implements `validateAndAnchorBundle`, the Node analogue to the Go server helper. It decodes client-supplied transaction bundles (base64url CBOR), enforces schema/policy invariants, and derives canonical bytes plus challenge/tx_id anchors.
+Implements `validateAndAnchorBundle`, the Node helper that decodes client-supplied transaction bundles (base64url CBOR), enforces schema/policy invariants, and derives canonical bytes plus challenge/tx_id anchors.
 
 # Key Logic
 - Uses `cbor-x` decoders to parse the bundle and recover nested COSE sender keys, including fallback paths when the nested map arrives in alternate shapes (string keys, tagged bytes).

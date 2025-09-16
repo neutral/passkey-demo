@@ -2,18 +2,17 @@
 Top-level developer convenience targets to build, run, and test the project from the repo root.
 
 # Key Logic
-- `server`: run the Go API (`cd server && go run ./cmd/api`).
-- `web`: run the Vite dev server (`cd web && npm run dev`).
-- `build`: build Go API and web assets.
-- `clean`: remove local build artifacts and demo DB.
-- `run`: start server and web concurrently; traps INT/TERM and stops both; surfaces logs in one terminal.
-- `test`: run Go tests in short mode; supports `PKG` (package path) and `RUN` (regex) filters.
-- `test-all`: like `test` but without `-short`.
+- `server` / `node-server`: run the Node API (`npm run dev --prefix node-server`).
+- `web`: run the Vite dev server (`npm run dev --prefix web`).
+- `build`: run Node server tests then build the web bundle.
+- `clean`: remove local SQLite DBs in `node-server/` and the web build output.
+- `run`: start Node server and web concurrently; traps INT/TERM and stops both; surfaces logs in one terminal.
+- `test`: run Node server unit tests.
+- `test-all`: run Node server tests and Playwright UI tests.
 
 # Interactions
-- `run` relies on environment variables for the server (`RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`); defaults are provided for local dev.
-- Test targets wrap `go test` with optional filters for efficient iteration.
+- `run` relies on environment variables for the Node server (`RP_ID`, `ORIGIN`, `PORT`, `DB_PATH`); defaults are provided for local dev.
+- Test targets wrap `npm run test`/`npm run test:ui` for consistent execution.
 
 # Refs
 Refs: requirement R-OPS-DEV; requirement R-PLAT-2
-

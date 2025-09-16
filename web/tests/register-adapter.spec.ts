@@ -6,9 +6,18 @@ test('toCreationOptionsJSON maps flags and fields correctly', async ({ page }) =
     const { toCreationOptionsJSON } = await import('/src/lib/webauthn.ts')
     const sample = {
       reg_session_id: 'abc',
-      challenge: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', // base64url zeros
-      options: { rp_id: 'localhost', origin: 'http://localhost:5173', uv_required: true, attestation: 'none' },
       expires_at: 0,
+      challenge: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      rp: { id: 'localhost', name: 'Passkey Demo' },
+      user: { id: 'dGVzdHVzZXI', name: 'demo', displayName: 'Demo' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+      authenticatorSelection: {
+        residentKey: 'required',
+        requireResidentKey: true,
+        userVerification: 'required',
+      },
+      attestation: 'none',
+      timeout: 60000,
     }
     const out = toCreationOptionsJSON(sample as any)
     const hasES256 = Array.isArray(out.pubKeyCredParams) && out.pubKeyCredParams.some(p => (p as any).alg === -7)
@@ -32,4 +41,3 @@ test('toCreationOptionsJSON maps flags and fields correctly', async ({ page }) =
   expect(res.userIdType).toBe('string')
   expect(res.hasES256).toBeTruthy()
 })
-

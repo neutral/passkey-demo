@@ -26,9 +26,25 @@ test('Register posts RegistrationResponseJSON with reg_session_id', async ({ pag
 
   // Options (Go shape)
   await page.route('**/authn/passkey/registration/options', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      reg_session_id: 's1', challenge: 'AA', options: { rp_id: 'localhost', origin: 'http://localhost:5173', uv_required: true, attestation: 'none' }, expires_at: 0,
-    }) })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        reg_session_id: 's1',
+        expires_at: 0,
+        challenge: 'AA',
+        rp: { id: 'localhost', name: 'Passkey Demo' },
+        user: { id: 'dGVzdHVzZXI', name: 'demo', displayName: 'Demo User' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+        authenticatorSelection: {
+          residentKey: 'required',
+          requireResidentKey: true,
+          userVerification: 'required',
+        },
+        attestation: 'none',
+        timeout: 60000,
+      }),
+    })
   })
 
   await page.route('**/authn/passkey/registration/finish', async (route) => {

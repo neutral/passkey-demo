@@ -7,7 +7,8 @@ import {
 } from '../lib/webauthn'
 import { startAuthentication } from '@simplewebauthn/browser'
 import ErrorToast from '../components/ErrorToast'
-import { parseHttpError, normalizeError } from '../lib/http'
+import { normalizeError } from '../lib/http'
+import { ApiError, formatApiError, postJson } from '../lib/api'
 
 type Props = { onBack: () => void }
 
@@ -22,17 +23,10 @@ export default function Login({ onBack }: Props) {
     setLoading(true)
     try {
       console.debug('[Login] fetch options')
-      const r = await fetch(apiUrl('/authn/passkey/login/options'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors',
-      })
-      if (!r.ok) {
-        const pe = await parseHttpError(r)
-        setError(pe.title) // e.g., "HTTP 401"
-        return
-      }
-      const data = (await r.json()) as LoginOptionsResponse
+      const data = await postJson<LoginOptionsResponse>(
+        apiUrl('/authn/passkey/login/options'),
+        {},
+      )
       const optionsJSON = toRequestOptionsJSON(data)
       console.debug('[Login] startAuthentication')
       const asg = await startAuthentication(optionsJSON)
@@ -50,25 +44,21 @@ export default function Login({ onBack }: Props) {
         },
       }
       console.debug('[Login] POST finish')
-      const r2 = await fetch(apiUrl('/authn/passkey/login/finish'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors',
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      })
-      if (!r2.ok) {
-        const pe2 = await parseHttpError(r2)
-        setError(pe2.title) // keep string that includes HTTP status for tests
-        return
-      }
-      const out = (await r2.json()) as { account_thumb_hex: string; credential_id_b64: string }
+      const out = await postJson<{ account_thumb_hex: string; credential_id_b64: string }>(
+        apiUrl('/authn/passkey/login/finish'),
+        payload,
+      )
       setThumb(out.account_thumb_hex)
       window.location.hash = '#/dashboard'
     } catch (e: any) {
       console.debug('[Login] error', e)
-      const ne = normalizeError(mapDomException(e))
-      setError(ne.detail)
+      if (e instanceof ApiError) {
+        setError(formatApiError(e))
+        return
+      }
+      const mapped = mapDomException(e)
+      const ne = normalizeError(mapped)
+      setError(ne.detail || mapped.detail || mapped.title)
     } finally {
       setLoading(false)
     }

@@ -11,7 +11,7 @@
 
 ## Depends On
 - R-PLAT-1 (frontend minimal React)
-- R-PLAT-2 (single Go backend)
+- R-PLAT-2 (single backend service)
 - R-PLAT-3 (SQLite)
 - R-ID-KEY (identity model)
 - R-SEC-UV (UV required)

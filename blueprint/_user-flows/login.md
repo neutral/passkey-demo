@@ -95,14 +95,12 @@ The user is now logged in without a password, purely via cryptographic authentic
 ```json
 {
   "login_session_id": "<b64>",
+  "expires_at": 1735689600,
   "challenge": "<b64>",
-  "options": {
-    "rp_id": "example.com",
-    "origin": "https://example.com",
-    "uv_required": true,
-    "allow_credentials": []
-  },
-  "expires_at": 1735689600
+  "rpId": "example.com",
+  "userVerification": "required",
+  "allowCredentials": [],
+  "timeout": 60000
 }
 ```
 
@@ -111,15 +109,14 @@ The user is now logged in without a password, purely via cryptographic authentic
 ```json
 {
   "login_session_id": "<uuid>",
-  "credential": {
-    "id": "<b64url>",
-    "type": "public-key",
-    "response": {
-      "authenticatorData": "<b64url>",
-      "clientDataJSON": "<b64url>",
-      "signature": "<b64url>",
-      "userHandle": "<b64url>"
-    }
+  "id": "<b64url>",
+  "rawId": "<b64url>",
+  "type": "public-key",
+  "response": {
+    "authenticatorData": "<b64url>",
+    "clientDataJSON": "<b64url>",
+    "signature": "<b64url>",
+    "userHandle": "<b64url>"
   }
 }
 ```

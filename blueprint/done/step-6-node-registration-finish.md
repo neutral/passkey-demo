@@ -90,7 +90,7 @@ Verification
 
 - `npm -C node-server test` includes new `reg-finish` suite plus existing tests; rerun after fixes until green.
 - Manual smoke: run Node server, perform registration flow with web front-end (requires future web Step) or simulate using stored session + cURL by posting captured `RegistrationResponseJSON` (document placeholder until end-to-end wiring) to confirm 201 + DB rows.
-- Inspect SQLite file (e.g., `sqlite3 server/demo-node.db 'SELECT COUNT(*) FROM accounts;'`) to verify persistence after manual run.
+- Inspect SQLite file (e.g., `sqlite3 node-server/demo.db 'SELECT COUNT(*) FROM accounts;'`) to verify persistence after manual run.
 
 User verification commands
 
@@ -99,7 +99,7 @@ User verification commands
 npm -C node-server test
 
 # Manual smoke (requires previously obtained response JSON)
-RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo-node.db \
+RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=node-server/demo.db \
   node node-server/src/server.js &
 API_PID=$!
 # TODO: Replace payload.json with captured browser response

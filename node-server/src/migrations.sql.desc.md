@@ -1,5 +1,5 @@
 # Purpose
-Define the canonical SQLite schema for the Node server, mirroring the Go backend exactly. This file is executed at startup to create tables if they do not exist.
+Define the canonical SQLite schema for the Node server. This file is executed at startup to create tables if they do not exist.
 
 # Key Logic
 - Includes four tables: `accounts`, `credentials`, `sessions`, `transactions`.
@@ -11,4 +11,3 @@ Define the canonical SQLite schema for the Node server, mirroring the Go backend
 
 # Refs
 Refs: requirement R-PLAT-3; decision encoding-and-ceremony-guardrails
-

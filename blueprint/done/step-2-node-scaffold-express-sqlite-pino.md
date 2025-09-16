@@ -12,7 +12,7 @@ Source to add/modify
   - Dependencies: `express`, `pino`, `pino-http`, `dotenv`, `nanoid`, `better-sqlite3`, `cbor-x`, `cookie`, `cors` (installed now, wired later), `@simplewebauthn/server` (for future steps).
   - Dev/test: use built-in `node:test` (no extra devDeps). Add scripts: `start`, `dev`, `test`.
 - Add `node-server/src/config.js`:
-  - Read env: `RP_ID`, `ORIGIN`, `PORT` (default `8080`), `DB_PATH` (default `server/demo-node.db`), `RP_ID_ALLOWLIST`, `ORIGIN_ALLOWLIST`.
+  - Read env: `RP_ID`, `ORIGIN`, `PORT` (default `8080`), `DB_PATH` (default `node-server/demo.db`), `RP_ID_ALLOWLIST`, `ORIGIN_ALLOWLIST`.
   - Normalize/validate minimal fields; export immutable config object.
 - Add `node-server/src/logger.js`:
   - Export Pino instance + `pino-http` middleware; helper `logServerStart(config)` emits `server_start` with key fields.
@@ -100,7 +100,7 @@ Verification
 ```bash
 # Install and start the Node server
 npm -C node-server i
-RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo-node.db \
+RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=node-server/demo.db \
   node node-server/src/server.js &
 API_PID=$!
 

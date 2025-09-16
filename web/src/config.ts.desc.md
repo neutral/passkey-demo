@@ -1,13 +1,12 @@
 # Purpose
-Centralizes absolute API base configuration for the frontend and forbids reliance on a dev proxy. Ensures all network calls target `API_BASE` and work under CORS per Step 26.
+Centralizes the browser-facing API origin so the React app always targets the Node server (`ORIGIN`) without relying on a dev proxy. Keeps CORS credentials aligned with the backend policy.
 
 # Key Logic
-- `API_BASE` from `import.meta.env.VITE_API_BASE` with fallback `http://localhost:8080`.
-- `apiUrl(path)` returns an absolute URL via `new URL(path, API_BASE)`.
+- Reads `import.meta.env.VITE_API_BASE` and falls back to the local Node server `http://localhost:8080` (matching `ORIGIN`).
+- `apiUrl(path)` promotes relative paths to absolute URLs via `new URL(path, API_BASE)`.
 
 # Interactions
-- Imported by future steps to construct absolute fetch URLs and to pass `credentials: 'include'` as needed.
+- Used by `lib/api.ts` helpers and every fetch/`postJson` call so cookies are sent to the Node backend and Playwright can reuse the same config in CI.
 
 # Refs
-Refs: goal simple-ui-and-storage; goal ui-simplicity-two-buttons; requirement R-PLAT-1; requirement R-UI-2BTN; spec spec-a; spec spec-b
-
+Refs: goal simple-ui-and-storage; goal ui-simplicity-two-buttons; requirement R-PLAT-1; requirement R-OPS-DEV; spec frontend-api-base-and-cors

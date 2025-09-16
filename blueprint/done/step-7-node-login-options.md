@@ -91,7 +91,7 @@ User verification commands
 npm -C node-server test
 
 # Manual curl of login options
-RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo-node.db   node node-server/src/server.js &
+RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=node-server/demo.db   node node-server/src/server.js &
 API_PID=$!
 sleep 1
 curl -sS -X POST http://127.0.0.1:8080/authn/passkey/login/options | jq

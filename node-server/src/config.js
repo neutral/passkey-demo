@@ -5,7 +5,7 @@ export function loadConfig(env = process.env) {
     RP_ID: String(env.RP_ID || '').trim(),
     ORIGIN: String(env.ORIGIN || '').trim(),
     PORT: Number(env.PORT || 8080),
-    DB_PATH: String(env.DB_PATH || 'server/demo-node.db'),
+    DB_PATH: String(env.DB_PATH || 'demo.db'),
     RP_ID_ALLOWLIST: parseList(env.RP_ID_ALLOWLIST),
     ORIGIN_ALLOWLIST: parseList(env.ORIGIN_ALLOWLIST),
   }
@@ -28,4 +28,3 @@ function parseList(v) {
 }
 
 export default loadConfig
-

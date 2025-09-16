@@ -1,5 +1,5 @@
 # Purpose
-Serve WebAuthn login flows: `/authn/passkey/login/options` issues SimpleWebAuthn authentication options with demo policies and stores a short-lived login session; `/authn/passkey/login/finish` verifies the browser response, updates credential counters, creates DB-backed sessions, and emits structured logs mirroring the Go backend.
+Serve WebAuthn login flows: `/authn/passkey/login/options` issues SimpleWebAuthn authentication options with demo policies and stores a short-lived login session; `/authn/passkey/login/finish` verifies the browser response, updates credential counters, creates DB-backed sessions, and emits structured logs with hashed identifiers.
 
 # Key Logic
 - `LoginSessionStore`: in-memory TTL store (5 min) with collision detection and `pruneExpired(now)` to bound size.

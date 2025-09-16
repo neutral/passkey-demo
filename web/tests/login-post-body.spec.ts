@@ -28,9 +28,19 @@ test('Login posts AuthenticationResponseJSON with login_session_id', async ({ pa
 
   // Options (Go shape)
   await page.route('**/authn/passkey/login/options', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-      login_session_id: 'ls1', challenge: 'AA', options: { rp_id: 'localhost', origin: 'http://localhost:5173', uv_required: true, allow_credentials: [] }, expires_at: 0,
-    }) })
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        login_session_id: 'ls1',
+        expires_at: 0,
+        challenge: 'AA',
+        rpId: 'localhost',
+        userVerification: 'required',
+        allowCredentials: [],
+        timeout: 60000,
+      }),
+    })
   })
 
   await page.route('**/authn/passkey/login/finish', async (route) => {

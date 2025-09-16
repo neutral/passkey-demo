@@ -1,15 +1,16 @@
 # Purpose
-Adapters and helpers for WebAuthn flows using `@simplewebauthn/browser`. Converts server option shapes into the library’s `*OptionsJSON` and normalizes browser errors for UI toasts. Registration/login now pass through the Node server’s SimpleWebAuthn-native JSON while keeping `buildTxFinish` for Dashboard signing until the API is migrated.
+Normalizes the Node SimpleWebAuthn backend responses into the shapes expected by `@simplewebauthn/browser`. Handles camelCase JSON only (registration, login, and transaction signing) and builds finish payloads for dashboard signing.
 
 # Key Logic
-- `toCreationOptionsJSON` accepts the Node server’s SimpleWebAuthn JSON, only generating a random fallback `user.id` when the payload omits one.
-- `toRequestOptionsJSON` strips metadata (`login_session_id`, `expires_at`) and forwards the remaining SimpleWebAuthn login options verbatim; `toRequestOptions` converts the JSON into native browser types (base64url→ArrayBuffer) for legacy callers.
-- `mapDomException` converts thrown `DOMException` (e.g., `NotAllowedError`) into a simple `{title,detail}` for `normalizeError`.
-- `buildTxFinish` mirrors login finish but includes `tx_session_id` instead; encodes the same binary fields in base64url.
+- `flattenOptions` lifts the nested `options` object returned by `/tx/signing/options` so login/signing share the same normalization path.
+- `toCreationOptionsJSON`/`normalizeCreationOptions` validate RP/user metadata, enforce ES256, and retain server-provided challenges/user ids.
+- `toRequestOptionsJSON`/`toRequestOptions` convert login and signing requests into native WebAuthn parameters (base64url→ArrayBuffer) while stripping fields the browser must not see (e.g., `origin`).
+- `mapDomException` and `buildTxFinish` provide consistent error surfaces and finish payload encoding for dashboard flows.
 
 # Interactions
-- `Register.tsx` and `Login.tsx` use adapters + `@simplewebauthn/browser` (`startRegistration`/`startAuthentication`) and then POST the library’s JSON responses with the server session ids.
-- Tested via Playwright: adapter unit tests, POST‑body checks, and Chromium E2E with Virtual Authenticator. Dashboard still uses `buildTxFinish` for signing.
+- Registration/Login pages call these adapters before `startRegistration`/`startAuthentication`, then `postJson` the resulting JSON with session ids.
+- Dashboard reuses the helpers to turn `/tx/signing/options` data into `navigator.credentials.get` parameters and to build finish payloads.
+- Tests in `web/tests/*` ensure the adapters, POST bodies, and signing flows stay aligned with Node responses.
 
 # Refs
-Refs: requirement R-FLOW-REG; requirement R-FLOW-LOGIN; requirement R-PLAT-1; decision webauthn-corrections-and-standardizations; goal passkey-registration-login-uv; spec frontend-api-base-and-cors
+Refs: requirement R-FLOW-REG; requirement R-FLOW-LOGIN; requirement R-FLOW-SIGN; requirement R-PLAT-1; decision webauthn-corrections-and-standardizations; goal passkey-registration-login-uv; spec frontend-api-base-and-cors

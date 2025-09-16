@@ -19,7 +19,8 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 go -C ../server run ./cmd/api',
+      command:
+        'RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=../node-server/playwright.db node ../node-server/src/server.js',
       port: 8080,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,

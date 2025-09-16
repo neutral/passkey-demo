@@ -14,7 +14,7 @@
 - Non‑discoverable (non‑resident) credentials: The server must provide the credential IDs in `allowCredentials` so the authenticator knows which one to use.
 
 ## Our Demo Approach (Step 18)
-- We intentionally return `allow_credentials: []` in assertion options to leverage discoverable credentials.
+- We intentionally return `allowCredentials: []` in assertion options to leverage discoverable credentials.
 - Benefits:
   - Passkey UX: The OS/native account/passkey chooser appears and handles account discovery.
   - Simpler flow: No username/email pre‑step required to narrow credential IDs.

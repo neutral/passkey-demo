@@ -2,14 +2,14 @@
 Dashboard fetches and displays the authenticated account's transactions, and lets the user build a canonical CBOR bundle and sign it via WebAuthn to persist a new transaction.
 
 # Key Logic
-- List: On mount and on Refresh, `GET /tx/list` using absolute API URL via `apiUrl()` with `mode: 'cors'` and `credentials: 'include'` so the `sid` cookie is sent. Renders loading/unauthorized/empty/list states. Does not read cookies (HttpOnly); relies on HTTP 200/401.
-- Next nonce auto-fill: After loading, compute `next = max(items.nonce) + 1` (or `1` if none) and auto-populate a read-only nonce input. Users do not type nonce.
-- Build: Fetch `sender_key` via `GET /me/account_key` (authenticated). Decode `acct_cbor_b64` and normalize the COSE map to numeric-key `Map<number, any>`; embed that canonical sender object at bundle key `0` to avoid encoder drift. Collect `message`, pair with the auto-filled `nonce`, construct `{0,1,2}` map, and encode canonical CBOR using `cbor-x`. Preview `bundle_cbor_b64` and hex(B). Node backend now returns helper metadata (`account_thumb_hex`, `pubkey_x_hex`, `created_at`) but the UI only consumes the COSE fields + canonical CBOR when building bundles.
-- Sign: uses `lib/api.postJson` to call `POST /tx/signing/options` with `{ bundle_cbor_b64 }`, transform to `PublicKeyCredentialRequestOptions`, call `navigator.credentials.get`, then `lib/api.postJson` for `POST /tx/signing/finish`; on success, clear message and bundle, refresh list (which advances the nonce). If options returns 401 but `/me/account_key` still returns 200, surface a sender-key mismatch hint to rebuild the bundle. Non-2xx errors use the envelope `code` when present for user messaging.
+- List: `GET /tx/list` (credentials included) hydrates the table, drives unauthorized messaging, and pre-computes the next nonce (`max + 1`) to keep the input read-only.
+- Build: `GET /me/account_key` supplies the COSE sender key; the component decodes/normalizes it, encodes canonical CBOR with `bundle.ts`, and previews both base64url + hex for debugging.
+- Sign: `postJson` to `/tx/signing/options` posts `{ bundle_cbor_b64 }`, `toRequestOptions` unwraps the Node JSON (nested `options`), `navigator.credentials.get` collects the assertion, and `postJson` sends finish payload from `buildTxFinish`. Success clears bundle state and refreshes the list/nonce.
+- Errors: 401 options trigger a probe of `/me/account_key` to differentiate sender-key mismatch from missing session; other `ApiError`s route through `formatApiError` so toasts show `HTTP <status> — <message>`.
 
 # Interactions
-- Rendered by `App.tsx` when route is `dashboard` (typically after login). Provides an `onBack` handler. Uses backend CORS from Step 26.
-- Relies on `web/src/lib/bundle.ts` and `web/src/lib/cbor.ts` for encoding; `web/src/lib/webauthn.ts` for request option transform and finish payload builders.
+- Rendered by `App.tsx` for the `#dashboard` route (post-login). Uses `apiUrl`/`postJson` like registration/login and leans on the same helpers (`bundle`, `cbor`, `webauthn`).
+- Exercised by Playwright (`tx-signing*.spec.ts`) which stub Node-style responses to ensure adapters and error handling stay in sync.
 
 # Refs
-Refs: requirement R-FLOW-SIGN; requirement R-PLAT-1; requirement R-UI-2BTN; decision webauthn-corrections-and-standardizations; spec frontend-api-base-and-cors; spec bundle-shape-and-client-production-explainer; spec account-binding-explainer
+Refs: requirement R-FLOW-SIGN; requirement R-PLAT-1; requirement R-UI-2BTN; requirement R-ERR; decision webauthn-corrections-and-standardizations; spec frontend-api-base-and-cors; spec bundle-shape-and-client-production-explainer; spec account-binding-explainer

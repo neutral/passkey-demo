@@ -1,14 +1,14 @@
 # Purpose
-Login page implements the WebAuthn get() flow using `@simplewebauthn/browser`: fetch options, pass through the Node server’s SimpleWebAuthn JSON via adapter, call `startAuthentication`, and POST the returned JSON with `credentials: 'include'` to establish a session (cookie).
+Login page drives the WebAuthn get() ceremony via `@simplewebauthn/browser`: consume the Node backend login JSON, execute `startAuthentication`, and submit the assertion with `login_session_id` so the server can mint an HttpOnly session cookie.
 
 # Key Logic
-- Fetch `POST /authn/passkey/login/options`, strip metadata via `toRequestOptionsJSON`, call `startAuthentication` with the server-provided JSON, then POST `{ ...assertionJSON, login_session_id }` to `/authn/passkey/login/finish` with `credentials: 'include'`.
-- Errors: parses non‑OK responses via `parseHttpError` (shows status like `HTTP 401`) and normalizes thrown errors via `normalizeError`; renders via `ErrorToast` (dismissible) instead of inline paragraphs.
-- Success: displays `account_thumb_hex` and routes to Dashboard.
+- `postJson` pulls `/authn/passkey/login/options`, `toRequestOptionsJSON` normalizes it, and `startAuthentication` handles the authenticator prompt.
+- Successful responses are forwarded to `/authn/passkey/login/finish` using `postJson` (credentials included) to establish the session and capture the returned `account_thumb_hex` for display.
+- `ApiError` instances are rendered via `formatApiError` so toasts show `HTTP <status> — <message>`; authenticator DOM exceptions fall back to `mapDomException` + `normalizeError` for readable text.
 
 # Interactions
-- Rendered by `App.tsx` when user selects Login from Home. Uses absolute URLs via `web/src/config.ts` and relies on CORS (Step 26). Receives HttpOnly cookie (not readable by JS).
-- Uses `web/src/lib/http.ts` for error shaping and `web/src/components/ErrorToast.tsx` for display; keeps error strings compatible with UI tests (e.g., includes `HTTP 401`).
+- Mounted from `App.tsx`; relies on `apiUrl`/`postJson` to hit the Node server origin and share code with Playwright adapter/post-body tests.
+- After success, routes to Dashboard via `location.hash` to expose signing features.
 
 # Refs
 Refs: requirement R-FLOW-LOGIN; requirement R-PLAT-1; requirement R-UI-2BTN; requirement R-ERR; decision webauthn-corrections-and-standardizations; spec frontend-api-base-and-cors

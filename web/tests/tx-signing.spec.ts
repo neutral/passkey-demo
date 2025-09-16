@@ -49,6 +49,7 @@ test('signing flow (mocked): options → get → finish and refresh', async ({ p
   await page.route('**/tx/signing/options', async (route) => {
     const postData = route.request().postData()
     optionsBody = postData ? JSON.parse(postData) : null
+    const expires = Math.floor(Date.now() / 1000) + 300
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -56,8 +57,15 @@ test('signing flow (mocked): options → get → finish and refresh', async ({ p
         tx_session_id: 'txsess-1',
         challenge: 'AA',
         tx_id_hex: '00',
-        options: { rp_id: 'localhost', origin: 'http://localhost:5173', uv_required: true, allow_credentials: ['AQID'] },
-        expires_at: Math.floor(Date.now() / 1000) + 300,
+        expires_at: expires,
+        options: {
+          rpId: 'localhost',
+          origin: 'http://localhost:5173',
+          timeout: 60000,
+          userVerification: 'required',
+          challenge: 'AA',
+          allowCredentials: [{ type: 'public-key', id: 'AQID' }],
+        },
       }),
     })
   })

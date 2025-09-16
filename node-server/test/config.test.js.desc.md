@@ -2,7 +2,7 @@
 Validate that `loadConfig` sets sane defaults, parses comma-separated allowlists, and rejects invalid numeric values.
 
 # Key Logic
-- Defaults: `PORT=8080`, `DB_PATH='server/demo-node.db'`.
+- Defaults: `PORT=8080`, `DB_PATH='demo.db'`.
 - Lists: `RP_ID_ALLOWLIST` parsed into trimmed array; empty values → empty array.
 - Invalid `PORT` throws.
 
@@ -11,4 +11,3 @@ Validate that `loadConfig` sets sane defaults, parses comma-separated allowlists
 
 # Refs
 Refs: requirement R-OPS-DEV
-

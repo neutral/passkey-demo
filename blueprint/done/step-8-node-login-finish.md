@@ -100,7 +100,7 @@ User verification commands
 npm -C node-server test
 
 # Manual smoke (after registering a credential)
-RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=server/demo-node.db   node node-server/src/server.js &
+RP_ID=localhost ORIGIN=http://localhost:5173 PORT=8080 DB_PATH=node-server/demo.db   node node-server/src/server.js &
 API_PID=$!
 # Use browser or curl with saved login_session_id + assertion to hit /authn/passkey/login/finish
 # (requires captured payload)

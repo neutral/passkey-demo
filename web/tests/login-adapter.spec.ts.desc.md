@@ -1,8 +1,8 @@
 # Purpose
-Unit tests for `toRequestOptionsJSON` adapter: verifies mapping to `PublicKeyCredentialRequestOptionsJSON`, enforcing `userVerification: 'required'`, setting `rpId`, and omitting `allowCredentials` when empty.
+Unit tests for `toRequestOptionsJSON`: confirms Node camelCase login payloads map cleanly to `PublicKeyCredentialRequestOptionsJSON` and honour policy defaults.
 
 # Key Logic
-- Confirms `rpId` and `userVerification` values and the presence/absence of `allowCredentials` depending on input.
+- Verifies `rpId`, `userVerification: 'required'`, and conditional inclusion of `allowCredentials` when IDs are provided.
 
 # Interactions
 - Runs in Playwright importing the module via Vite; no backend calls.

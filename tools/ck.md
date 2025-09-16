@@ -64,7 +64,7 @@ Tips:
 
 ## Repo Scenarios: grep vs ck
 
-This repository includes a Go backend (`server/`), a TypeScript web app (`web/`), and extensive blueprint/spec documents (`blueprint/`, `specs/`). Use the following patterns to choose the best search mode.
+This repository includes a Node backend (`node-server/`), a TypeScript web app (`web/`), and extensive blueprint/spec documents (`blueprint/`, `specs/`). Use the following patterns to choose the best search mode.
 
 ### When grep (regex) is better
 

@@ -21,10 +21,10 @@
 
 ## Best Practices
 - Centralize API base in `web/src/config.ts`; avoid scattering base URLs.
-- Use a small API client wrapper (`web/src/lib/api.ts`) that always sets `credentials: 'include'` and decodes the error envelope into a typed `ApiError`.
+- Use the shared API client (`web/src/lib/api.ts`) / helpers (`postJson`, `formatApiError`) so every request sends credentials and surfaces structured errors.
 - Keep ports stable (`strictPort: true` in `vite.config.ts`).
  - Prefer small helpers for base64url/UTF‑8 conversions; use `@simplewebauthn/browser` for WebAuthn flows to avoid manual ArrayBuffer transforms.
-- In tests, start both Vite and the Go backend using Playwright `webServer` entries.
+- In tests, start both Vite and the Node backend (`node-server/src/server.js`) using Playwright `webServer` entries.
 
 ## Expectations by Environment
 - Dev: `API_BASE=http://localhost:8080`, frontend at `http://localhost:5173`. CORS permitted, cookies accepted.

@@ -24,15 +24,19 @@
 - Build the list programmatically, then set the property only if non‑empty:
 
 ```ts
-const ids = (resp.options.allow_credentials || [])
-  .map(b64 => ({ type: 'public-key', id: base64urlToBytes(b64) }))
-  .filter(d => d.id.byteLength > 0)
+const descriptors = (resp.allowCredentials || [])
+  .map((value) => {
+    if (typeof value === 'string') return { type: 'public-key', id: base64urlToBytes(value) }
+    const id = base64urlToBytes(value.id)
+    return { type: value.type || 'public-key', id, transports: value.transports }
+  })
+  .filter((d) => d.id.byteLength > 0)
 
 const publicKey: PublicKeyCredentialRequestOptions = {
   challenge: base64urlToBytes(resp.challenge),
   userVerification: 'required',
-  ...(resp.options.rp_id ? { rpId: resp.options.rp_id } : {}),
-  ...(ids.length > 0 ? { allowCredentials: ids } : {}),
+  ...(resp.rpId ? { rpId: resp.rpId } : {}),
+  ...(descriptors.length > 0 ? { allowCredentials: descriptors } : {}),
 }
 ```
 
@@ -48,4 +52,3 @@ const publicKey: PublicKeyCredentialRequestOptions = {
 
 ## Refs
 Refs: requirement R-FLOW-LOGIN; requirement R-PLAT-1; decision webauthn-corrections-and-standardizations; spec allowcredentials-and-discoverable-credentials-explainer; spec-a; spec-b
-

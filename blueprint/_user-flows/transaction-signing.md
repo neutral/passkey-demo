@@ -88,14 +88,18 @@ The client prepares the transaction bundle and sends it to the server to obtain 
 {
   "tx_session_id": "<b64>",
   "challenge": "<b64>",
-  "options": {
-    "rp_id": "example.com",
-    "origin": "https://example.com",
-    "uv_required": true,
-    "allow_credentials": ["<b64>"]
-  },
   "tx_id_hex": "<hex>",
-  "expires_at": 1735689600
+  "expires_at": 1735689600,
+  "options": {
+    "rpId": "example.com",
+    "origin": "https://example.com",
+    "userVerification": "required",
+    "challenge": "<b64>",
+    "allowCredentials": [
+      { "type": "public-key", "id": "<b64>" }
+    ],
+    "timeout": 60000
+  }
 }
 ```
 

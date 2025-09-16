@@ -40,3 +40,12 @@ export async function postJson<T>(url: string, body: any): Promise<T> {
   return apiFetch<T>(url, { method: 'POST', body: JSON.stringify(body) })
 }
 
+export function formatApiError(err: ApiError): string {
+  const prefix = `HTTP ${err.status}`
+  const detail = typeof err.message === 'string' ? err.message.trim() : ''
+  const code = err.code ? ` (${err.code})` : ''
+  if (detail.length > 0 && !detail.startsWith('HTTP ')) {
+    return `${prefix} — ${detail}${code}`
+  }
+  return `${detail.length > 0 ? detail : prefix}${code}`
+}

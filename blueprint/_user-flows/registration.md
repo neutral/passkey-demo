@@ -114,14 +114,22 @@ The registration flow ensures the public key is bound to the correct origin and 
 ```json
 {
   "reg_session_id": "<b64>",
+  "expires_at": 1735689600,
   "challenge": "<b64>",
-  "options": {
-    "rp_id": "example.com",
-    "origin": "https://example.com",
-    "uv_required": true,
-    "attestation": "none"
+  "rp": { "id": "example.com", "name": "Passkey Demo" },
+  "user": {
+    "id": "<base64url-32-bytes>",
+    "name": "passkey-user",
+    "displayName": "Passkey User"
   },
-  "expires_at": 1735689600
+  "pubKeyCredParams": [{ "type": "public-key", "alg": -7 }],
+  "authenticatorSelection": {
+    "residentKey": "required",
+    "requireResidentKey": true,
+    "userVerification": "required"
+  },
+  "attestation": "none",
+  "timeout": 60000
 }
 ```
 
@@ -130,13 +138,12 @@ The registration flow ensures the public key is bound to the correct origin and 
 ```json
 {
   "reg_session_id": "<uuid>",
-  "credential": {
-    "id": "<b64url>",
-    "type": "public-key",
-    "response": {
-      "attestationObject": "<b64url>",
-      "clientDataJSON": "<b64url>"
-    }
+  "id": "<b64url>",
+  "rawId": "<b64url>",
+  "type": "public-key",
+  "response": {
+    "attestationObject": "<b64url>",
+    "clientDataJSON": "<b64url>"
   }
 }
 ```

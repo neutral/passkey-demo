@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { logServerStart, logger } from '../src/logger.js'
 
 test('logServerStart emits server_start payload', async () => {
-  const cfg = { RP_ID: 'localhost', ORIGIN: 'http://localhost:5173', PORT: 8080, DB_PATH: 'server/demo-node.db' }
+  const cfg = { RP_ID: 'localhost', ORIGIN: 'http://localhost:5173', PORT: 8080, DB_PATH: 'demo.db' }
   const original = logger.info
   const calls = []
   logger.info = (...args) => {
@@ -18,7 +18,7 @@ test('logServerStart emits server_start payload', async () => {
     assert.equal(payload.rp_id, 'localhost')
     assert.equal(payload.origin, 'http://localhost:5173')
     assert.equal(payload.port, 8080)
-    assert.equal(payload.db_path, 'server/demo-node.db')
+    assert.equal(payload.db_path, 'demo.db')
   } finally {
     logger.info = original
   }
