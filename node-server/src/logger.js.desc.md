@@ -1,16 +1,15 @@
 # Purpose
-Provide Pino logger and HTTP logging middleware. Emit a structured `server_start` event at boot with key configuration fields.
+Provide Pino logger, HTTP logging middleware, and helper functions for structured events such as `server_start` and transaction option flows.
 
 # Key Logic
 - `logger`: Pino instance (JSON logs).
 - `httpLogger`: `pino-http` middleware with compact serializers (method, url, id; statusCode).
-- `buildServerStartEvent(config)`: returns stable event payload.
-- `logServerStart(config)`: logs `server_start`.
+- `buildServerStartEvent` / `logServerStart`: emit boot payload (rp_id, origin, port, db path).
+- `logTxOptionsSuccess` / `logTxOptionsError`: wrap `logger.info`/`logger.error` with consistent payloads for `tx_options` and `tx_options_error` events.
 
 # Interactions
-- Imported by `src/server.js` to attach HTTP logging and log boot.
-- Tests validate `buildServerStartEvent` shape.
+- Imported by `server.js` to attach HTTP logging and bootstrap logs.
+- Transaction routes call `logTxOptionsSuccess/Error` to record anchor metadata and correlation ids.
 
 # Refs
-Refs: decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines
-
+Refs: decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines; requirement R-FLOW-SIGN

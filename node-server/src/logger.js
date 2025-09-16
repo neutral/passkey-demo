@@ -29,5 +29,16 @@ export function logServerStart(config) {
   logger.info(buildServerStartEvent(config))
 }
 
-export default logger
+export function logTxOptionsSuccess(payload) {
+  logger.info({ event: 'tx_options', ...payload })
+}
 
+export function logTxOptionsError(payload, err, message = 'tx options failed') {
+  if (err) {
+    logger.error({ event: 'tx_options_error', ...payload, err }, message)
+  } else {
+    logger.error({ event: 'tx_options_error', ...payload }, message)
+  }
+}
+
+export default logger

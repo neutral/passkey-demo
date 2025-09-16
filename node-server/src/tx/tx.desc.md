@@ -1,11 +1,12 @@
 # Overview
-Transaction helper modules for the Node server. Currently hosts bundle validation/anchoring logic shared by upcoming signing routes; subsequent steps will add options/finish HTTP handlers alongside this helper.
+Transaction helper modules for the Node server. Hosts both the bundle validation/anchoring helper and the `/tx/signing/options` router that issues WebAuthn options + tx sessions; future files (finish/list) will live alongside them.
 
 # Relations
-Consumed by the signing HTTP handlers (options and finish) to canonicalize CBOR bundles, derive anchors, and enforce nonce/account policies before DB writes. Depends on SQLite access for nonce lookups and on `cbor-x` for canonical encoding/decoding.
+Bundle helpers and the options router are consumed by signing handlers to canonicalize CBOR bundles, derive anchors, enforce nonce/account policies, and stage short-lived tx sessions. Depends on SQLite for account credential lookups and on shared logging/error utilities for envelope mapping.
 
 # Interfaces & Models
-Exports helper functions (starting with `validateAndAnchorBundle`) that operate on canonical CBOR bundles and return derived anchors plus parsed logical fields (`senderKey`, `nonce`, `message`, `validUntil`). Error paths surface typed `BundleValidationError` instances so routers can map to HTTP envelopes.
+- `validateAndAnchorBundle(db, acctCbor, bundleB64)` → `{ bundle, canonical, challenge, txId }` with typed `BundleValidationError` kinds.
+- `createTxOptionsRoutes(config, deps)` → Express router + `TxSessionStore` (in-memory TTL map storing `{ canonical B, challenge, txId, credentialIds, acctCbor, expiresAt }`). Responses provide `{ tx_session_id, challenge, options, tx_id_hex, expires_at }` for the web client.
 
 # Refs
-Refs: goal server-derived-challenge-and-txid; goal minimal-cbor-bundle; requirement R-FLOW-SIGN; requirement R-SCHEMA-LITE; decision cbor-cose-interop-and-decoding-fallbacks; decision encoding-and-ceremony-guardrails
+Refs: goal server-derived-challenge-and-txid; goal minimal-cbor-bundle; requirement R-FLOW-SIGN; requirement R-SEC-UV; decision cbor-cose-interop-and-decoding-fallbacks; decision encoding-and-ceremony-guardrails

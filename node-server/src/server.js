@@ -10,6 +10,7 @@ import path from 'node:path'
 import { createRegistrationRoutes } from './webauthn/reg.js'
 import { createLoginRoutes } from './webauthn/login.js'
 import { createMeRoutes } from './me.js'
+import { createTxOptionsRoutes } from './tx/options.js'
 
 export function createApp(config, db) {
   const app = express()
@@ -31,6 +32,10 @@ export function createApp(config, db) {
   const me = createMeRoutes(config, { db })
   app.locals.me = me
   app.use('/me', me.router)
+
+  const tx = createTxOptionsRoutes(config, { db })
+  app.locals.tx = tx
+  app.use('/tx', tx.router)
 
   app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json')

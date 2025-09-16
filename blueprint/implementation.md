@@ -24,34 +24,7 @@
 - Step 8 — Node: Login finish (`/authn/passkey/login/finish`) — see `blueprint/done/step-8-node-login-finish.md`
 - Step 9 — Node: GET `/me/account_key` (authenticated) — see `blueprint/done/step-9-node-get-me-account-key.md`
 - Step 10 — Node: Bundle anchors and validation helpers — see `blueprint/done/step-10-node-bundle-anchors-and-validation-helpers.md`
-
----
-
-### Step 11 — Node: Tx signing options (`/tx/signing/options`)
-
-Scope
-
-- Auth required (session middleware). Validate bundle, derive anchors, collect account credentials, store a short-lived tx session.
-- Use `generateAuthenticationOptions` with `allowCredentials` for this account and `userVerification: 'required'`; set the derived `challenge`.
-
-Source to add
-
-- `node-server/src/tx/options.js`: handler + in-memory TTL store; uses `bundle.js` and DB reads for allowCredentials list.
-
-Request/response
-
-- Request: `{ bundle_cbor_b64: string }`.
-- Response: `{ tx_session_id, challenge, options: PublicKeyCredentialRequestOptionsJSON, tx_id_hex, expires_at }`.
-
-Verification
-
-- 401 when unauthenticated; 400 for invalid bundle/base64/CBOR and bundle limits; 409 when nonce not increasing; 200 on success.
-
-Acceptance criteria
-
-- Options JSON feeds directly into `startAuthentication` on the web; logs include `tx_options`.
-
-Refs: requirement R-FLOW-SIGN; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations
+- Step 11 — Node: Tx signing options (`/tx/signing/options`) — see `blueprint/done/step-11-node-tx-signing-options.md`
 
 ---
 
