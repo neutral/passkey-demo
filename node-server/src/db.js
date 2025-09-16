@@ -2,14 +2,32 @@ import Database from 'better-sqlite3'
 import fs from 'node:fs'
 import path from 'node:path'
 
+function isInMemory(dbPath) {
+  if (!dbPath) return false
+  if (dbPath === ':memory:') return true
+  if (!dbPath.startsWith('file:')) return false
+  // Handle URIs like file::memory:?cache=shared or file:memdb1?mode=memory
+  const uri = dbPath.slice('file:'.length)
+  if (uri.startsWith(':memory:')) return true
+  return /mode=memory/i.test(dbPath)
+}
+
 export function openDB(dbPath) {
-  // Resolve to absolute path and ensure parent directory exists
-  const absPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)
-  const dir = path.dirname(absPath)
-  if (dir && dir !== '.' && !fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
+  const useMemory = isInMemory(dbPath)
+  const targetPath = useMemory
+    ? dbPath
+    : path.isAbsolute(dbPath)
+      ? dbPath
+      : path.resolve(process.cwd(), dbPath)
+
+  if (!useMemory) {
+    const dir = path.dirname(targetPath)
+    if (dir && dir !== '.' && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+    }
   }
-  const db = new Database(absPath)
+
+  const db = new Database(targetPath)
   // Apply recommended PRAGMAs similar to Go server
   db.pragma('journal_mode = WAL')
   db.pragma('synchronous = NORMAL')
