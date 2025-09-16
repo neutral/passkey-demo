@@ -8,7 +8,7 @@ Exposes the `POST /tx/signing/options` handler for the Node server. Validates tr
 - Builds WebAuthn request options (`rpId`, `origin`, `timeout`, `userVerification`, `allowCredentials`) and returns JSON `{ tx_session_id, challenge, options, tx_id_hex, expires_at }` while logging `tx_options`/`tx_options_error` events.
 
 # Interactions
-- Depends on `bundle.js` for bundle validation, `logger.js` for success/error logs, `error.js` for envelopes, and SQLite for account credential lookups. Exported `TxSessionStore` is shared with the signing finish handler.
+- Depends on `bundle.js` for bundle validation, `logger.js` for success/error logs, `error.js` for envelopes, and SQLite for account credential lookups. Exported `TxSessionStore`/`createTxSessionStore` are shared with the signing finish handler.
 
 # Refs
 Refs: goal server-derived-challenge-and-txid; requirement R-FLOW-SIGN; requirement R-SEC-UV; decision webauthn-corrections-and-standardizations; decision encoding-and-ceremony-guardrails

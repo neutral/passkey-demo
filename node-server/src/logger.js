@@ -41,4 +41,16 @@ export function logTxOptionsError(payload, err, message = 'tx options failed') {
   }
 }
 
+export function logTxFinishSuccess(payload) {
+  logger.info({ event: 'tx_finish', ...payload })
+}
+
+export function logTxFinishError(payload, err, message = 'tx finish failed') {
+  if (err) {
+    logger.error({ event: 'tx_finish_error', ...payload, err }, message)
+  } else {
+    logger.error({ event: 'tx_finish_error', ...payload }, message)
+  }
+}
+
 export default logger

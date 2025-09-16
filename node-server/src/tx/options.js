@@ -39,6 +39,16 @@ export class TxSessionStore {
   }
 }
 
+export function createTxSessionStore(initialSessions) {
+  const store = new TxSessionStore()
+  if (initialSessions && typeof initialSessions === 'object') {
+    for (const [id, payload] of Object.entries(initialSessions)) {
+      store.set(id, payload)
+    }
+  }
+  return store
+}
+
 function base64url(buffer) {
   return buffer.toString('base64url')
 }

@@ -11,6 +11,8 @@ import { createRegistrationRoutes } from './webauthn/reg.js'
 import { createLoginRoutes } from './webauthn/login.js'
 import { createMeRoutes } from './me.js'
 import { createTxOptionsRoutes } from './tx/options.js'
+import { createTxFinishRoutes } from './tx/finish.js'
+import { createTxListRoutes } from './tx/list.js'
 
 export function createApp(config, db) {
   const app = express()
@@ -33,9 +35,16 @@ export function createApp(config, db) {
   app.locals.me = me
   app.use('/me', me.router)
 
-  const tx = createTxOptionsRoutes(config, { db })
-  app.locals.tx = tx
-  app.use('/tx', tx.router)
+  const txOptions = createTxOptionsRoutes(config, { db })
+  const txFinish = createTxFinishRoutes(config, { db, store: txOptions.store })
+  const txList = createTxListRoutes(config, { db })
+  app.locals.txOptions = txOptions
+  app.locals.txFinish = txFinish
+  app.locals.txList = txList
+  app.locals.tx = { options: txOptions, finish: txFinish, list: txList }
+  app.use('/tx', txOptions.router)
+  app.use('/tx', txFinish.router)
+  app.use('/tx', txList.router)
 
   app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json')
