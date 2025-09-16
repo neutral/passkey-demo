@@ -2,8 +2,14 @@ import Database from 'better-sqlite3'
 import fs from 'node:fs'
 import path from 'node:path'
 
-export function openDB(path) {
-  const db = new Database(path)
+export function openDB(dbPath) {
+  // Resolve to absolute path and ensure parent directory exists
+  const absPath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)
+  const dir = path.dirname(absPath)
+  if (dir && dir !== '.' && !fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+  const db = new Database(absPath)
   // Apply recommended PRAGMAs similar to Go server
   db.pragma('journal_mode = WAL')
   db.pragma('synchronous = NORMAL')

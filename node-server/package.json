@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js",
+    "dev": "node src/dev.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
@@ -18,7 +18,7 @@
     "express": "^4.19.2",
     "nanoid": "^5.0.7",
     "pino": "^9.4.0",
-    "pino-http": "^10.3.0"
+    "pino-http": "^10.3.0",
+    "get-port": "^7.0.0"
   }
 }
-

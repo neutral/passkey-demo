@@ -14,10 +14,6 @@
 
 ## Done
 
-- Step 16 — Web: adapt to Node server option/finish shapes — see `blueprint/done/step-16-web-adapt-node-shapes.md`
-- Step Refactor-16 — Web: remove legacy Go backend compatibility — see `blueprint/done/step-refactor-16-web-remove-go-compat.md`
-- Step Refactor-17 — Repo: remove Go server artifacts — see `blueprint/done/step-refactor-17-remove-go-server.md`
-
 - Step 1 — Web: adopt `@simplewebauthn/browser` for Register/Login — see `blueprint/done/step-1-web-adopt-simplewebauthn-browser.md`
 - Step 2 — Node: scaffold `node-server/` (Express + SQLite + Pino) — see `blueprint/done/step-2-node-scaffold-express-sqlite-pino.md`
 - Step 3 — Node: DB schema and config parity — see `blueprint/done/step-3-node-db-schema-and-config-parity.md`
@@ -32,6 +28,10 @@
 - Step 12 — Node: Tx signing finish (`/tx/signing/finish`) — see `blueprint/done/step-12-node-tx-signing-finish.md`
 - Step 13 — Node: Tx list (`/tx/list`) — see `blueprint/done/step-13-node-tx-list.md`
 - Step 14 — Node: Error envelopes and limits — see `blueprint/done/step-14-node-error-envelopes-and-limits.md`
+- Step 15 - Node: Structured logging and correlation -- see `blueprint/done/step-15-node-structured-logging-and-correlation.md`
+- Step 16 — Web: adapt to Node server option/finish shapes — see `blueprint/done/step-16-web-adapt-node-shapes.md`
+- Step Refactor-16 — Web: remove legacy Go backend compatibility — see `blueprint/done/step-refactor-16-web-remove-go-compat.md`
+- Step Refactor-17 — Repo: remove Go server artifacts — see `blueprint/done/step-refactor-17-remove-go-server.md`
 
 ---
 
