@@ -2,8 +2,8 @@
 Serve authenticated `GET /tx/list` responses by reading the requesting account’s transactions from SQLite, ordering them newest-first, and serializing the minimal fields the dashboard expects.
 
 # Key Logic
-- Validates `req.session.acct_cbor`; unauthorized requests return `ERR_UNAUTHORIZED` envelopes.
-- Executes a prepared `SELECT tx_id, nonce, message, created_at FROM transactions WHERE acct_cbor = ? ORDER BY created_at DESC` and maps results to `{ tx_id_hex, nonce, message, created_at }`.
+- Validates `req.session.acct_cbor`; unauthorized requests return `ERR_UNAUTHORIZED` envelopes and emit `tx_list_error`.
+- Executes a prepared `SELECT tx_id, nonce, message, created_at FROM transactions WHERE acct_cbor = ? ORDER BY created_at DESC` and maps results to `{ tx_id_hex, nonce, message, created_at }`, logging `tx_list` success with item counts.
 - Logs failures with `tx_list_error` and surfaces `ERR_INTERNAL` when the query throws.
 
 # Interactions

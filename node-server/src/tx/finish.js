@@ -13,6 +13,7 @@ import {
 import {
   logTxFinishSuccess,
   logTxFinishError,
+  logWebauthnVerifyFailure,
 } from '../logger.js'
 import { TxSessionStore } from './options.js'
 
@@ -98,11 +99,11 @@ export function createTxFinishRoutes(config, deps = {}) {
 
   router.post('/signing/finish', async (req, res) => {
     const correlationId = req.id
-    const finishError = (status, message, reason, txSessionId, err) => {
+    const baseContext = { correlationId, rpId: config.RP_ID, origin: config.ORIGIN }
+    let currentContext = baseContext
+    const finishError = (status, message, reason, txSessionId, err, extra = {}) => {
       if (txSessionId) store.delete(txSessionId)
-      if (reason || err) {
-        logTxFinishError({ correlation_id: correlationId, reason }, err)
-      }
+      logTxFinishError(currentContext, { reason, ...extra }, err)
       switch (status) {
         case 400:
           return respondBadRequest(res, correlationId, message)
@@ -120,15 +121,18 @@ export function createTxFinishRoutes(config, deps = {}) {
 
     try {
       if (!req.session || !req.session.acct_cbor) {
+        logTxFinishError(baseContext, { reason: 'missing_session' })
         return respondUnauthorized(res, correlationId)
       }
       const body = req.body
       if (!body || typeof body !== 'object') {
+        logTxFinishError(baseContext, { reason: 'invalid_payload' })
         return respondBadRequest(res, correlationId)
       }
 
       const { tx_session_id: txSessionId, ...responsePayload } = body
       if (typeof txSessionId !== 'string' || txSessionId.length === 0) {
+        logTxFinishError(baseContext, { reason: 'missing_session_id' })
         return respondBadRequest(res, correlationId)
       }
 
@@ -136,8 +140,10 @@ export function createTxFinishRoutes(config, deps = {}) {
       const nowSeconds = now()
       if (!txSession || typeof txSession.expiresAt !== 'number' || txSession.expiresAt <= nowSeconds) {
         store.delete(txSessionId)
+        logTxFinishError(baseContext, { reason: 'session_expired' })
         return respondUnauthorized(res, correlationId)
       }
+      currentContext = { correlationId, rpId: config.RP_ID, origin: config.ORIGIN }
 
       const accountCborBuffer = Buffer.isBuffer(req.session.acct_cbor)
         ? Buffer.from(req.session.acct_cbor)
@@ -146,6 +152,8 @@ export function createTxFinishRoutes(config, deps = {}) {
       if (!txSession.acctCbor || !Buffer.from(txSession.acctCbor).equals(accountCborBuffer)) {
         return finishError(401, 'Unauthorized', 'acct_mismatch', txSessionId)
       }
+
+      const txIdHex = Buffer.from(txSession.txId).toString('hex')
 
       const rawIdBase64 = typeof responsePayload.rawId === 'string' && responsePayload.rawId.length > 0
         ? responsePayload.rawId
@@ -185,6 +193,9 @@ export function createTxFinishRoutes(config, deps = {}) {
         return finishError(401, 'Unauthorized', 'credential_not_found', txSessionId)
       }
 
+      const accountThumbHex = computeAccountThumbHex(accountCborBuffer)
+      const credentialIdHash = hashIdentifier(credentialId)
+
       const expectedOrigins = uniqueStrings(config.ORIGIN, ...(config.ORIGIN_ALLOWLIST || []))
       const expectedRPIDs = uniqueStrings(config.RP_ID, ...(config.RP_ID_ALLOWLIST || []))
 
@@ -203,21 +214,54 @@ export function createTxFinishRoutes(config, deps = {}) {
           },
         })
       } catch (err) {
-        return finishError(401, 'Unauthorized', 'verification_exception', txSessionId, err)
+        logWebauthnVerifyFailure(currentContext, {
+          error_kind: 'exception',
+          account_thumb_hex: accountThumbHex,
+          credential_id_hash: credentialIdHash,
+          tx_id_hex: txIdHex,
+        }, err)
+        return finishError(401, 'Unauthorized', 'verification_exception', txSessionId, err, {
+          credential_id_hash: credentialIdHash,
+          tx_id_hex: txIdHex,
+        })
       }
 
       const info = verification?.authenticationInfo
       if (!verification?.verified || !info) {
-        return finishError(401, 'Unauthorized', 'verification_failed', txSessionId)
+        logWebauthnVerifyFailure(currentContext, {
+          error_kind: 'not_verified',
+          account_thumb_hex: accountThumbHex,
+          credential_id_hash: credentialIdHash,
+          tx_id_hex: txIdHex,
+        })
+        return finishError(401, 'Unauthorized', 'verification_failed', txSessionId, undefined, {
+          credential_id_hash: credentialIdHash,
+          tx_id_hex: txIdHex,
+        })
       }
       if (!info.userVerified) {
-        return finishError(403, 'Policy violation', 'uv_required', txSessionId)
+        logWebauthnVerifyFailure(currentContext, {
+          error_kind: 'uv_required',
+          account_thumb_hex: accountThumbHex,
+          credential_id_hash: credentialIdHash,
+          tx_id_hex: txIdHex,
+          uv: false,
+        })
+        return finishError(403, 'Policy violation', 'uv_required', txSessionId, undefined, {
+          credential_id_hash: credentialIdHash,
+          tx_id_hex: txIdHex,
+          uv: false,
+        })
       }
 
       const newCounter = typeof info.newCounter === 'number' ? info.newCounter : 0
       const storedCounter = typeof credentialRow.sign_count === 'number' ? credentialRow.sign_count : 0
       if (newCounter > 0 && newCounter <= storedCounter) {
-        return finishError(409, 'Conflict', 'sign_count_regression', txSessionId)
+        return finishError(409, 'Conflict', 'sign_count_regression', txSessionId, undefined, {
+          credential_id_hash: credentialIdHash,
+          tx_id_hex: txIdHex,
+          sign_count: storedCounter,
+        })
       }
 
       let bundleMeta
@@ -256,20 +300,21 @@ export function createTxFinishRoutes(config, deps = {}) {
         const message = String(err?.message || '')
         const isConstraint = message.includes('UNIQUE') || message.includes('constraint')
         if (isConstraint) {
-          return finishError(409, 'Conflict', 'transaction_conflict', txSessionId, err)
+          return finishError(409, 'Conflict', 'transaction_conflict', txSessionId, err, {
+            tx_id_hex: txIdHex,
+          })
         }
-        return finishError(500, 'Internal server error', 'db_error', txSessionId, err)
+        return finishError(500, 'Internal server error', 'db_error', txSessionId, err, {
+          tx_id_hex: txIdHex,
+        })
       }
 
       store.delete(txSessionId)
 
-      const accountThumbHex = computeAccountThumbHex(accountCborBuffer)
-      const credentialIdHash = hashIdentifier(credentialId)
       const finalCounter = newCounter > 0 ? newCounter : storedCounter
 
-      logTxFinishSuccess({
-        correlation_id: correlationId,
-        tx_id_hex: txIdBuffer.toString('hex'),
+      logTxFinishSuccess(currentContext, {
+        tx_id_hex: txIdHex,
         account_thumb_hex: accountThumbHex,
         credential_id_hash: credentialIdHash,
         nonce: bundleMeta.nonce,
@@ -278,7 +323,7 @@ export function createTxFinishRoutes(config, deps = {}) {
 
       res.status(201).json({ tx_id_hex: txIdBuffer.toString('hex') })
     } catch (err) {
-      logTxFinishError({ correlation_id: req.id }, err)
+      logTxFinishError(baseContext, { reason: 'exception' }, err)
       respondInternalError(res, req.id)
     }
   })

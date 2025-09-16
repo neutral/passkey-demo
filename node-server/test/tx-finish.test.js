@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import { createTxFinishRoutes } from '../src/tx/finish.js'
 import { createTxSessionStore } from '../src/tx/options.js'
 import { applyMigrations } from '../src/db.js'
+import { logger } from '../src/logger.js'
 
 const TEST_TIMEOUT_MS = 5000
 const FETCH_TIMEOUT_MS = 3000
@@ -27,6 +28,17 @@ const CREDENTIAL_ID = Buffer.from('credential-tx-00000001', 'utf8')
 const AUTH_DATA = Buffer.from('auth-data-sample')
 const CLIENT_DATA = Buffer.from('client-data-sample')
 const SIGNATURE = Buffer.from('signature-sample')
+
+function captureLogs(method, run) {
+  const original = logger[method]
+  const calls = []
+  logger[method] = (...args) => {
+    calls.push(args)
+  }
+  return run(calls).finally(() => {
+    logger[method] = original
+  })
+}
 
 function seedAccountAndCredential(db, { signCount = 10 } = {}) {
   db.prepare('INSERT INTO accounts (acct_cbor, acct_thumb, created_at) VALUES (?, ?, ?)')
@@ -117,35 +129,43 @@ const VERIFIED_RESPONSE = {
 
 test('tx signing finish stores transaction and updates counter', { timeout: TEST_TIMEOUT_MS }, async () => {
   const verifyStub = () => VERIFIED_RESPONSE
-  const { server, routes, db, txSessionId } = buildApp({ verifyStub })
-  try {
-    const { port } = server.address()
-    const res = await postFinish(port, finishPayload(txSessionId))
-    assert.equal(res.status, 201)
-    const body = await res.json()
-    assert.equal(body.tx_id_hex, GOLDEN.anchors.tx_id_hex)
+  await captureLogs('info', async (infoCalls) => {
+    const { server, routes, db, txSessionId } = buildApp({ verifyStub })
+    try {
+      const { port } = server.address()
+      const res = await postFinish(port, finishPayload(txSessionId))
+      assert.equal(res.status, 201)
+      const body = await res.json()
+      assert.equal(body.tx_id_hex, GOLDEN.anchors.tx_id_hex)
 
-    // session deleted
-    assert.equal(routes.store.get(txSessionId), null)
+      // session deleted
+      assert.equal(routes.store.get(txSessionId), null)
 
-    const credRow = db
-      .prepare('SELECT sign_count FROM credentials WHERE credential_id = ?')
-      .get(CREDENTIAL_ID)
-    assert.equal(credRow.sign_count, 11)
+      const credRow = db
+        .prepare('SELECT sign_count FROM credentials WHERE credential_id = ?')
+        .get(CREDENTIAL_ID)
+      assert.equal(credRow.sign_count, 11)
 
-    const txRow = db
-      .prepare('SELECT nonce, message, bundle_cbor, auth_data, client_data, signature FROM transactions WHERE tx_id = ?')
-      .get(Buffer.from(GOLDEN.anchors.tx_id_hex, 'hex'))
-    assert.equal(txRow.nonce, GOLDEN.inputs.nonce)
-    assert.equal(txRow.message, GOLDEN.inputs.message)
-    assert.equal(Buffer.from(txRow.bundle_cbor).toString('base64url'), GOLDEN.bundle.bundle_cbor_b64)
-    assert.equal(Buffer.from(txRow.auth_data).toString(), AUTH_DATA.toString())
-    assert.equal(Buffer.from(txRow.client_data).toString(), CLIENT_DATA.toString())
-    assert.equal(Buffer.from(txRow.signature).toString(), SIGNATURE.toString())
-  } finally {
-    await closeServer(server)
-    db.close()
-  }
+      const txRow = db
+        .prepare('SELECT nonce, message, bundle_cbor, auth_data, client_data, signature FROM transactions WHERE tx_id = ?')
+        .get(Buffer.from(GOLDEN.anchors.tx_id_hex, 'hex'))
+      assert.equal(txRow.nonce, GOLDEN.inputs.nonce)
+      assert.equal(txRow.message, GOLDEN.inputs.message)
+      assert.equal(Buffer.from(txRow.bundle_cbor).toString('base64url'), GOLDEN.bundle.bundle_cbor_b64)
+      assert.equal(Buffer.from(txRow.auth_data).toString(), AUTH_DATA.toString())
+      assert.equal(Buffer.from(txRow.client_data).toString(), CLIENT_DATA.toString())
+      assert.equal(Buffer.from(txRow.signature).toString(), SIGNATURE.toString())
+
+      const successLog = infoCalls.find(([payload]) => payload?.event === 'tx_finish')
+      assert.ok(successLog)
+      const [payload] = successLog
+      assert.equal(payload.tx_id_hex, GOLDEN.anchors.tx_id_hex)
+      assert.equal(payload.sign_count, 11)
+    } finally {
+      await closeServer(server)
+      db.close()
+    }
+  })
 })
 
 test('missing login session returns 401', { timeout: TEST_TIMEOUT_MS }, async () => {
@@ -191,29 +211,42 @@ test('verification throws -> 401 and session removed', { timeout: TEST_TIMEOUT_M
   const verifyStub = () => {
     throw new Error('mismatch')
   }
-  const { server, db, routes, txSessionId } = buildApp({ verifyStub })
-  try {
-    const { port } = server.address()
-    const res = await postFinish(port, finishPayload(txSessionId))
-    assert.equal(res.status, 401)
-    assert.equal(routes.store.get(txSessionId), null)
-  } finally {
-    await closeServer(server)
-    db.close()
-  }
+  await captureLogs('error', async (errorCalls) => {
+    const { server, db, routes, txSessionId } = buildApp({ verifyStub })
+    try {
+      const { port } = server.address()
+      const res = await postFinish(port, finishPayload(txSessionId))
+      assert.equal(res.status, 401)
+      assert.equal(routes.store.get(txSessionId), null)
+      const verifyLog = errorCalls.find(([payload]) => payload?.event === 'webauthn_assert_verify')
+      assert.ok(verifyLog)
+      const [payload] = verifyLog
+      assert.equal(payload.error_kind, 'exception')
+      assert.equal(payload.tx_id_hex, GOLDEN.anchors.tx_id_hex)
+    } finally {
+      await closeServer(server)
+      db.close()
+    }
+  })
 })
 
 test('user verification missing -> 403', { timeout: TEST_TIMEOUT_MS }, async () => {
   const verifyStub = () => ({ verified: true, authenticationInfo: { userVerified: false, newCounter: 12 } })
-  const { server, db, txSessionId } = buildApp({ verifyStub })
-  try {
-    const { port } = server.address()
-    const res = await postFinish(port, finishPayload(txSessionId))
-    assert.equal(res.status, 403)
-  } finally {
-    await closeServer(server)
-    db.close()
-  }
+  await captureLogs('error', async (errorCalls) => {
+    const { server, db, txSessionId } = buildApp({ verifyStub })
+    try {
+      const { port } = server.address()
+      const res = await postFinish(port, finishPayload(txSessionId))
+      assert.equal(res.status, 403)
+      const verifyLog = errorCalls.find(([payload]) => payload?.event === 'webauthn_assert_verify')
+      assert.ok(verifyLog)
+      const [payload] = verifyLog
+      assert.equal(payload.error_kind, 'uv_required')
+    } finally {
+      await closeServer(server)
+      db.close()
+    }
+  })
 })
 
 test('sign count regression -> 409', { timeout: TEST_TIMEOUT_MS }, async () => {

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 import { createLoginRoutes, LoginSessionStore, SESSION_COOKIE_TTL_SECONDS } from '../src/webauthn/login.js'
 import { applyMigrations } from '../src/db.js'
+import { logger } from '../src/logger.js'
 
 const TEST_TIMEOUT_MS = 3000
 const FETCH_TIMEOUT_MS = 2500
@@ -33,6 +34,21 @@ function canonicalTestKey() {
 
 function computeThumb(buf) {
   return createHash('sha256').update('ACCTK1').update(buf).digest()
+}
+
+function hashIdentifier(buf) {
+  return createHash('sha256').update(buf).digest('hex')
+}
+
+function captureLogs(method, run) {
+  const original = logger[method]
+  const calls = []
+  logger[method] = (...args) => {
+    calls.push(args)
+  }
+  return run(calls).finally(() => {
+    logger[method] = original
+  })
 }
 
 function setupApp({
@@ -103,67 +119,75 @@ test('login finish verifies assertion, updates counters, and sets session cookie
     }
   }
 
-  const { server, store: routeStore, db } = setupApp({
-    store,
-    now: () => nowSeconds,
-    verifyAuthenticationResponse: verifyStub,
-    sessionIdFactory: () => sessionId,
-  })
-  try {
-    db.prepare('INSERT INTO accounts (acct_cbor, acct_thumb, created_at) VALUES (?, ?, ?)').run(
-      accountCbor,
-      accountThumb,
-      nowSeconds,
-    )
-    db.prepare('INSERT INTO credentials (credential_id, acct_cbor_fk, sign_count, aaguid, created_at) VALUES (?, ?, ?, ?, ?)').run(
-      credentialId,
-      accountCbor,
-      5,
-      Buffer.alloc(16, 0),
-      nowSeconds,
-    )
+  await captureLogs('info', async (infoCalls) => {
+    const { server, store: routeStore, db } = setupApp({
+      store,
+      now: () => nowSeconds,
+      verifyAuthenticationResponse: verifyStub,
+      sessionIdFactory: () => sessionId,
+    })
+    try {
+      db.prepare('INSERT INTO accounts (acct_cbor, acct_thumb, created_at) VALUES (?, ?, ?)').run(
+        accountCbor,
+        accountThumb,
+        nowSeconds,
+      )
+      db.prepare('INSERT INTO credentials (credential_id, acct_cbor_fk, sign_count, aaguid, created_at) VALUES (?, ?, ?, ?, ?)').run(
+        credentialId,
+        accountCbor,
+        5,
+        Buffer.alloc(16, 0),
+        nowSeconds,
+      )
 
-    const { port } = server.address()
-    const payload = {
-      login_session_id: loginSessionId,
-      id: credentialId.toString('base64url'),
-      rawId: credentialId.toString('base64url'),
-      type: 'public-key',
-      response: {
-        authenticatorData: Buffer.from('authdata').toString('base64url'),
-        clientDataJSON: Buffer.from('clientdata').toString('base64url'),
-        signature: Buffer.from('signature').toString('base64url'),
-        userHandle: '',
-      },
+      const { port } = server.address()
+      const payload = {
+        login_session_id: loginSessionId,
+        id: credentialId.toString('base64url'),
+        rawId: credentialId.toString('base64url'),
+        type: 'public-key',
+        response: {
+          authenticatorData: Buffer.from('authdata').toString('base64url'),
+          clientDataJSON: Buffer.from('clientdata').toString('base64url'),
+          signature: Buffer.from('signature').toString('base64url'),
+          userHandle: '',
+        },
+      }
+      const res = await postFinish(port, payload)
+      assert.equal(res.status, 200)
+      const body = await res.json()
+      assert.equal(body.account_thumb_hex, accountThumb.toString('hex'))
+      assert.equal(body.credential_id_b64, credentialId.toString('base64url'))
+
+      const setCookie = res.headers.get('set-cookie')
+      assert.ok(setCookie && setCookie.includes('sid=cookie-session-id'))
+      assert.ok(setCookie.includes('HttpOnly'))
+      assert.ok(setCookie.includes('SameSite=Lax'))
+      assert.ok(setCookie.includes('Path=/'))
+      assert.ok(setCookie.includes('Max-Age='))
+      assert.ok(!setCookie.includes('Secure'))
+
+      const credentialRow = db
+        .prepare('SELECT sign_count FROM credentials WHERE credential_id = ?')
+        .get(credentialId)
+      assert.equal(credentialRow.sign_count, 10)
+
+      const sessionRow = db.prepare('SELECT acct_cbor, expires_at FROM sessions WHERE session_id = ?').get(sessionId)
+      assert.ok(sessionRow)
+      assert.equal(Buffer.compare(sessionRow.acct_cbor, accountCbor), 0)
+      assert.equal(sessionRow.expires_at, nowSeconds + SESSION_COOKIE_TTL_SECONDS)
+      assert.equal(routeStore.get(loginSessionId), null)
+
+      const loginFinishLog = infoCalls.find(([p]) => p?.event === 'login_finish')
+      assert.ok(loginFinishLog)
+      const [logPayload] = loginFinishLog
+      assert.equal(logPayload.account_thumb_hex, accountThumb.toString('hex'))
+      assert.equal(logPayload.credential_id_hash, hashIdentifier(credentialId))
+    } finally {
+      await closeServer(server)
+      db.close()
     }
-    const res = await postFinish(port, payload)
-    assert.equal(res.status, 200)
-    const body = await res.json()
-    assert.equal(body.account_thumb_hex, accountThumb.toString('hex'))
-    assert.equal(body.credential_id_b64, credentialId.toString('base64url'))
-
-    const setCookie = res.headers.get('set-cookie')
-    assert.ok(setCookie && setCookie.includes('sid=cookie-session-id'))
-    assert.ok(setCookie.includes('HttpOnly'))
-    assert.ok(setCookie.includes('SameSite=Lax'))
-    assert.ok(setCookie.includes('Path=/'))
-    assert.ok(setCookie.includes('Max-Age='))
-    assert.ok(!setCookie.includes('Secure'))
-
-    const credentialRow = db
-      .prepare('SELECT sign_count FROM credentials WHERE credential_id = ?')
-      .get(credentialId)
-    assert.equal(credentialRow.sign_count, 10)
-
-    const sessionRow = db.prepare('SELECT acct_cbor, expires_at FROM sessions WHERE session_id = ?').get(sessionId)
-    assert.ok(sessionRow)
-    assert.equal(Buffer.compare(sessionRow.acct_cbor, accountCbor), 0)
-    assert.equal(sessionRow.expires_at, nowSeconds + SESSION_COOKIE_TTL_SECONDS)
-    assert.equal(routeStore.get(loginSessionId), null)
-  } finally {
-    await closeServer(server)
-    db.close()
-  }
+  })
 })
 
 test('expired login session returns 401 and removes entry', { timeout: TEST_TIMEOUT_MS }, async () => {

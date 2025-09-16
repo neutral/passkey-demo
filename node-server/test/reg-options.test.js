@@ -5,6 +5,7 @@ import Database from 'better-sqlite3'
 
 import { createRegistrationRoutes, RegistrationSessionStore, REGISTRATION_SESSION_TTL_SECONDS } from '../src/webauthn/reg.js'
 import { applyMigrations } from '../src/db.js'
+import { logger } from '../src/logger.js'
 import { fileURLToPath } from 'node:url'
 
 const TEST_TIMEOUT_MS = 3000
@@ -45,6 +46,17 @@ function closeServer(server) {
   return new Promise((resolve) => server.close(resolve))
 }
 
+function captureLogs(method, run) {
+  const original = logger[method]
+  const calls = []
+  logger[method] = (...args) => {
+    calls.push(args)
+  }
+  return run(calls).finally(() => {
+    logger[method] = original
+  })
+}
+
 test('registration options returns policy-compliant JSON and stores session', { timeout: TEST_TIMEOUT_MS }, async () => {
   const fixedNow = 1_700_000_000
   const idValue = 'ABCDEFGHIJKLMNOPQRSTUVWX'
@@ -62,34 +74,42 @@ test('registration options returns policy-compliant JSON and stores session', { 
       timeout: 60000,
     }),
   }
-  const { server, routes, db } = buildApp({ deps })
-  try {
-    const { port } = server.address()
+  await captureLogs('info', async (infoCalls) => {
+    const { server, routes, db } = buildApp({ deps })
+    try {
+      const { port } = server.address()
 
-    const res = await postOptions(port)
-    assert.equal(res.status, 200)
-    assert.match(res.headers.get('content-type') || '', /^application\/json/)
-    const body = await res.json()
-    assert.equal(body.reg_session_id, idValue)
-    assert.equal(body.expires_at, fixedNow + REGISTRATION_SESSION_TTL_SECONDS)
-    assert.equal(body.attestation, 'none')
-    assert.equal(body.authenticatorSelection.residentKey, 'required')
-    assert.equal(body.authenticatorSelection.userVerification, 'required')
-    assert.equal(body.pubKeyCredParams[0].alg, -7)
-    assert.ok(body.challenge)
+      const res = await postOptions(port)
+      assert.equal(res.status, 200)
+      assert.match(res.headers.get('content-type') || '', /^application\/json/)
+      const body = await res.json()
+      assert.equal(body.reg_session_id, idValue)
+      assert.equal(body.expires_at, fixedNow + REGISTRATION_SESSION_TTL_SECONDS)
+      assert.equal(body.attestation, 'none')
+      assert.equal(body.authenticatorSelection.residentKey, 'required')
+      assert.equal(body.authenticatorSelection.userVerification, 'required')
+      assert.equal(body.pubKeyCredParams[0].alg, -7)
+      assert.ok(body.challenge)
 
-    const stored = routes.store.get(idValue)
-    assert.deepEqual(stored, {
-      challenge: 'mock-challenge',
-      rpID: CONFIG.RP_ID,
-      origin: CONFIG.ORIGIN,
-      expiresAt: fixedNow + REGISTRATION_SESSION_TTL_SECONDS,
-    })
-  } finally {
-    await closeServer(server)
-    routes.store?.pruneExpired(Number.MAX_SAFE_INTEGER)
-    db.close()
-  }
+      const stored = routes.store.get(idValue)
+      assert.deepEqual(stored, {
+        challenge: 'mock-challenge',
+        rpID: CONFIG.RP_ID,
+        origin: CONFIG.ORIGIN,
+        expiresAt: fixedNow + REGISTRATION_SESSION_TTL_SECONDS,
+      })
+
+      const logEntry = infoCalls.find(([payload]) => payload?.event === 'reg_options')
+      assert.ok(logEntry)
+      const [payload] = logEntry
+      assert.equal(payload.session_id_len, idValue.length)
+      assert.equal(payload.expires_at, fixedNow + REGISTRATION_SESSION_TTL_SECONDS)
+    } finally {
+      await closeServer(server)
+      routes.store?.pruneExpired(Number.MAX_SAFE_INTEGER)
+      db.close()
+    }
+  })
 })
 
 test('pruneExpired removes sessions at or before now', () => {

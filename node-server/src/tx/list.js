@@ -1,7 +1,7 @@
 import express from 'express'
 
 import { respondUnauthorized, respondInternalError } from '../error.js'
-import { logger } from '../logger.js'
+import { logTxListSuccess, logTxListError } from '../logger.js'
 
 function toBuffer(value) {
   if (Buffer.isBuffer(value)) return Buffer.from(value)
@@ -32,7 +32,9 @@ export function createTxListRoutes(config, deps = {}) {
     const session = req.session
     const acctBuffer = session ? toBuffer(session.acct_cbor) : Buffer.alloc(0)
 
+    const context = { correlationId, rpId: config.RP_ID, origin: config.ORIGIN }
     if (!session || acctBuffer.length === 0) {
+      logTxListError(context, { reason: 'missing_session' })
       return respondUnauthorized(res, correlationId)
     }
 
@@ -40,7 +42,7 @@ export function createTxListRoutes(config, deps = {}) {
     try {
       rows = selectTransactions.all(acctBuffer)
     } catch (err) {
-      logger.error({ event: 'tx_list_error', correlation_id: correlationId, err }, 'failed to read transactions')
+      logTxListError(context, { reason: 'query_failed' }, err)
       return respondInternalError(res, correlationId)
     }
 
@@ -57,6 +59,10 @@ export function createTxListRoutes(config, deps = {}) {
             ? createdAtRaw
             : Number(createdAtRaw) || 0,
       }
+    })
+
+    logTxListSuccess(context, {
+      items_count: items.length,
     })
 
     return res.status(200).json({ items })

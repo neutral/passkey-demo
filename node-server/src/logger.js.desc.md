@@ -1,16 +1,17 @@
 # Purpose
-Provide Pino logger, HTTP logging middleware, and helper functions for structured events such as `server_start` and transaction flows.
+Provide the Node server with a centralized Pino logger, HTTP logging middleware, and helper functions that emit structured JSON events with correlation ids for every major ceremony and verification failure.
 
 # Key Logic
-- `logger`: Pino instance (JSON logs).
-- `httpLogger`: `pino-http` middleware with compact serializers (method, url, id; statusCode).
-- `buildServerStartEvent` / `logServerStart`: emit boot payload (rp_id, origin, port, db path).
-- `logTxOptionsSuccess` / `logTxOptionsError`: wrap `logger.info`/`logger.error` for `tx_options` events.
-- `logTxFinishSuccess` / `logTxFinishError`: structured logging for `/tx/signing/finish` outcomes (include hashes, counters, reasons).
+- `logger`: Pino instance configured from `LOG_LEVEL` (default `info`).
+- `httpLogger`: `pino-http` middleware emitting `{ method, url, id }` and status code per request.
+- Helper primitives `logInfo`/`logError` (internal) enrich payloads with `correlation_id`, `rp_id`, `origin`; exported wrappers cover:
+  - `logServerStart`, `logRegOptionsSuccess/Error`, `logRegFinishSuccess/Error`, `logLoginOptionsSuccess/Error`, `logLoginFinishSuccess/Error`.
+  - Transaction helpers (`logTxOptions*`, `logTxFinish*`, `logTxList*`) and account key helpers (`logMeAccountKey*`).
+  - `logWebauthnVerifyFailure` emits the `webauthn_assert_verify` event with `error_kind`, hashed identifiers, and policy flags.
 
 # Interactions
-- Imported by `server.js` to attach HTTP logging and bootstrap logs.
-- Transaction routes call the tx log helpers to capture correlation ids, anchors, nonce/sign-count metrics, and error reasons.
+- `server.js` uses `logServerStart` during boot; all route handlers call the helpers with hashed identifiers, nonce/tx metadata, and correlation ids captured by middleware.
+- Tests stub `logger.info/error` to assert payloads without writing to stdout.
 
 # Refs
-Refs: decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines; requirement R-FLOW-SIGN
+Refs: requirement R-ERR; decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines

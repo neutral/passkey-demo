@@ -2,7 +2,13 @@ import express from 'express'
 import { generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server'
 import { customAlphabet } from 'nanoid'
 import { randomBytes, createHash } from 'node:crypto'
-import { logger } from '../logger.js'
+import {
+  logLoginOptionsSuccess,
+  logLoginOptionsError,
+  logLoginFinishSuccess,
+  logLoginFinishError,
+  logWebauthnVerifyFailure,
+} from '../logger.js'
 import {
   respondBadRequest,
   respondUnauthorized,
@@ -145,35 +151,42 @@ export function createLoginRoutes(config, deps = {}) {
         expires_at: expiresAt,
       }
 
-      logger.info({
-        event: 'login_options',
-        correlation_id: req.id,
-        rp_id: config.RP_ID,
-        origin: config.ORIGIN,
-        expires_at: expiresAt,
-        session_id_len: sessionId.length,
-        allow_credentials_count: Array.isArray(options.allowCredentials) ? options.allowCredentials.length : 0,
-      })
+      logLoginOptionsSuccess(
+        { correlationId: req.id, rpId: config.RP_ID, origin: config.ORIGIN },
+        {
+          expires_at: expiresAt,
+          session_id_len: sessionId.length,
+          allow_credentials_count: Array.isArray(options.allowCredentials) ? options.allowCredentials.length : 0,
+        },
+      )
 
       res.status(200).json(responseBody)
     } catch (err) {
-      logger.error({ event: 'login_options_error', correlation_id: req.id, err }, 'login options failed')
+      logLoginOptionsError({ correlationId: req.id, rpId: config.RP_ID, origin: config.ORIGIN }, {}, err)
       respondInternalError(res, req.id)
     }
   })
 
   router.post('/finish', async (req, res) => {
     const correlationId = req.id
+    const baseContext = { correlationId, rpId: config.RP_ID, origin: config.ORIGIN }
+    let currentContext = baseContext
+    const logFailure = (reason, attrs = {}, err) => {
+      logLoginFinishError(currentContext, { reason, ...attrs }, err)
+    }
     try {
       const body = req.body
       if (!body || typeof body !== 'object') {
+        logFailure('invalid_payload')
         return respondBadRequest(res, correlationId)
       }
       const { login_session_id: loginSessionId, ...responsePayload } = body
       if (typeof loginSessionId !== 'string' || loginSessionId.trim().length === 0) {
+        logFailure('missing_session_id')
         return respondBadRequest(res, correlationId)
       }
       if (!responsePayload || typeof responsePayload !== 'object' || typeof responsePayload.response !== 'object') {
+        logFailure('invalid_response')
         return respondBadRequest(res, correlationId)
       }
 
@@ -181,8 +194,10 @@ export function createLoginRoutes(config, deps = {}) {
       const session = store.get(loginSessionId)
       if (!session || typeof session.expiresAt !== 'number' || session.expiresAt <= nowSeconds) {
         if (session) store.delete(loginSessionId)
+        logFailure('session_expired')
         return respondUnauthorized(res, correlationId)
       }
+      currentContext = { correlationId, rpId: config.RP_ID, origin: session.origin || config.ORIGIN }
 
       let credentialIdBase64 = ''
       if (typeof responsePayload.rawId === 'string' && responsePayload.rawId.length > 0) {
@@ -198,19 +213,28 @@ export function createLoginRoutes(config, deps = {}) {
       }
       if (!credentialId || credentialId.length === 0) {
         store.delete(loginSessionId)
+        logFailure('credential_decode_failed')
         return respondBadRequest(res, correlationId)
       }
 
       const credentialRow = selectCredential.get(credentialId)
       if (!credentialRow) {
         store.delete(loginSessionId)
+        logFailure('credential_not_found')
         return respondUnauthorized(res, correlationId)
       }
       const accountRow = selectAccount.get(credentialRow.acct_cbor)
       if (!accountRow) {
         store.delete(loginSessionId)
+        logFailure('account_not_found')
         return respondUnauthorized(res, correlationId)
       }
+
+      const thumbBuffer = accountRow.acct_thumb instanceof Buffer ? accountRow.acct_thumb : Buffer.from(accountRow.acct_thumb ?? [])
+      const accountThumbHex = thumbBuffer.byteLength > 0
+        ? thumbBuffer.toString('hex')
+        : computeAccountThumb(accountRow.acct_cbor).toString('hex')
+      const credentialIdHash = hashIdentifier(credentialId)
 
       const expectedOrigins = uniqueStrings(config.ORIGIN, session.origin, ...(config.ORIGIN_ALLOWLIST || []))
       const expectedRPIDs = uniqueStrings(config.RP_ID, session.rpID, ...(config.RP_ID_ALLOWLIST || []))
@@ -230,18 +254,36 @@ export function createLoginRoutes(config, deps = {}) {
           },
         })
       } catch (err) {
-        logger.error({ event: 'login_finish_error', correlation_id: correlationId, err }, 'login verification failed')
         store.delete(loginSessionId)
+        logWebauthnVerifyFailure(currentContext, {
+          error_kind: 'exception',
+          account_thumb_hex: accountThumbHex,
+          credential_id_hash: credentialIdHash,
+        }, err)
+        logFailure('verification_exception', { credential_id_hash: credentialIdHash })
         return respondUnauthorized(res, correlationId)
       }
 
       const info = verification?.authenticationInfo
       if (!verification?.verified || !info) {
         store.delete(loginSessionId)
+        logWebauthnVerifyFailure(currentContext, {
+          error_kind: 'not_verified',
+          account_thumb_hex: accountThumbHex,
+          credential_id_hash: credentialIdHash,
+        })
+        logFailure('not_verified', { credential_id_hash: credentialIdHash })
         return respondUnauthorized(res, correlationId)
       }
       if (!info.userVerified) {
         store.delete(loginSessionId)
+        logWebauthnVerifyFailure(currentContext, {
+          error_kind: 'uv_required',
+          account_thumb_hex: accountThumbHex,
+          credential_id_hash: credentialIdHash,
+          uv: false,
+        })
+        logFailure('uv_required', { credential_id_hash: credentialIdHash })
         return respondForbidden(res, correlationId, 'Policy violation')
       }
 
@@ -249,6 +291,7 @@ export function createLoginRoutes(config, deps = {}) {
       const storedCount = typeof credentialRow.sign_count === 'number' ? credentialRow.sign_count : 0
       if (newCounter > 0 && newCounter <= storedCount) {
         store.delete(loginSessionId)
+        logFailure('sign_count_conflict', { credential_id_hash: credentialIdHash, sign_count: storedCount })
         return respondConflict(res, correlationId)
       }
 
@@ -257,8 +300,8 @@ export function createLoginRoutes(config, deps = {}) {
           updateSignCount.run(newCounter, credentialId)
         }
       } catch (err) {
-        logger.error({ event: 'login_finish_error', correlation_id: correlationId, err }, 'failed to update sign_count')
         store.delete(loginSessionId)
+        logFailure('update_sign_count_failed', { credential_id_hash: credentialIdHash }, err)
         return respondInternalError(res, correlationId)
       }
 
@@ -268,8 +311,8 @@ export function createLoginRoutes(config, deps = {}) {
       try {
         insertSession.run(sessionId, credentialRow.acct_cbor, expiresAt, createdAt)
       } catch (err) {
-        logger.error({ event: 'login_finish_error', correlation_id: correlationId, err }, 'failed to persist session')
         store.delete(loginSessionId)
+        logFailure('persist_session_failed', { credential_id_hash: credentialIdHash }, err)
         return respondInternalError(res, correlationId)
       }
 
@@ -286,15 +329,7 @@ export function createLoginRoutes(config, deps = {}) {
 
       store.delete(loginSessionId)
 
-      const thumbBuffer = accountRow.acct_thumb instanceof Buffer ? accountRow.acct_thumb : Buffer.from(accountRow.acct_thumb)
-      const accountThumbHex = thumbBuffer.byteLength > 0 ? thumbBuffer.toString('hex') : computeAccountThumb(accountRow.acct_cbor).toString('hex')
-      const credentialIdHash = hashIdentifier(credentialId)
-
-      logger.info({
-        event: 'login_finish',
-        correlation_id: correlationId,
-        rp_id: config.RP_ID,
-        origin: session.origin,
+      logLoginFinishSuccess(currentContext, {
         account_thumb_hex: accountThumbHex,
         credential_id_hash: credentialIdHash,
         sign_count: newCounter > 0 ? newCounter : storedCount,
@@ -305,7 +340,7 @@ export function createLoginRoutes(config, deps = {}) {
         credential_id_b64: credentialId.toString('base64url'),
       })
     } catch (err) {
-      logger.error({ event: 'login_finish_error', correlation_id: req.id, err }, 'login finish failed')
+      logLoginFinishError(baseContext, { reason: 'exception' }, err)
       respondInternalError(res, req.id)
     }
   })

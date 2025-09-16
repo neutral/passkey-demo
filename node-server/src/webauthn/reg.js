@@ -2,7 +2,12 @@ import express from 'express'
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server'
 import { randomBytes, createHash } from 'node:crypto'
 import { customAlphabet } from 'nanoid'
-import { logger } from '../logger.js'
+import {
+  logRegOptionsSuccess,
+  logRegOptionsError,
+  logRegFinishSuccess,
+  logRegFinishError,
+} from '../logger.js'
 import {
   respondBadRequest,
   respondUnauthorized,
@@ -174,34 +179,37 @@ export function createRegistrationRoutes(config, deps = {}) {
         expires_at: expiresAt,
       }
 
-      logger.info({
-        event: 'reg_options',
-        correlation_id: req.id,
-        rp_id: config.RP_ID,
-        origin: config.ORIGIN,
-        expires_at: expiresAt,
-        session_id_len: sessionId.length,
-      })
+      logRegOptionsSuccess(
+        { correlationId: req.id, rpId: config.RP_ID, origin: config.ORIGIN },
+        { expires_at: expiresAt, session_id_len: sessionId.length },
+      )
 
       res.status(200).json(responseBody)
     } catch (err) {
-      logger.error({ event: 'reg_options_error', correlation_id: req.id, err }, 'registration options failed')
+      logRegOptionsError({ correlationId: req.id, rpId: config.RP_ID, origin: config.ORIGIN }, {}, err)
       respondInternalError(res, req.id)
     }
   })
 
   router.post('/finish', async (req, res) => {
     const correlationId = req.id
+    const baseContext = { correlationId, rpId: config.RP_ID, origin: config.ORIGIN }
+    const logFailure = (reason, attrs = {}, err) => {
+      logRegFinishError(baseContext, { reason, ...attrs }, err)
+    }
     try {
       const body = req.body
       if (!body || typeof body !== 'object') {
+        logFailure('invalid_payload')
         return respondBadRequest(res, correlationId)
       }
       const { reg_session_id: regSessionId, ...responsePayload } = body
       if (typeof regSessionId !== 'string' || regSessionId.trim().length === 0) {
+        logFailure('missing_session_id')
         return respondBadRequest(res, correlationId)
       }
       if (!responsePayload || typeof responsePayload !== 'object' || typeof responsePayload.response !== 'object') {
+        logFailure('invalid_response')
         return respondBadRequest(res, correlationId)
       }
       if (typeof responsePayload.id !== 'string' || typeof responsePayload.rawId !== 'string') {
@@ -211,8 +219,10 @@ export function createRegistrationRoutes(config, deps = {}) {
       const nowSeconds = now()
       if (!session || typeof session.expiresAt !== 'number' || session.expiresAt <= nowSeconds) {
         if (session) store.delete(regSessionId)
+        logRegFinishError({ ...baseContext, origin: session?.origin || config.ORIGIN }, { reason: 'session_expired' })
         return respondUnauthorized(res, correlationId)
       }
+      const sessionContext = { correlationId, rpId: config.RP_ID, origin: session.origin }
 
       const expectedOrigins = uniqueStrings(config.ORIGIN, ...(config.ORIGIN_ALLOWLIST || []))
       const expectedRPIDs = uniqueStrings(config.RP_ID, ...(config.RP_ID_ALLOWLIST || []))
@@ -229,14 +239,17 @@ export function createRegistrationRoutes(config, deps = {}) {
       const info = verification.registrationInfo
       if (!verification.verified || !info) {
         store.delete(regSessionId)
+        logRegFinishError(sessionContext, { reason: 'verification_failed' })
         return respondUnauthorized(res, correlationId)
       }
       if (info.fmt && info.fmt !== 'none') {
         store.delete(regSessionId)
+        logRegFinishError(sessionContext, { reason: 'attestation_forbidden' })
         return respondForbidden(res, correlationId, 'Policy violation')
       }
       if (!info.userVerified) {
         store.delete(regSessionId)
+        logRegFinishError(sessionContext, { reason: 'uv_required' })
         return respondForbidden(res, correlationId, 'Policy violation')
       }
 
@@ -246,7 +259,7 @@ export function createRegistrationRoutes(config, deps = {}) {
       try {
         canonicalCose = canonicalizeCoseKey(coseKey)
       } catch (err) {
-        logger.error({ event: 'reg_finish_error', correlation_id: correlationId, err }, 'failed to canonicalize COSE key')
+        logRegFinishError(sessionContext, { reason: 'canonicalize_cose_failed' }, err)
         store.delete(regSessionId)
         return respondBadRequest(res, correlationId)
       }
@@ -261,9 +274,10 @@ export function createRegistrationRoutes(config, deps = {}) {
         const message = String(err?.message || '')
         if (message.toLowerCase().includes('unique')) {
           store.delete(regSessionId)
+          logRegFinishError(sessionContext, { reason: 'credential_conflict' }, err)
           return respondConflict(res, correlationId)
         }
-        logger.error({ event: 'reg_finish_error', correlation_id: correlationId, err }, 'registration persistence failed')
+        logRegFinishError(sessionContext, { reason: 'persistence_failed' }, err)
         return respondInternalError(res, correlationId)
       }
 
@@ -271,11 +285,7 @@ export function createRegistrationRoutes(config, deps = {}) {
 
       const accountThumbHex = accountThumb.toString('hex')
       const credentialIdHash = hashIdentifier(credentialId)
-      logger.info({
-        event: 'reg_finish',
-        correlation_id: correlationId,
-        rp_id: config.RP_ID,
-        origin: session.origin,
+      logRegFinishSuccess(sessionContext, {
         account_thumb_hex: accountThumbHex,
         credential_id_hash: credentialIdHash,
         sign_count: signCount,
@@ -286,7 +296,7 @@ export function createRegistrationRoutes(config, deps = {}) {
         credential_id_b64: credentialId.toString('base64url'),
       })
     } catch (err) {
-      logger.error({ event: 'reg_finish_error', correlation_id: req.id, err }, 'registration finish failed')
+      logRegFinishError(baseContext, { reason: 'exception' }, err)
       respondInternalError(res, req.id)
     }
   })

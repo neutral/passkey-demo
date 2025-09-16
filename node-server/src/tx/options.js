@@ -77,12 +77,15 @@ export function createTxOptionsRoutes(config, deps = {}) {
 
   router.post('/signing/options', (req, res) => {
     const correlationId = req.id
+    const context = { correlationId, rpId: config.RP_ID, origin: config.ORIGIN }
     try {
       if (!req.session || !req.session.acct_cbor) {
+        logTxOptionsError(context, { reason: 'missing_session' })
         return respondUnauthorized(res, correlationId)
       }
       const body = req.body
       if (!body || typeof body !== 'object' || typeof body.bundle_cbor_b64 !== 'string') {
+        logTxOptionsError(context, { reason: 'invalid_payload' })
         return respondBadRequest(res, correlationId)
       }
 
@@ -100,16 +103,20 @@ export function createTxOptionsRoutes(config, deps = {}) {
             case ERROR_KINDS.BUNDLE_CBOR:
             case ERROR_KINDS.MESSAGE_TOO_LONG:
             case ERROR_KINDS.NONCE_OUT_OF_RANGE:
+              logTxOptionsError(context, { reason: 'bundle_invalid', error_kind: err.kind })
               return respondBadRequest(res, correlationId, 'Invalid bundle')
             case ERROR_KINDS.SENDER_KEY_MISMATCH:
+              logTxOptionsError(context, { reason: 'sender_key_mismatch', error_kind: err.kind })
               return respondUnauthorized(res, correlationId)
             case ERROR_KINDS.NONCE_NOT_MONOTONIC:
+              logTxOptionsError(context, { reason: 'nonce_conflict', error_kind: err.kind })
               return respondConflict(res, correlationId, 'Nonce conflict')
             default:
+              logTxOptionsError(context, { reason: 'bundle_invalid', error_kind: err.kind })
               return respondBadRequest(res, correlationId, 'Invalid bundle')
           }
         }
-        logTxOptionsError({ correlation_id: correlationId }, err, 'bundle validation failed')
+        logTxOptionsError(context, { reason: 'bundle_validation_exception' }, err)
         return respondInternalError(res, correlationId)
       }
 
@@ -118,10 +125,11 @@ export function createTxOptionsRoutes(config, deps = {}) {
         const rows = credentialStmt.all(sessionAcct)
         credentialIds = rows.map((row) => Buffer.from(row.credential_id))
       } catch (err) {
-        logTxOptionsError({ correlation_id: correlationId }, err, 'credential lookup failed')
+        logTxOptionsError(context, { reason: 'credential_lookup_failed' }, err)
         return respondInternalError(res, correlationId)
       }
       if (credentialIds.length === 0) {
+        logTxOptionsError(context, { reason: 'credential_missing' })
         return respondConflict(res, correlationId, 'No credentials for account')
       }
 
@@ -135,7 +143,7 @@ export function createTxOptionsRoutes(config, deps = {}) {
         txSessionId = ''
       }
       if (!txSessionId) {
-        logTxOptionsError({ correlation_id: correlationId }, null, 'session id collision exhaustion')
+        logTxOptionsError(context, { reason: 'session_id_collision' })
         return respondInternalError(res, correlationId)
       }
 
@@ -160,8 +168,7 @@ export function createTxOptionsRoutes(config, deps = {}) {
         id: base64url(id),
       }))
 
-      logTxOptionsSuccess({
-        correlation_id: correlationId,
+      logTxOptionsSuccess(context, {
         account_thumb_hex: accountThumbHex,
         tx_id_hex: txIdHex,
         allow_credentials_count: allowCredentials.length,
@@ -183,7 +190,7 @@ export function createTxOptionsRoutes(config, deps = {}) {
         expires_at: expiresAt,
       })
     } catch (err) {
-      logTxOptionsError({ correlation_id: correlationId }, err, 'tx options failed')
+      logTxOptionsError(context, { reason: 'exception' }, err)
       respondInternalError(res, correlationId)
     }
   })

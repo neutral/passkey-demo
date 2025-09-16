@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto'
 
 import { createTxOptionsRoutes, TxSessionStore } from '../src/tx/options.js'
 import { applyMigrations } from '../src/db.js'
+import { logger } from '../src/logger.js'
 
 const TEST_TIMEOUT_MS = 5000
 const FETCH_TIMEOUT_MS = 3000
@@ -76,45 +77,64 @@ function base64url(buffer) {
   return buffer.toString('base64url')
 }
 
+function captureLogs(method, run) {
+  const original = logger[method]
+  const calls = []
+  logger[method] = (...args) => {
+    calls.push(args)
+  }
+  return run(calls).finally(() => {
+    logger[method] = original
+  })
+}
+
 test('tx signing options returns session and options', { timeout: TEST_TIMEOUT_MS }, async () => {
   const nowSeconds = 1_700_000_000
   const txSessionId = 'TXSESSIONIDABCDEFGHIJKLMNOPQRSTUV'
   const store = new TxSessionStore()
-  const { server, db, routes } = buildApp({
-    deps: {
-      store,
-      now: () => nowSeconds,
-      idFactory: () => txSessionId,
-    },
-  })
-  try {
-    const { port } = server.address()
-    const res = await postOptions(port, { bundle_cbor_b64: GOLDEN.bundle.bundle_cbor_b64 })
-    assert.equal(res.status, 200)
-    const body = await res.json()
-    assert.equal(body.tx_session_id, txSessionId)
-    assert.equal(body.challenge, GOLDEN.anchors.challenge_b64)
-    assert.equal(body.tx_id_hex, GOLDEN.anchors.tx_id_hex)
-    assert.equal(body.expires_at, nowSeconds + 300)
-    assert.ok(body.options)
-    assert.equal(body.options.challenge, GOLDEN.anchors.challenge_b64)
-    assert.equal(body.options.rpId, CONFIG.RP_ID)
-    assert.equal(body.options.origin, CONFIG.ORIGIN)
-    assert.equal(body.options.userVerification, 'required')
-    assert.equal(body.options.timeout, 60000)
-    assert.deepEqual(body.options.allowCredentials, [{ type: 'public-key', id: base64url(CREDENTIAL_ID) }])
+  await captureLogs('info', async (infoCalls) => {
+    const { server, db, routes } = buildApp({
+      deps: {
+        store,
+        now: () => nowSeconds,
+        idFactory: () => txSessionId,
+      },
+    })
+    try {
+      const { port } = server.address()
+      const res = await postOptions(port, { bundle_cbor_b64: GOLDEN.bundle.bundle_cbor_b64 })
+      assert.equal(res.status, 200)
+      const body = await res.json()
+      assert.equal(body.tx_session_id, txSessionId)
+      assert.equal(body.challenge, GOLDEN.anchors.challenge_b64)
+      assert.equal(body.tx_id_hex, GOLDEN.anchors.tx_id_hex)
+      assert.equal(body.expires_at, nowSeconds + 300)
+      assert.ok(body.options)
+      assert.equal(body.options.challenge, GOLDEN.anchors.challenge_b64)
+      assert.equal(body.options.rpId, CONFIG.RP_ID)
+      assert.equal(body.options.origin, CONFIG.ORIGIN)
+      assert.equal(body.options.userVerification, 'required')
+      assert.equal(body.options.timeout, 60000)
+      assert.deepEqual(body.options.allowCredentials, [{ type: 'public-key', id: base64url(CREDENTIAL_ID) }])
 
-    const stored = routes.store.get(txSessionId)
-    assert.ok(stored)
-    assert.equal(stored.expiresAt, nowSeconds + 300)
-    assert.equal(base64url(stored.challenge), GOLDEN.anchors.challenge_b64)
-    assert.equal(base64url(stored.canonical), GOLDEN.bundle.bundle_cbor_b64)
-    assert.equal(stored.txId.toString('hex'), GOLDEN.anchors.tx_id_hex)
-    assert.deepEqual(stored.credentialIds.map(base64url), [base64url(CREDENTIAL_ID)])
-  } finally {
-    await closeServer(server)
-    db.close()
-  }
+      const stored = routes.store.get(txSessionId)
+      assert.ok(stored)
+      assert.equal(stored.expiresAt, nowSeconds + 300)
+      assert.equal(base64url(stored.challenge), GOLDEN.anchors.challenge_b64)
+      assert.equal(base64url(stored.canonical), GOLDEN.bundle.bundle_cbor_b64)
+      assert.equal(stored.txId.toString('hex'), GOLDEN.anchors.tx_id_hex)
+      assert.deepEqual(stored.credentialIds.map(base64url), [base64url(CREDENTIAL_ID)])
+
+      const logEntry = infoCalls.find(([payload]) => payload?.event === 'tx_options')
+      assert.ok(logEntry)
+      const [payload] = logEntry
+      assert.equal(payload.tx_id_hex, GOLDEN.anchors.tx_id_hex)
+      assert.equal(payload.allow_credentials_count, 1)
+    } finally {
+      await closeServer(server)
+      db.close()
+    }
+  })
 })
 
 test('returns 401 when session missing', { timeout: TEST_TIMEOUT_MS }, async () => {
@@ -236,4 +256,3 @@ test('pruneExpired clears stale sessions before issuing new one', { timeout: TES
     db.close()
   }
 })
-

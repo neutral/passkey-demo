@@ -3,7 +3,7 @@ Serve authenticated account metadata under `/me/account_key`, exposing the canon
 
 # Key Logic
 - Requires `req.session` (populated by cookie middleware); loads the account row by `acct_cbor`, falls back to recomputing the thumb when missing, and canonicalizes CBOR via `cbor-x` to surface base64url x/y coordinates.
-- Emits structured logs `me_account_key`/`me_account_key_error` with `account_thumb_hex` and `correlation_id` and maps unauthenticated/missing rows to `ERR_UNAUTHORIZED`.
+- Emits structured logs `me_account_key`/`me_account_key_error` with `account_thumb_hex`, correlation id, and reason strings while mapping unauthenticated/missing rows to `ERR_UNAUTHORIZED`.
 - Guards against malformed CBOR or missing coordinates by returning `ERR_INTERNAL` envelopes rather than leaking partial state.
 
 # Interactions

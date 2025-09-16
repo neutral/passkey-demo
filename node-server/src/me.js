@@ -1,7 +1,7 @@
 import express from 'express'
 import { Decoder } from 'cbor-x'
 import { createHash } from 'node:crypto'
-import { logger } from './logger.js'
+import { logMeAccountKeySuccess, logMeAccountKeyError } from './logger.js'
 import {
   respondUnauthorized,
   respondInternalError,
@@ -73,7 +73,9 @@ export function createMeRoutes(config, deps = {}) {
     const correlationId = req.id
     const session = req.session
     const sessionAcct = session ? toBuffer(session.acct_cbor) : Buffer.alloc(0)
+    const context = { correlationId, rpId: config.RP_ID, origin: config.ORIGIN }
     if (!session || sessionAcct.length === 0) {
+      logMeAccountKeyError(context, { reason: 'missing_session' })
       return respondUnauthorized(res, correlationId)
     }
 
@@ -81,17 +83,18 @@ export function createMeRoutes(config, deps = {}) {
     try {
       accountRow = selectAccount.get(sessionAcct)
     } catch (err) {
-      logger.error({ event: 'me_account_key_error', correlation_id: correlationId, err }, 'failed to read account')
+      logMeAccountKeyError(context, { reason: 'db_read_failed' }, err)
       return respondInternalError(res, correlationId)
     }
 
     if (!accountRow) {
+      logMeAccountKeyError(context, { reason: 'account_not_found' })
       return respondUnauthorized(res, correlationId)
     }
 
     const acctCbor = toBuffer(accountRow.acct_cbor)
     if (acctCbor.length === 0) {
-      logger.error({ event: 'me_account_key_error', correlation_id: correlationId }, 'account missing acct_cbor')
+      logMeAccountKeyError(context, { reason: 'missing_acct_cbor' })
       return respondInternalError(res, correlationId)
     }
 
@@ -103,12 +106,12 @@ export function createMeRoutes(config, deps = {}) {
     try {
       decoded = decodeAccountKey(acctCbor, decode)
     } catch (err) {
-      logger.error({ event: 'me_account_key_error', correlation_id: correlationId, err }, 'failed to decode account key')
+      logMeAccountKeyError(context, { reason: 'decode_failed' }, err)
       return respondInternalError(res, correlationId)
     }
 
     if (decoded.x.length === 0 || decoded.y.length === 0) {
-      logger.error({ event: 'me_account_key_error', correlation_id: correlationId }, 'account key missing x or y coordinate')
+      logMeAccountKeyError(context, { reason: 'missing_coordinates' })
       return respondInternalError(res, correlationId)
     }
 
@@ -129,12 +132,8 @@ export function createMeRoutes(config, deps = {}) {
       sender_key: senderKey,
     }
 
-    logger.info({
-      event: 'me_account_key',
-      correlation_id: correlationId,
+    logMeAccountKeySuccess(context, {
       account_thumb_hex: accountThumbHex,
-      rp_id: config.RP_ID,
-      origin: config.ORIGIN,
     })
 
     return res.status(200).json(responseBody)

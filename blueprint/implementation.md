@@ -30,28 +30,6 @@
 - Step 14 — Node: Error envelopes and limits — see `blueprint/done/step-14-node-error-envelopes-and-limits.md`
 
 ---
-### Step 15 — Node: Structured logging and correlation
-
-Scope
-
-- Pino JSON logs with event names: `server_start`, `reg_options`, `reg_finish`, `login_options`, `login_finish`, `tx_options`, `tx_finish`, `webauthn_assert_verify`.
-- Include `correlation_id` (from request-id middleware), `rp_id`, `origin`, hashes (`credential_id_hash`, `account_thumb_hex`).
-
-Source to add/modify
-
-- `node-server/src/logger.js` event helpers; integrate in handlers.
-
-Verification
-
-- Logs appear with expected fields; error flows include stable `error_kind` where applicable.
-
-Acceptance criteria
-
-- Logging parity with Go for key flows.
-
-Refs: decision request-id-and-slog-json; decision structured-logging-with-slog-guidelines
-
----
 
 ### Step 16 — Web: adapt to Node server option/finish shapes
 
